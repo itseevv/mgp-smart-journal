@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <rect width="1000" height="1000" fill="#9b8e73"/>
+  <rect x="34" y="34" width="932" height="932" fill="none" stroke="#2d2a24" stroke-opacity=".45"/>
+  <text x="500" y="475" fill="#2d2a24" font-family="Georgia, serif" font-size="40" text-anchor="middle">GALLERY PHOTOGRAPH 03</text>
+  <text x="500" y="535" fill="#2d2a24" fill-opacity=".7" font-family="Arial, sans-serif" font-size="18" letter-spacing="4" text-anchor="middle">LOCAL PLACEHOLDER · 1:1</text>
+</svg>

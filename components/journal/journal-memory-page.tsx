@@ -1,0 +1,109 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { PersistentMemoryFlow } from "@/components/capsule/persistent-memory-flow";
+import type { PersistentMemoryEntry } from "@/data/memory-demo";
+import type { JournalMemoryContext } from "@/data/journal";
+import { loadJournalMemoryContext } from "@/lib/capsule/api";
+
+type JournalMemoryPageProps = {
+  client: SupabaseClient;
+  capsuleId: string;
+  publicToken: string;
+  memoryId: string;
+  initialMemory?: PersistentMemoryEntry;
+  onLock: () => Promise<void>;
+};
+
+export function JournalMemoryPage({
+  client,
+  capsuleId,
+  publicToken,
+  memoryId,
+  initialMemory,
+  onLock,
+}: JournalMemoryPageProps) {
+  const router = useRouter();
+  const [context, setContext] = useState<JournalMemoryContext>();
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void loadJournalMemoryContext(client, capsuleId, memoryId)
+      .then((next) => {
+        if (active) setContext(next);
+      })
+      .catch(() => {
+        if (active) setError("This memory could not be opened.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [capsuleId, client, memoryId]);
+
+  const returnHome = () => router.push(`/c/${publicToken}`);
+
+  if (error) {
+    return (
+      <div className="memory-entry text-center font-sans text-sm text-ink-soft">
+        <p>{error}</p>
+        <button
+          type="button"
+          onClick={returnHome}
+          className="mt-4 font-semibold text-oxblood underline underline-offset-4"
+        >
+          Back to journal
+        </button>
+      </div>
+    );
+  }
+
+  if (!context) {
+    return (
+      <div className="memory-entry font-sans text-sm text-ink-soft">
+        Opening memory…
+      </div>
+    );
+  }
+
+  if (!initialMemory && context.effectivePhotoLimit === 0) {
+    return (
+      <div className="memory-entry text-center">
+        <p className="font-serif text-xl">This journal is full.</p>
+        <p className="mt-2 font-sans text-xs leading-relaxed text-ink-soft">
+          100 of 100 photos are in use. Delete a photograph or memory before
+          adding another memory.
+        </p>
+        <button
+          type="button"
+          onClick={returnHome}
+          className="mt-5 font-sans text-xs font-semibold text-oxblood underline underline-offset-4"
+        >
+          Back to journal
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <PersistentMemoryFlow
+      client={client}
+      capsuleId={capsuleId}
+      publicToken={publicToken}
+      memoryId={memoryId}
+      initialMemory={initialMemory}
+      maxPhotos={context.effectivePhotoLimit}
+      journalMode
+      journalPhotoCount={context.totalJournalPhotos}
+      existingMemoryPhotoCount={context.existingMemoryPhotos}
+      journalPhotoLimit={100}
+      onBack={returnHome}
+      onCancelCreate={returnHome}
+      onDeleted={returnHome}
+      onLock={onLock}
+    />
+  );
+}

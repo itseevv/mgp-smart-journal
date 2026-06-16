@@ -1,0 +1,461 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { CompletedState } from "@/components/memory/completed-state";
+import { MemoryForm } from "@/components/memory/memory-form";
+import {
+  createEmptyMemory,
+  memoryMediaConfig,
+  type MemoryDraft,
+  type MemoryPhoto,
+  type MemoryVoiceMemo,
+  type PersistentMemoryEntry,
+} from "@/data/memory-demo";
+import {
+  deleteJournalMemory,
+  getCachedPersistentMemory,
+  loadPersistentMemory,
+  MediaSaveError,
+  PendingMediaCleanupError,
+  processMediaCleanup,
+  savePersistentMemory,
+  type SaveProgress,
+  type SaveStatus,
+} from "@/lib/capsule/api";
+import { PrivateMediaUrlCache } from "@/lib/media/private-url-cache";
+
+type PersistentMemoryFlowProps = {
+  client: SupabaseClient;
+  capsuleId: string;
+  publicToken: string;
+  memoryId?: string;
+  initialMemory?: PersistentMemoryEntry;
+  maxPhotos?: number;
+  journalMode?: boolean;
+  journalPhotoCount?: number;
+  existingMemoryPhotoCount?: number;
+  journalPhotoLimit?: number;
+  onBack?: () => void;
+  onCancelCreate?: () => void;
+  onDeleted?: () => void;
+  onLock: () => Promise<void>;
+};
+
+function copyDraft(memory: PersistentMemoryEntry): MemoryDraft {
+  return {
+    capturedAt: memory.capturedAt,
+    title: memory.title,
+    photos: memory.photos.map((photo) => ({ ...photo })),
+    voiceMemos: memory.voiceMemos.map((memo) => ({ ...memo })),
+  };
+}
+
+function withoutPersistenceFields(memory: PersistentMemoryEntry): MemoryDraft {
+  return {
+    capturedAt: memory.capturedAt,
+    title: memory.title,
+    photos: memory.photos,
+    voiceMemos: memory.voiceMemos,
+  };
+}
+
+export function PersistentMemoryFlow({
+  client,
+  capsuleId,
+  publicToken,
+  memoryId,
+  initialMemory,
+  maxPhotos = memoryMediaConfig.maxPhotosPerMemory,
+  journalMode = false,
+  journalPhotoCount,
+  existingMemoryPhotoCount = 0,
+  journalPhotoLimit = 100,
+  onBack,
+  onCancelCreate,
+  onDeleted,
+  onLock,
+}: PersistentMemoryFlowProps) {
+  const cachedMemory = useMemo(
+    () =>
+      initialMemory ??
+      getCachedPersistentMemory(capsuleId, memoryId),
+    [capsuleId, initialMemory, memoryId],
+  );
+  const effectiveConfig = useMemo(
+    () => ({
+      ...memoryMediaConfig,
+      maxPhotosPerMemory: Math.max(
+        cachedMemory?.photos.length ?? 0,
+        Math.min(memoryMediaConfig.maxPhotosPerMemory, maxPhotos),
+      ),
+    }),
+    [cachedMemory?.photos.length, maxPhotos],
+  );
+  const localUrls = useRef(new Set<string>());
+  const pendingCleanupPaths = useRef<string[]>([]);
+  const uncommittedUploadPaths = useRef(new Set<string>());
+  const urlCache = useMemo(
+    () =>
+      new PrivateMediaUrlCache(
+        client,
+        memoryMediaConfig.privateUrlLifetimeSeconds,
+        memoryMediaConfig.privateUrlRefreshBufferSeconds,
+      ),
+    [client],
+  );
+  const [saved, setSaved] = useState<PersistentMemoryEntry | undefined>(
+    cachedMemory,
+  );
+  const [draft, setDraft] = useState<MemoryDraft>(() =>
+    cachedMemory
+      ? copyDraft(cachedMemory)
+      : createEmptyMemory(new Date().toISOString()),
+  );
+  const [mode, setMode] = useState<"loading" | "create" | "view" | "edit">(
+    cachedMemory ? "view" : "loading",
+  );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveProgress, setSaveProgress] = useState<SaveProgress>();
+  const [formBusy, setFormBusy] = useState(false);
+  const [deleteState, setDeleteState] = useState<
+    "idle" | "confirming" | "deleting" | "error"
+  >("idle");
+
+  const refresh = async () => {
+    const memory = await loadPersistentMemory(client, capsuleId, memoryId);
+    setSaved(memory);
+    if (memory) {
+      setDraft(copyDraft(memory));
+      setMode("view");
+    } else {
+      setDraft(createEmptyMemory(new Date().toISOString()));
+      setMode("create");
+    }
+  };
+
+  useEffect(() => {
+    const initialLoad = cachedMemory
+      ? undefined
+      : window.setTimeout(() => void refresh(), 0);
+    const refreshTimer = window.setInterval(
+      () => void refresh(),
+      (memoryMediaConfig.privateUrlLifetimeSeconds -
+        memoryMediaConfig.privateUrlRefreshBufferSeconds) *
+        1000,
+    );
+    const urls = localUrls.current;
+    return () => {
+      window.clearInterval(refreshTimer);
+      if (initialLoad !== undefined) window.clearTimeout(initialLoad);
+      urls.forEach(URL.revokeObjectURL);
+      urlCache.clear();
+    };
+    // Capsule/client identity does not change while this flow is mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const registerObjectUrl = (url: string) => localUrls.current.add(url);
+  const revokeLocal = (url: string) => {
+    if (!localUrls.current.delete(url)) return;
+    URL.revokeObjectURL(url);
+  };
+  const removePhoto = (photo: MemoryPhoto) => {
+    setDraft((current) => ({
+      ...current,
+      photos: current.photos.filter((candidate) => candidate.id !== photo.id),
+    }));
+    const belongsToSavedMemory = saved?.photos.some(
+      (candidate) => candidate.storagePath === photo.storagePath,
+    );
+    if (photo.storagePath && !belongsToSavedMemory) {
+      pendingCleanupPaths.current.push(photo.storagePath);
+      uncommittedUploadPaths.current.delete(photo.storagePath);
+    }
+    if (photo.file && photo.objectUrl) revokeLocal(photo.objectUrl);
+  };
+  const changeVoiceMemos = (voiceMemos: MemoryVoiceMemo[]) => {
+    const nextUrls = new Set(
+      voiceMemos.flatMap((memo) => (memo.objectUrl ? [memo.objectUrl] : [])),
+    );
+    const nextStoragePaths = new Set(
+      voiceMemos.flatMap((memo) => (memo.storagePath ? [memo.storagePath] : [])),
+    );
+    draft.voiceMemos.forEach((memo) => {
+      if (memo.blob && memo.objectUrl && !nextUrls.has(memo.objectUrl)) {
+        revokeLocal(memo.objectUrl);
+      }
+      const belongsToSavedMemory = saved?.voiceMemos.some(
+        (candidate) => candidate.storagePath === memo.storagePath,
+      );
+      if (
+        memo.storagePath &&
+        !nextStoragePaths.has(memo.storagePath) &&
+        !belongsToSavedMemory
+      ) {
+        pendingCleanupPaths.current.push(memo.storagePath);
+        uncommittedUploadPaths.current.delete(memo.storagePath);
+      }
+    });
+    setDraft((current) => ({ ...current, voiceMemos }));
+  };
+  const save = async () => {
+    if (
+      saveStatus === "preparing" ||
+      saveStatus === "uploading" ||
+      saveStatus === "savingMetadata" ||
+      saveStatus === "cleaningUp"
+    ) {
+      return;
+    }
+    const stableMemoryId = memoryId ?? saved?.id ?? crypto.randomUUID();
+    try {
+      await savePersistentMemory(client, capsuleId, stableMemoryId, {
+        id: stableMemoryId,
+        capsuleId,
+        ...draft,
+      }, effectiveConfig, {
+        onProgress: (progress) => {
+          setSaveStatus(progress.status);
+          setSaveMessage(progress.message);
+          setSaveProgress(progress);
+        },
+        onDraftChange: (nextDraft) =>
+          setDraft(withoutPersistenceFields(nextDraft)),
+      }, pendingCleanupPaths.current);
+      pendingCleanupPaths.current = [];
+      uncommittedUploadPaths.current.clear();
+      localUrls.current.forEach(URL.revokeObjectURL);
+      localUrls.current.clear();
+      await refresh();
+      await processMediaCleanup(client, publicToken).catch(() => undefined);
+    } catch (error) {
+      if (error instanceof PendingMediaCleanupError) {
+        pendingCleanupPaths.current = error.paths;
+      } else if (error instanceof MediaSaveError) {
+        setDraft(withoutPersistenceFields(error.draft));
+        error.uploadedPaths.forEach((path) =>
+          uncommittedUploadPaths.current.add(path),
+        );
+      }
+      // The repository reports a calm, retryable status and the draft stays mounted.
+    }
+  };
+  const cancel = async () => {
+    if (!saved) {
+      onCancelCreate?.();
+      return;
+    }
+    const unfinishedPaths = [
+      ...new Set([
+        ...pendingCleanupPaths.current,
+        ...uncommittedUploadPaths.current,
+      ]),
+    ];
+    if (unfinishedPaths.length > 0) {
+      setSaveStatus("cleaningUp");
+      setSaveMessage("Removing unfinished uploads…");
+      const cleanup = await processMediaCleanup(
+        client,
+        publicToken,
+        unfinishedPaths,
+      ).catch(() => ({ ok: false }));
+      if (!cleanup.ok) {
+        setSaveStatus("partialFailure");
+        setSaveMessage(
+          "Unfinished uploads could not be cleaned up yet. Retry Cancel.",
+        );
+        return;
+      }
+      pendingCleanupPaths.current = [];
+      uncommittedUploadPaths.current.clear();
+    }
+    localUrls.current.forEach(URL.revokeObjectURL);
+    localUrls.current.clear();
+    setDraft(copyDraft(saved));
+    setSaveStatus("idle");
+    setSaveMessage("");
+    setSaveProgress(undefined);
+    setMode("view");
+  };
+
+  const deleteMemory = async () => {
+    if (!saved || !journalMode || deleteState === "deleting") return;
+    setDeleteState("deleting");
+    try {
+      await deleteJournalMemory(client, capsuleId, saved.id);
+      await processMediaCleanup(client, publicToken).catch(() => undefined);
+      onDeleted?.();
+    } catch {
+      setDeleteState("error");
+    }
+  };
+
+  const beginEditing = async () => {
+    if (!saved) return;
+    setFormBusy(true);
+    try {
+      const thumbnailPaths = saved.photos.map(
+        (photo) => photo.thumbnailStoragePath ?? photo.storagePath,
+      );
+      if (thumbnailPaths.some((path) => !path)) {
+        throw new Error("A photograph is missing its private storage path.");
+      }
+      const thumbnailUrls = await urlCache.resolveMany(
+        thumbnailPaths as string[],
+      );
+      setDraft({
+        ...copyDraft(saved),
+        photos: saved.photos.map((photo, index) => ({
+          ...photo,
+          thumbnailObjectUrl: thumbnailUrls[index],
+        })),
+      });
+      setMode("edit");
+    } finally {
+      setFormBusy(false);
+    }
+  };
+
+  if (mode === "loading") {
+    return <div className="memory-entry font-sans text-sm text-ink-soft">Loading memory…</div>;
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        {journalMode && onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={formBusy}
+            className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:opacity-40"
+          >
+            Back to journal
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            urlCache.clear();
+            void onLock();
+          }}
+          disabled={formBusy}
+          className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Lock journal
+        </button>
+      </div>
+      {journalMode && journalPhotoCount !== undefined ? (
+        <p className="mb-3 text-right font-sans text-[0.68rem] text-paper/75">
+          {journalPhotoCount - existingMemoryPhotoCount + draft.photos.length}{" "}
+          of {journalPhotoLimit} journal photos
+        </p>
+      ) : null}
+      {mode === "view" && saved ? (
+        <CompletedState
+          memory={saved}
+          resolvePhotoUrl={(photo, variant, forceRefresh) => {
+            const path =
+              variant === "thumbnail"
+                ? photo.thumbnailStoragePath ?? photo.storagePath
+                : photo.storagePath;
+            if (!path) throw new Error("This photograph is not available.");
+            return urlCache.resolve(path, forceRefresh);
+          }}
+          resolveVoiceMemoUrl={async (memo, forceRefresh) => {
+            if (memo.objectUrl) return memo.objectUrl;
+            if (!memo.storagePath) {
+              throw new Error("This voice memo is not available.");
+            }
+            return urlCache.resolve(memo.storagePath, forceRefresh);
+          }}
+          onEdit={() => void beginEditing()}
+        />
+      ) : (
+          <MemoryForm
+          config={effectiveConfig}
+          draft={draft}
+          isEditing={mode === "edit"}
+          onDraftChange={setDraft}
+          onRemovePhoto={removePhoto}
+          onVoiceMemosChange={changeVoiceMemos}
+          onSave={() => void save()}
+          onCancel={() => void cancel()}
+          showCancel={mode === "edit" || journalMode}
+          registerObjectUrl={registerObjectUrl}
+          saveStatus={saveStatus}
+          saveMessage={saveMessage}
+          saveProgress={saveProgress}
+          onBusyChange={setFormBusy}
+          resolveVoiceMemoUrl={async (memo, forceRefresh) => {
+            if (memo.objectUrl) return memo.objectUrl;
+            if (!memo.storagePath) {
+              throw new Error("This voice memo is not available.");
+            }
+            return urlCache.resolve(memo.storagePath, forceRefresh);
+          }}
+        />
+      )}
+      {journalMode && mode === "view" && saved ? (
+        <div className="mt-4 text-center">
+          {deleteState === "confirming" ? (
+            <div
+              className="memory-entry border-oxblood/20 font-sans"
+              role="alertdialog"
+              aria-labelledby="delete-memory-title"
+              aria-describedby="delete-memory-description"
+            >
+              <h2 id="delete-memory-title" className="text-sm font-semibold">
+                Delete this memory?
+              </h2>
+              <p
+                id="delete-memory-description"
+                className="mt-2 text-xs leading-relaxed text-ink-soft"
+              >
+                Its photographs and voice memos will also be removed. This
+                cannot be undone.
+              </p>
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteState("idle")}
+                  className="flex-1 rounded-sm border border-rule px-4 py-3 text-xs font-semibold"
+                >
+                  Keep memory
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void deleteMemory()}
+                  className="flex-1 rounded-sm bg-oxblood px-4 py-3 text-xs font-semibold text-paper"
+                >
+                  Delete memory
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setDeleteState("confirming")}
+                disabled={deleteState === "deleting"}
+                className="font-sans text-[0.68rem] text-paper/65 underline underline-offset-4 disabled:opacity-40"
+              >
+                {deleteState === "deleting" ? "Deleting…" : "Delete memory"}
+              </button>
+              {deleteState === "error" ? (
+                <p className="mt-2 font-sans text-xs text-paper" role="alert">
+                  The memory could not be deleted. Please retry.
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}

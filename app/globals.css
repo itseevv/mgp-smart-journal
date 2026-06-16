@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-leather: var(--leather);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-oxblood: var(--oxblood);
+  --color-olive: var(--olive);
+  --color-rule: var(--rule);
+  --font-serif: var(--font-editorial);
+  --font-sans: var(--font-interface);
+}
+
+:root {
+  --paper: #eee7d8;
+  --paper-deep: #ded3bd;
+  --leather: #42362f;
+  --ink: #2d2a24;
+  --ink-soft: #6d675b;
+  --oxblood: #6f2f32;
+  --olive: #66705a;
+  --rule: rgba(62, 55, 44, 0.22);
+  --font-editorial: "Iowan Old Style", "Palatino Linotype", Palatino,
+    "Book Antiqua", Georgia, serif;
+  --font-interface: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--leather);
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-editorial);
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--oxblood);
+  outline-offset: 4px;
+}
+
+::selection {
+  background: rgba(111, 47, 50, 0.18);
+}
+
+.paper-surface {
+  isolation: isolate;
+  position: relative;
+}
+
+.paper-surface::before {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(77, 67, 52, 0.045) 0 0.6px, transparent 0.7px),
+    radial-gradient(circle at 75% 65%, rgba(255, 255, 255, 0.35) 0 0.7px, transparent 0.8px);
+  background-size: 8px 9px, 11px 13px;
+  content: "";
+  inset: 0;
+  opacity: 0.65;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.memory-entry {
+  background: var(--paper);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 45px rgba(23, 18, 15, 0.18);
+  isolation: isolate;
+  overflow: hidden;
+  padding: 1.25rem;
+  position: relative;
+}
+
+@media (min-width: 640px) {
+  .memory-entry {
+    padding: 2rem;
+  }
+}
+
+.memory-entry::before {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(77, 67, 52, 0.04) 0 0.6px, transparent 0.7px),
+    radial-gradient(circle at 75% 65%, rgba(255, 255, 255, 0.3) 0 0.7px, transparent 0.8px);
+  background-size: 8px 9px, 11px 13px;
+  content: "";
+  inset: 0;
+  opacity: 0.6;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
