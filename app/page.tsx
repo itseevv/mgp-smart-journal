@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function MemoryDemoPage() {
+export default function HomePage() {
   redirect("/journal/demo");
 }

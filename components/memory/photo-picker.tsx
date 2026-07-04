@@ -4,6 +4,10 @@ import { useRef, useState, type ChangeEvent } from "react";
 
 import { PlusIcon } from "@/components/memory/memory-icons";
 import { SortablePhotoGrid } from "@/components/memory/sortable-photo-grid";
+import {
+  getMemoryFormProductRules,
+  type MemoryFormProductMode,
+} from "@/data/memory-form-product";
 import type {
   MemoryMediaConfig,
   MemoryPhoto,
@@ -16,6 +20,7 @@ type PhotoPickerProps = {
   onReorder: (photos: MemoryPhoto[]) => void;
   onRemove: (photo: MemoryPhoto) => void;
   registerObjectUrl: (url: string) => void;
+  productMode?: MemoryFormProductMode;
 };
 
 function makePhotoId(file: File, index: number) {
@@ -40,10 +45,17 @@ export function PhotoPicker({
   onReorder,
   onRemove,
   registerObjectUrl,
+  productMode = "memory",
 }: PhotoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
-  const isAtLimit = photos.length >= config.maxPhotosPerMemory;
+  const productRules = getMemoryFormProductRules(productMode);
+  const { copy } = productRules;
+  const maxPhotosPerEntry = Math.min(
+    config.maxPhotosPerMemory,
+    productRules.maxPhotosPerEntry,
+  );
+  const isAtLimit = photos.length >= maxPhotosPerEntry;
 
   const handleFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? []);
@@ -58,7 +70,7 @@ export function PhotoPicker({
     const oversizedCount = imageFiles.length - allowedBySize.length;
     const remainingSlots = Math.max(
       0,
-      config.maxPhotosPerMemory - photos.length,
+      maxPhotosPerEntry - photos.length,
     );
     const acceptedFiles = allowedBySize.slice(0, remainingSlots);
     const overLimitCount = allowedBySize.length - acceptedFiles.length;
@@ -83,7 +95,11 @@ export function PhotoPicker({
     const explanations: string[] = [];
     if (newPhotos.length > 0 && overLimitCount > 0) {
       explanations.push(
-        `${newPhotos.length} ${newPhotos.length === 1 ? "photo was" : "photos were"} added. ${overLimitCount} ${overLimitCount === 1 ? "was" : "were"} not added because this memory allows up to ${config.maxPhotosPerMemory} photos.`,
+        copy.photoPartialLimitMessage(
+          newPhotos.length,
+          overLimitCount,
+          maxPhotosPerEntry,
+        ),
       );
     }
     if (invalidTypeCount > 0) {
@@ -92,32 +108,35 @@ export function PhotoPicker({
       );
     }
     if (oversizedCount > 0) {
-      explanations.push(
-        `${oversizedCount} ${oversizedCount === 1 ? "photo was" : "photos were"} not added because each source file must be 25MB or smaller.`,
-      );
+      explanations.push(copy.photoOversizedMessage(oversizedCount));
     }
     if (overLimitCount > 0 && newPhotos.length === 0) {
       explanations.push(
-        `${overLimitCount} ${overLimitCount === 1 ? "photo was" : "photos were"} not added because this memory allows up to ${config.maxPhotosPerMemory} photos.`,
+        copy.photoOverLimitMessage(overLimitCount, maxPhotosPerEntry),
       );
     }
     setMessage(
       explanations.length > 0
         ? explanations.join(" ")
-        : `${newPhotos.length} ${newPhotos.length === 1 ? "photo" : "photos"} added.`,
+        : copy.photoAddedMessage(newPhotos.length),
     );
   };
 
   return (
     <section aria-labelledby="photos-title">
-      <div className="mb-3 flex items-baseline justify-between">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id="photos-title" className="font-sans text-sm font-semibold">
-          Photographs
+          {copy.photoSectionTitle}
         </h2>
-        <span className="font-sans text-[0.68rem] text-ink-soft">
-          {photos.length} of {config.maxPhotosPerMemory} photos
+        <span className="shrink-0 font-sans text-[0.68rem] text-ink-soft">
+          {photos.length} of {maxPhotosPerEntry} {copy.photoCounterUnit}
         </span>
       </div>
+      {copy.photoHelper ? (
+        <p className="-mt-2 mb-3 font-sans text-[0.68rem] leading-relaxed text-ink-soft">
+          {copy.photoHelper}
+        </p>
+      ) : null}
 
       <input
         ref={inputRef}
@@ -127,7 +146,7 @@ export function PhotoPicker({
         disabled={isAtLimit}
         onChange={handleFiles}
         className="sr-only"
-        aria-label="Choose photographs"
+        aria-label={copy.photoChooseAriaLabel}
         aria-describedby={isAtLimit ? "photo-limit-message" : undefined}
       />
       <button
@@ -135,16 +154,16 @@ export function PhotoPicker({
         disabled={isAtLimit}
         onClick={() => inputRef.current?.click()}
         aria-describedby={isAtLimit ? "photo-limit-message" : undefined}
-        className="flex min-h-24 w-full items-center justify-center gap-3 rounded-sm border border-dashed border-oxblood/45 bg-paper-deep/20 font-sans text-sm font-semibold text-oxblood disabled:cursor-not-allowed disabled:border-rule disabled:bg-paper-deep/15 disabled:text-ink-soft/65"
+        className="flex min-h-24 w-full items-center justify-center gap-3 rounded-sm border border-dashed border-oxblood/45 bg-paper-deep/20 px-3 font-sans text-sm font-semibold text-oxblood disabled:cursor-not-allowed disabled:border-rule disabled:bg-paper-deep/15 disabled:text-ink-soft/65"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full border border-oxblood/45">
           <PlusIcon className="h-4 w-4" />
         </span>
         {isAtLimit
-          ? "Photo limit reached"
+          ? copy.photoLimitReached
           : photos.length === 0
-            ? "Add photos"
-            : "Add more photos"}
+            ? copy.addEmptyPhotos
+            : copy.addMorePhotos}
       </button>
 
       {isAtLimit ? (
@@ -153,8 +172,7 @@ export function PhotoPicker({
           className="mt-2.5 font-sans text-[0.68rem] leading-relaxed text-ink-soft"
           role="status"
         >
-          This memory has reached its {config.maxPhotosPerMemory}-photo limit.
-          Remove a photo to add another.
+          {copy.photoLimitMessage(maxPhotosPerEntry)}
         </p>
       ) : null}
 
@@ -178,7 +196,7 @@ export function PhotoPicker({
               </p>
             ))}
           <p className="font-sans text-[0.68rem] text-ink-soft">
-            Retry Save after correcting the issue, or remove the affected photo.
+            {copy.failedPhotoRetry}
           </p>
         </div>
       ) : null}
@@ -189,10 +207,12 @@ export function PhotoPicker({
             photos={photos}
             onChange={onReorder}
             onRemove={onRemove}
+            coverLabel={copy.coverLabel}
+            itemLabel={copy.sortableItemLabel}
           />
 
           <p className="mt-2.5 font-sans text-[0.68rem] leading-relaxed text-ink-soft">
-            Press and drag to reorder. The first photo appears largest.
+            {copy.reorderHelp}
           </p>
         </div>
       ) : null}

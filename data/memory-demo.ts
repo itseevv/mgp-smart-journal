@@ -1,3 +1,8 @@
+import {
+  localDateKeyFromValue,
+  resolvedLocalTimezone,
+} from "./local-date.ts";
+
 export type MemoryMediaConfig = {
   maxPhotosPerMemory: number;
   maxPhotoFileSizeBytes: number;
@@ -36,6 +41,18 @@ export type MediaDraftStatus =
   | "markedForDeletion"
   | "failed";
 
+export type PhotoCropMetadata = {
+  kind: "cover-scrap";
+  aspectRatio: 1;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  imageWidth: number;
+  imageHeight: number;
+  createdAt: string;
+};
+
 export type MemoryPhoto = {
   id: string;
   name: string;
@@ -53,6 +70,7 @@ export type MemoryPhoto = {
   thumbnailWidth?: number;
   thumbnailHeight?: number;
   isLegacyThumbnail?: boolean;
+  cropMetadata?: PhotoCropMetadata;
   width?: number;
   height?: number;
   originalSizeBytes?: number;
@@ -78,6 +96,8 @@ export type MemoryVoiceMemo = {
 
 export type MemoryDraft = {
   capturedAt: string;
+  localDate?: string;
+  localTimezone?: string | null;
   title: string;
   photos: MemoryPhoto[];
   voiceMemos: MemoryVoiceMemo[];
@@ -93,6 +113,8 @@ export type PersistentMemoryEntry = MemoryEntry & {
 export function createEmptyMemory(capturedAt: string): MemoryDraft {
   return {
     capturedAt,
+    localDate: localDateKeyFromValue(capturedAt),
+    localTimezone: resolvedLocalTimezone(),
     title: "",
     photos: [],
     voiceMemos: [],

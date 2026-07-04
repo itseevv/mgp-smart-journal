@@ -1,7 +1,9 @@
+import { JOURNAL_YEAR_PHOTO_CAPACITY } from "./journal-product";
+
 export const journalConfig = {
   defaultTitle: "My Journal",
   maxTitleLength: 100,
-  maxPhotos: 100,
+  maxPhotos: JOURNAL_YEAR_PHOTO_CAPACITY,
 } as const;
 
 export type CapsuleProductType = "bookmark" | "journal";
@@ -11,6 +13,8 @@ export type JournalMemorySummary = {
   title: string;
   capturedAt: string;
   createdAt: string;
+  localDate?: string;
+  localTimezone?: string | null;
   photoCount: number;
   voiceMemoCount: number;
   firstThumbnailStoragePath?: string;
@@ -31,4 +35,5 @@ export type JournalMemoryContext = {
   totalJournalPhotos: number;
   existingMemoryPhotos: number;
   effectivePhotoLimit: number;
+  memories: JournalMemorySummary[];
 };

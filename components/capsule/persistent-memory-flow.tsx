@@ -5,6 +5,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { CompletedState } from "@/components/memory/completed-state";
 import { MemoryForm } from "@/components/memory/memory-form";
+import type { JournalMemorySummary } from "@/data/journal";
+import {
+  findDuplicateStampForLocalDate,
+  localDateKey,
+} from "@/data/journal-stamps";
+import {
+  getMemoryFormProductRules,
+  type MemoryFormProductMode,
+} from "@/data/memory-form-product";
 import {
   createEmptyMemory,
   memoryMediaConfig,
@@ -33,10 +42,9 @@ type PersistentMemoryFlowProps = {
   memoryId?: string;
   initialMemory?: PersistentMemoryEntry;
   maxPhotos?: number;
-  journalMode?: boolean;
-  journalPhotoCount?: number;
-  existingMemoryPhotoCount?: number;
-  journalPhotoLimit?: number;
+  productMode?: MemoryFormProductMode;
+  journalStamps?: JournalMemorySummary[];
+  onOpenJournalStamp?: (memoryId: string) => void;
   onBack?: () => void;
   onCancelCreate?: () => void;
   onDeleted?: () => void;
@@ -46,6 +54,8 @@ type PersistentMemoryFlowProps = {
 function copyDraft(memory: PersistentMemoryEntry): MemoryDraft {
   return {
     capturedAt: memory.capturedAt,
+    localDate: memory.localDate,
+    localTimezone: memory.localTimezone,
     title: memory.title,
     photos: memory.photos.map((photo) => ({ ...photo })),
     voiceMemos: memory.voiceMemos.map((memo) => ({ ...memo })),
@@ -55,6 +65,8 @@ function copyDraft(memory: PersistentMemoryEntry): MemoryDraft {
 function withoutPersistenceFields(memory: PersistentMemoryEntry): MemoryDraft {
   return {
     capturedAt: memory.capturedAt,
+    localDate: memory.localDate,
+    localTimezone: memory.localTimezone,
     title: memory.title,
     photos: memory.photos,
     voiceMemos: memory.voiceMemos,
@@ -68,10 +80,9 @@ export function PersistentMemoryFlow({
   memoryId,
   initialMemory,
   maxPhotos = memoryMediaConfig.maxPhotosPerMemory,
-  journalMode = false,
-  journalPhotoCount,
-  existingMemoryPhotoCount = 0,
-  journalPhotoLimit = 100,
+  productMode = "memory",
+  journalStamps = [],
+  onOpenJournalStamp,
   onBack,
   onCancelCreate,
   onDeleted,
@@ -83,15 +94,20 @@ export function PersistentMemoryFlow({
       getCachedPersistentMemory(capsuleId, memoryId),
     [capsuleId, initialMemory, memoryId],
   );
+  const productRules = useMemo(
+    () => getMemoryFormProductRules(productMode),
+    [productMode],
+  );
+  const isJournalMode = productMode === "journal";
   const effectiveConfig = useMemo(
     () => ({
       ...memoryMediaConfig,
       maxPhotosPerMemory: Math.max(
         cachedMemory?.photos.length ?? 0,
-        Math.min(memoryMediaConfig.maxPhotosPerMemory, maxPhotos),
+        Math.min(productRules.maxPhotosPerEntry, maxPhotos),
       ),
     }),
-    [cachedMemory?.photos.length, maxPhotos],
+    [cachedMemory?.photos.length, maxPhotos, productRules.maxPhotosPerEntry],
   );
   const localUrls = useRef(new Set<string>());
   const pendingCleanupPaths = useRef<string[]>([]);
@@ -211,6 +227,21 @@ export function PersistentMemoryFlow({
       return;
     }
     const stableMemoryId = memoryId ?? saved?.id ?? crypto.randomUUID();
+    const draftLocalDate = draft.localDate ?? localDateKey(draft.capturedAt);
+    const duplicateStamp =
+      isJournalMode && draftLocalDate
+        ? findDuplicateStampForLocalDate(
+            journalStamps,
+            draftLocalDate,
+            stableMemoryId,
+          )
+        : undefined;
+    if (duplicateStamp) {
+      setSaveStatus("error");
+      setSaveMessage("That day is already sealed in this journal.");
+      onOpenJournalStamp?.(duplicateStamp.id);
+      return;
+    }
     try {
       await savePersistentMemory(client, capsuleId, stableMemoryId, {
         id: stableMemoryId,
@@ -256,7 +287,7 @@ export function PersistentMemoryFlow({
     ];
     if (unfinishedPaths.length > 0) {
       setSaveStatus("cleaningUp");
-      setSaveMessage("Removing unfinished uploads…");
+      setSaveMessage("Removing unfinished media…");
       const cleanup = await processMediaCleanup(
         client,
         publicToken,
@@ -265,7 +296,7 @@ export function PersistentMemoryFlow({
       if (!cleanup.ok) {
         setSaveStatus("partialFailure");
         setSaveMessage(
-          "Unfinished uploads could not be cleaned up yet. Retry Cancel.",
+          "Unfinished media could not be cleaned up yet. Retry Cancel.",
         );
         return;
       }
@@ -282,7 +313,7 @@ export function PersistentMemoryFlow({
   };
 
   const deleteMemory = async () => {
-    if (!saved || !journalMode || deleteState === "deleting") return;
+    if (!saved || !isJournalMode || deleteState === "deleting") return;
     setDeleteState("deleting");
     try {
       await deleteJournalMemory(client, capsuleId, saved.id);
@@ -306,10 +337,14 @@ export function PersistentMemoryFlow({
       const thumbnailUrls = await urlCache.resolveMany(
         thumbnailPaths as string[],
       );
+      const coverDisplayUrl = saved.photos[0]?.storagePath
+        ? await urlCache.resolve(saved.photos[0].storagePath)
+        : undefined;
       setDraft({
         ...copyDraft(saved),
         photos: saved.photos.map((photo, index) => ({
           ...photo,
+          objectUrl: index === 0 ? coverDisplayUrl : photo.objectUrl,
           thumbnailObjectUrl: thumbnailUrls[index],
         })),
       });
@@ -323,10 +358,12 @@ export function PersistentMemoryFlow({
     return <div className="memory-entry font-sans text-sm text-ink-soft">Loading memory…</div>;
   }
 
+  const formMemoryId = memoryId ?? saved?.id;
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        {journalMode && onBack ? (
+        {isJournalMode && onBack ? (
           <button
             type="button"
             onClick={onBack}
@@ -350,15 +387,10 @@ export function PersistentMemoryFlow({
           Lock journal
         </button>
       </div>
-      {journalMode && journalPhotoCount !== undefined ? (
-        <p className="mb-3 text-right font-sans text-[0.68rem] text-paper/75">
-          {journalPhotoCount - existingMemoryPhotoCount + draft.photos.length}{" "}
-          of {journalPhotoLimit} journal photos
-        </p>
-      ) : null}
       {mode === "view" && saved ? (
         <CompletedState
           memory={saved}
+          journalMode={isJournalMode}
           resolvePhotoUrl={(photo, variant, forceRefresh) => {
             const path =
               variant === "thumbnail"
@@ -377,16 +409,20 @@ export function PersistentMemoryFlow({
           onEdit={() => void beginEditing()}
         />
       ) : (
-          <MemoryForm
+        <MemoryForm
           config={effectiveConfig}
           draft={draft}
           isEditing={mode === "edit"}
+          productMode={productMode}
+          currentMemoryId={formMemoryId}
+          journalStamps={journalStamps}
+          onOpenJournalStamp={onOpenJournalStamp}
           onDraftChange={setDraft}
           onRemovePhoto={removePhoto}
           onVoiceMemosChange={changeVoiceMemos}
           onSave={() => void save()}
           onCancel={() => void cancel()}
-          showCancel={mode === "edit" || journalMode}
+          showCancel={mode === "edit" || isJournalMode}
           registerObjectUrl={registerObjectUrl}
           saveStatus={saveStatus}
           saveMessage={saveMessage}
@@ -401,7 +437,7 @@ export function PersistentMemoryFlow({
           }}
         />
       )}
-      {journalMode && mode === "view" && saved ? (
+      {isJournalMode && mode === "view" && saved ? (
         <div className="mt-4 text-center">
           {deleteState === "confirming" ? (
             <div
@@ -411,14 +447,13 @@ export function PersistentMemoryFlow({
               aria-describedby="delete-memory-description"
             >
               <h2 id="delete-memory-title" className="text-sm font-semibold">
-                Delete this memory?
+                Delete this stamp?
               </h2>
               <p
                 id="delete-memory-description"
                 className="mt-2 text-xs leading-relaxed text-ink-soft"
               >
-                Its photographs and voice memos will also be removed. This
-                cannot be undone.
+                Its saved moments will also be removed. This cannot be undone.
               </p>
               <div className="mt-4 flex gap-3">
                 <button
@@ -426,14 +461,14 @@ export function PersistentMemoryFlow({
                   onClick={() => setDeleteState("idle")}
                   className="flex-1 rounded-sm border border-rule px-4 py-3 text-xs font-semibold"
                 >
-                  Keep memory
+                  Keep stamp
                 </button>
                 <button
                   type="button"
                   onClick={() => void deleteMemory()}
                   className="flex-1 rounded-sm bg-oxblood px-4 py-3 text-xs font-semibold text-paper"
                 >
-                  Delete memory
+                  Delete stamp
                 </button>
               </div>
             </div>
@@ -445,11 +480,11 @@ export function PersistentMemoryFlow({
                 disabled={deleteState === "deleting"}
                 className="font-sans text-[0.68rem] text-paper/65 underline underline-offset-4 disabled:opacity-40"
               >
-                {deleteState === "deleting" ? "Deleting…" : "Delete memory"}
+                {deleteState === "deleting" ? "Deleting…" : "Delete stamp"}
               </button>
               {deleteState === "error" ? (
                 <p className="mt-2 font-sans text-xs text-paper" role="alert">
-                  The memory could not be deleted. Please retry.
+                  The stamp could not be deleted. Please retry.
                 </p>
               ) : null}
             </>

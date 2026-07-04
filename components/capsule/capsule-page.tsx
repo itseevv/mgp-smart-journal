@@ -9,6 +9,7 @@ import { RecoveryFlow } from "@/components/capsule/recovery-flow";
 import { PersistentMemoryFlow } from "@/components/capsule/persistent-memory-flow";
 import { JournalHome } from "@/components/journal/journal-home";
 import { JournalMemoryPage } from "@/components/journal/journal-memory-page";
+import { JournalMobileShell } from "@/components/journal/journal-mobile-shell";
 import {
   CAPSULE_OPEN_TIMEOUT_MS,
   logCapsuleOpenDiagnostic,
@@ -327,8 +328,8 @@ export function CapsulePage({
 
   if (state.productType === "journal") {
     return (
-      <main className="min-h-screen bg-leather px-3 py-8 sm:px-6 sm:py-12">
-        <div className="mx-auto max-w-[36rem]">
+      <main className="journal-mobile-page">
+        <JournalMobileShell>
           {memoryId ? (
             <JournalMemoryPage
               client={state.client}
@@ -346,7 +347,7 @@ export function CapsulePage({
               onLock={lock}
             />
           )}
-        </div>
+        </JournalMobileShell>
       </main>
     );
   }

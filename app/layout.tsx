@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Memory Capsule",
-  description: "A private digital layer for a physical journal.",
+  title: "Scrap the Day",
+  description: "Write the feeling. Scrap the day. Seal it in your journal.",
 };
 
 export const viewport: Viewport = {

@@ -115,7 +115,9 @@ async function loadUnlockedMemory(
 ) {
   let query = admin
     .from("memories")
-    .select("id,capsule_id,title,occurred_at,photos(*),voice_memos(*)")
+    .select(
+      "id,capsule_id,title,occurred_at,local_date,local_timezone,photos(*),voice_memos(*)",
+    )
     .eq("capsule_id", capsuleId);
   query = memoryId
     ? query.eq("id", memoryId)
@@ -144,6 +146,8 @@ async function loadUnlockedMemory(
     capsuleId: data.capsule_id,
     title: data.title,
     capturedAt: data.occurred_at,
+    localDate: data.local_date ?? undefined,
+    localTimezone: data.local_timezone ?? null,
     photos: photos.map((photo, index) => ({
       id: photo.id,
       name: `Photograph ${photo.order_index + 1}`,
@@ -159,6 +163,7 @@ async function loadUnlockedMemory(
       thumbnailWidth: photo.thumbnail_width,
       thumbnailHeight: photo.thumbnail_height,
       isLegacyThumbnail: !photo.thumbnail_storage_path,
+      cropMetadata: photo.crop_metadata ?? undefined,
       status: "persisted",
     })),
     voiceMemos: voiceMemos.map((memo) => ({

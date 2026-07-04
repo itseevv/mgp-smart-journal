@@ -7,12 +7,14 @@ import type {
   MemoryVoiceMemo,
   PersistentMemoryEntry,
 } from "@/data/memory-demo";
-import type {
-  CapsuleProductType,
-  JournalHomeData,
-  JournalMemoryContext,
-  JournalMemorySummary,
+import {
+  journalConfig,
+  type CapsuleProductType,
+  type JournalHomeData,
+  type JournalMemoryContext,
+  type JournalMemorySummary,
 } from "@/data/journal";
+import { DAILY_MEMORY_STAMP_MAX_PHOTOS } from "@/data/journal-product";
 import {
   createMediaPipelineMetrics,
   reportMediaPipelineMetrics,
@@ -26,6 +28,7 @@ import {
 } from "@/lib/capsule/opening";
 import { optimisePhotoForUpload } from "@/lib/media/photo-optimisation";
 import { runUploadQueue } from "@/lib/media/upload-queue";
+import { isPhotoCropMetadata } from "@/lib/scrap/crop-math";
 
 const MEDIA_BUCKET = "memory-media";
 const sessionMemoryCache = new Map<string, PersistentMemoryEntry>();
@@ -294,6 +297,10 @@ function extensionFor(mimeType: string) {
   return known[mimeType.split(";")[0]] ?? "bin";
 }
 
+function parsePhotoCropMetadata(value: unknown) {
+  return isPhotoCropMetadata(value) ? value : undefined;
+}
+
 function mapPersistentMemory(row: Record<string, unknown>) {
   const photoRows = (row.photos as Array<Record<string, unknown>>).sort(
     (a, b) => Number(a.order_index) - Number(b.order_index),
@@ -326,6 +333,7 @@ function mapPersistentMemory(row: Record<string, unknown>) {
       ? undefined
       : Number(photo.thumbnail_height),
     isLegacyThumbnail: !photo.thumbnail_storage_path,
+    cropMetadata: parsePhotoCropMetadata(photo.crop_metadata),
     status: "persisted",
   }));
   const voiceMemos: MemoryVoiceMemo[] = voiceRows.map((memo) => ({
@@ -344,6 +352,9 @@ function mapPersistentMemory(row: Record<string, unknown>) {
     capsuleId: String(row.capsule_id),
     title: String(row.title),
     capturedAt: String(row.occurred_at),
+    localDate: row.local_date == null ? undefined : String(row.local_date),
+    localTimezone:
+      row.local_timezone == null ? null : String(row.local_timezone),
     photos,
     voiceMemos,
   };
@@ -356,7 +367,9 @@ export async function loadPersistentMemory(
 ): Promise<PersistentMemoryEntry | undefined> {
   let query = client
     .from("memories")
-    .select("id,capsule_id,title,occurred_at,photos(*),voice_memos(*)")
+    .select(
+      "id,capsule_id,title,occurred_at,local_date,local_timezone,photos(*),voice_memos(*)",
+    )
     .eq("capsule_id", capsuleId);
   query = memoryId
     ? query.eq("id", memoryId)
@@ -393,7 +406,7 @@ export async function loadJournalHome(
     capsuleId: data.capsuleId,
     title: data.title ?? "My Journal",
     photoCount: Number(data.photoCount ?? 0),
-    maxPhotos: Number(data.maxPhotos ?? 100),
+    maxPhotos: Number(data.maxPhotos ?? journalConfig.maxPhotos),
     cleanupPendingCount: Number(data.cleanupPendingCount ?? 0),
     memories: data.memories ?? [],
   };
@@ -410,10 +423,14 @@ export async function loadJournalMemoryContext(
   return {
     totalJournalPhotos: home.photoCount,
     existingMemoryPhotos,
-    effectivePhotoLimit: Math.min(
-      30,
-      home.maxPhotos - home.photoCount + existingMemoryPhotos,
+    effectivePhotoLimit: Math.max(
+      0,
+      Math.min(
+        DAILY_MEMORY_STAMP_MAX_PHOTOS,
+        home.maxPhotos - home.photoCount + existingMemoryPhotos,
+      ),
     ),
+    memories: home.memories,
   };
 }
 
@@ -564,7 +581,7 @@ async function prepareDraftPhotos(
     onDraftChange(cloneDraft(next));
     onProgress({
       status: "preparing",
-      message: `Preparing ${index + 1} of ${pending.length} photos`,
+      message: `Preparing ${index + 1} of ${pending.length} images`,
       current: index + 1,
       total: pending.length,
       sourceBytes: metrics.sourceBytes,
@@ -676,7 +693,7 @@ async function uploadDraftMedia(
           completed += 1;
           onProgress({
             status: "uploading",
-            message: `Uploaded ${completed} of ${totalFiles} files`,
+            message: `Saved ${completed} of ${totalFiles} media items`,
             current: completed,
             total: totalFiles,
             sourceBytes: metrics.sourceBytes,
@@ -726,7 +743,7 @@ async function uploadDraftMedia(
         onDraftChange(cloneDraft(next));
         onProgress({
           status: "uploading",
-          message: `Uploaded ${completed} of ${totalFiles} files`,
+          message: `Saved ${completed} of ${totalFiles} media items`,
           current: completed,
           total: totalFiles,
           sourceBytes: metrics.sourceBytes,
@@ -745,7 +762,7 @@ async function uploadDraftMedia(
             ? next.photos[item.index]
             : next.voiceMemos[item.index];
         media.status = "failed";
-        media.error = "Upload failed. Retry to continue from this item.";
+        media.error = "Save failed. Retry to continue from this item.";
         onDraftChange(cloneDraft(next));
         metrics.failedFiles += 1;
         metrics.individualUploads.push({
@@ -813,7 +830,7 @@ export async function savePersistentMemory(
       callbacks.onProgress({
         status: "error",
         message: `${preparation.failedItems.length} ${
-          preparation.failedItems.length === 1 ? "photo needs" : "photos need"
+          preparation.failedItems.length === 1 ? "image needs" : "images need"
         } attention before saving.`,
         sourceBytes: metrics.sourceBytes,
         optimisedBytes: metrics.optimisedBytes,
@@ -828,7 +845,7 @@ export async function savePersistentMemory(
 
     callbacks.onProgress({
       status: "uploading",
-      message: "Uploading media",
+      message: "Saving media",
       current: 0,
       total: 0,
       sourceBytes: metrics.sourceBytes,
@@ -849,8 +866,10 @@ export async function savePersistentMemory(
       callbacks.onProgress({
         status: "error",
         message: `${uploaded.failedItems.length} ${
-          uploaded.failedItems.length === 1 ? "file failed" : "files failed"
-        }. Successful uploads are preserved; retry the failed items.`,
+          uploaded.failedItems.length === 1
+            ? "media item failed"
+            : "media items failed"
+        }. Saved items are preserved; retry the failed items.`,
         sourceBytes: metrics.sourceBytes,
         optimisedBytes: metrics.optimisedBytes,
       });
@@ -864,7 +883,7 @@ export async function savePersistentMemory(
 
     callbacks.onProgress({
       status: "savingMetadata",
-      message: "Saving photo order and memory details",
+      message: "Saving stamp details",
       sourceBytes: metrics.sourceBytes,
       optimisedBytes: metrics.optimisedBytes,
     });
@@ -874,6 +893,8 @@ export async function savePersistentMemory(
       requested_memory_id: memoryId,
       requested_title: workingDraft.title,
       requested_occurred_at: workingDraft.capturedAt,
+      requested_local_date: workingDraft.localDate ?? null,
+      requested_local_timezone: workingDraft.localTimezone ?? null,
       requested_photos: workingDraft.photos.map((photo, orderIndex) => ({
         id: photo.id,
         storagePath: photo.storagePath,
@@ -887,6 +908,7 @@ export async function savePersistentMemory(
         thumbnailSizeBytes: photo.thumbnailSizeBytes ?? null,
         thumbnailWidth: photo.thumbnailWidth ?? null,
         thumbnailHeight: photo.thumbnailHeight ?? null,
+        cropMetadata: photo.cropMetadata ?? null,
       })),
       requested_voice_memos: workingDraft.voiceMemos.map((memo, orderIndex) => ({
         id: memo.id,
@@ -914,20 +936,25 @@ export async function savePersistentMemory(
         | "MEDIA_ID_CONFLICT"
         | "BOOKMARK_MEMORY_LIMIT"
         | "JOURNAL_PHOTO_LIMIT"
+        | "DUPLICATE_LOCAL_DATE"
         | "INVALID_MEMORY";
       cleanupPendingCount?: number;
+      existingMemoryId?: string;
     } | null;
     if (result.error || !commitResult?.ok) {
       const message =
-        commitResult?.code === "JOURNAL_PHOTO_LIMIT"
-          ? "This journal allows up to 100 photographs."
+        commitResult?.code === "DUPLICATE_LOCAL_DATE" ||
+        result.error?.code === "23505"
+          ? "That day is already sealed in this journal."
+          : commitResult?.code === "JOURNAL_PHOTO_LIMIT"
+          ? "This journal needs a little space before another day can be sealed."
           : commitResult?.code === "BOOKMARK_MEMORY_LIMIT"
             ? "A bookmark capsule can contain only one memory."
             : commitResult?.code === "MEMORY_ID_CONFLICT"
               ? "This memory belongs to a different capsule."
               : commitResult?.code === "MEDIA_ID_CONFLICT"
                 ? "One or more media items belong to a different memory."
-              : "The memory could not be committed. Your uploaded draft is ready to retry.";
+              : "The memory could not be committed. Your saved draft is ready to retry.";
       callbacks.onProgress({
         status: "error",
         message,

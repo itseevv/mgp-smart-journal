@@ -2,8 +2,20 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
+import { JournalPhotoPicker } from "@/components/memory/journal-photo-picker";
 import { PhotoPicker } from "@/components/memory/photo-picker";
 import { VoiceRecorder } from "@/components/memory/voice-recorder";
+import { CalendarIcon } from "@/components/memory/memory-icons";
+import type { JournalMemorySummary } from "@/data/journal";
+import {
+  findDuplicateStampForLocalDate,
+  localDateKey,
+} from "@/data/journal-stamps";
+import { resolvedLocalTimezone } from "@/data/local-date";
+import {
+  getMemoryFormProductRules,
+  type MemoryFormProductMode,
+} from "@/data/memory-form-product";
 import type {
   MemoryDraft,
   MemoryMediaConfig,
@@ -32,6 +44,10 @@ type MemoryFormProps = {
   saveMessage?: string;
   saveProgress?: SaveProgress;
   onBusyChange?: (busy: boolean) => void;
+  productMode?: MemoryFormProductMode;
+  currentMemoryId?: string;
+  journalStamps?: JournalMemorySummary[];
+  onOpenJournalStamp?: (memoryId: string) => void;
   resolveVoiceMemoUrl?: (
     memo: MemoryVoiceMemo,
     forceRefresh?: boolean,
@@ -54,6 +70,27 @@ function toLocalDateTimeInput(isoDate: string) {
   return localValue.toISOString().slice(0, 16);
 }
 
+function toLocalDateInput(isoDate: string) {
+  return toLocalDateTimeInput(isoDate).slice(0, 10);
+}
+
+function formatLocalDateLabel(localDate: string, fallbackIsoDate: string) {
+  const [year, month, day] = localDate.split("-").map(Number);
+  const value =
+    year && month && day
+      ? new Date(year, month - 1, day)
+      : new Date(fallbackIsoDate);
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(value);
+}
+
+function updateLocalDate(isoDate: string, localDate: string) {
+  const [year, month, day] = localDate.split("-").map(Number);
+  if (!year || !month || !day) return isoDate;
+  const value = new Date(isoDate);
+  value.setFullYear(year, month - 1, day);
+  return value.toISOString();
+}
+
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -74,17 +111,52 @@ export function MemoryForm({
   saveMessage = "",
   saveProgress,
   onBusyChange,
+  productMode = "memory",
+  currentMemoryId,
+  journalStamps = [],
+  onOpenJournalStamp,
   resolveVoiceMemoUrl,
 }: MemoryFormProps) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isRecording, setIsRecording] = useState(false);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const dateTime = formatDateTimeParts(draft.capturedAt);
+  const productRules = getMemoryFormProductRules(productMode);
+  const { copy } = productRules;
+  const isJournalProduct = productMode === "journal";
+  const voiceMemosEnabled = productRules.voiceMemosEnabled;
+  const selectedLocalDate = draft.localDate ?? localDateKey(draft.capturedAt);
+  const duplicateStamp =
+    isJournalProduct && selectedLocalDate
+      ? findDuplicateStampForLocalDate(
+          journalStamps,
+          selectedLocalDate,
+          currentMemoryId,
+        )
+      : undefined;
+  const journalSaveDisabled =
+    isJournalProduct &&
+    (!draft.title.trim() ||
+      draft.photos.length === 0 ||
+      Boolean(duplicateStamp));
   const isSaving =
     saveStatus === "preparing" ||
     saveStatus === "uploading" ||
     saveStatus === "savingMetadata" ||
     saveStatus === "cleaningUp";
+  const saveButtonLabel = isSaving
+    ? saveStatus === "preparing"
+      ? copy.preparing
+      : saveStatus === "uploading"
+        ? copy.savingMedia
+        : saveStatus === "cleaningUp"
+          ? "Finishing save…"
+          : copy.savingDetails
+    : saveStatus === "error" || saveStatus === "partialFailure"
+      ? "Retry save"
+      : isEditing
+        ? copy.saveEdit
+        : copy.saveNew;
 
   useEffect(() => {
     onBusyChange?.(isRecording || isSaving);
@@ -93,9 +165,14 @@ export function MemoryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextErrors: FormErrors = {};
-    if (!draft.title.trim()) nextErrors.title = "Give this memory a title.";
+    if (!draft.title.trim()) {
+      nextErrors.title = copy.titleRequiredError;
+    }
     if (draft.photos.length === 0) {
-      nextErrors.photos = "Add at least one photograph before saving.";
+      nextErrors.photos = copy.photosRequiredError;
+    }
+    if (duplicateStamp) {
+      nextErrors.photos = "That day is already sealed in this journal.";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length === 0) onSave();
@@ -105,83 +182,146 @@ export function MemoryForm({
     <article className="memory-entry">
       <header className="flex items-center justify-between border-b border-rule pb-4">
         <p className="font-sans text-xs font-semibold tracking-[0.08em] text-oxblood">
-          {isEditing ? "Edit memory" : "New memory"}
+          {isEditing ? copy.editTitle : copy.newTitle}
         </p>
-        <p className="font-sans text-[0.68rem] text-ink-soft">
-          {isEditing ? "Unsaved changes" : "Draft"}
-        </p>
+        {!isJournalProduct ? (
+          <p className="font-sans text-[0.68rem] text-ink-soft">
+            {isEditing ? "Unsaved changes" : "Draft"}
+          </p>
+        ) : null}
       </header>
 
-      <form className="mt-7" aria-label={isEditing ? "Edit memory" : "Create a memory"} onSubmit={submit}>
-        <div className="grid grid-cols-[1fr_auto] gap-3">
+      <form
+        className="mt-7"
+        aria-label={
+          isEditing ? copy.editAriaLabel : copy.createAriaLabel
+        }
+        onSubmit={submit}
+      >
+        {isJournalProduct ? (
           <div>
             <span className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
               Date
             </span>
-            <time
-              dateTime={draft.capturedAt}
-              className="block border-b border-rule pb-2 font-sans text-sm"
-            >
-              {dateTime.date}
-            </time>
-          </div>
-          <div className="min-w-24">
-            <span className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
-              Time
-            </span>
-            <time
-              dateTime={draft.capturedAt}
-              className="block border-b border-rule pb-2 text-right font-sans text-sm"
-            >
-              {dateTime.time}
-            </time>
-          </div>
-        </div>
-        {isEditingDate ? (
-          <div className="mt-3">
-            <label
-              htmlFor="memory-date-time"
-              className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft"
-            >
-              Date and time
+            <label className="relative flex min-h-12 cursor-pointer items-center justify-between gap-3 border-b border-rule pb-2 font-sans text-sm">
+              <time dateTime={selectedLocalDate || draft.capturedAt}>
+                {selectedLocalDate
+                  ? formatLocalDateLabel(selectedLocalDate, draft.capturedAt)
+                  : dateTime.date}
+              </time>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-rule text-oxblood">
+                <CalendarIcon className="h-4 w-4" />
+              </span>
+              <input
+                type="date"
+                value={selectedLocalDate || toLocalDateInput(draft.capturedAt)}
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  const nextLocalDate = event.target.value;
+                  onDraftChange({
+                    ...draft,
+                    capturedAt: updateLocalDate(
+                      draft.capturedAt,
+                      nextLocalDate,
+                    ),
+                    localDate: nextLocalDate,
+                    localTimezone:
+                      draft.localTimezone ?? resolvedLocalTimezone(),
+                  });
+                }}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                aria-label="Choose stamp date"
+              />
             </label>
-            <input
-              id="memory-date-time"
-              type="datetime-local"
-              value={toLocalDateTimeInput(draft.capturedAt)}
-              onChange={(event) => {
-                if (!event.target.value) return;
-                onDraftChange({
-                  ...draft,
-                  capturedAt: new Date(event.target.value).toISOString(),
-                });
-              }}
-              className="w-full border-0 border-b border-rule bg-transparent pb-2 font-sans text-sm outline-none focus:border-oxblood"
-            />
-            <button
-              type="button"
-              onClick={() => setIsEditingDate(false)}
-              className="mt-2 font-sans text-[0.68rem] text-oxblood underline underline-offset-4"
-            >
-              Done
-            </button>
+            {duplicateStamp ? (
+              <div
+                className="mt-3 border-l-2 border-oxblood/35 bg-paper-deep/25 px-3 py-2 font-sans text-xs leading-relaxed text-ink-soft"
+                role="alert"
+              >
+                <p>That day is already sealed in this journal.</p>
+                <button
+                  type="button"
+                  onClick={() => onOpenJournalStamp?.(duplicateStamp.id)}
+                  className="mt-1 font-semibold text-oxblood underline underline-offset-4"
+                >
+                  Open that stamp instead.
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : (
-          <p className="mt-2 font-sans text-[0.68rem] text-ink-soft">
-            Date and time are added automatically.{" "}
-            <button
-              type="button"
-              onClick={() => setIsEditingDate(true)}
-              className="font-semibold text-oxblood underline underline-offset-4"
-            >
-              Edit
-            </button>
-          </p>
+          <>
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div>
+                <span className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+                  Date
+                </span>
+                <time
+                  dateTime={draft.capturedAt}
+                  className="block border-b border-rule pb-2 font-sans text-sm"
+                >
+                  {dateTime.date}
+                </time>
+              </div>
+              <div className="min-w-24">
+                <span className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+                  Time
+                </span>
+                <time
+                  dateTime={draft.capturedAt}
+                  className="block border-b border-rule pb-2 text-right font-sans text-sm"
+                >
+                  {dateTime.time}
+                </time>
+              </div>
+            </div>
+            {isEditingDate ? (
+              <div className="mt-3">
+                <label
+                  htmlFor="memory-date-time"
+                  className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft"
+                >
+                  Date and time
+                </label>
+                <input
+                  id="memory-date-time"
+                  type="datetime-local"
+                  value={toLocalDateTimeInput(draft.capturedAt)}
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    onDraftChange({
+                      ...draft,
+                      capturedAt: new Date(event.target.value).toISOString(),
+                    });
+                  }}
+                  className="w-full border-0 border-b border-rule bg-transparent pb-2 font-sans text-sm outline-none focus:border-oxblood"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDate(false)}
+                  className="mt-2 font-sans text-[0.68rem] text-oxblood underline underline-offset-4"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <p className="mt-2 font-sans text-[0.68rem] text-ink-soft">
+                Date and time are added automatically.{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDate(true)}
+                  className="font-semibold text-oxblood underline underline-offset-4"
+                >
+                  Edit
+                </button>
+              </p>
+            )}
+          </>
         )}
 
-        <label className="mt-8 block">
+        <label className={isJournalProduct ? "mt-7 block" : "mt-8 block"}>
           <span className="mb-2 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
-            Memory title
+            {copy.titleLabel}
           </span>
           <input
             type="text"
@@ -191,10 +331,14 @@ export function MemoryForm({
               onDraftChange({ ...draft, title: event.target.value });
               if (errors.title) setErrors((current) => ({ ...current, title: undefined }));
             }}
-            placeholder="Name this memory"
+            placeholder={copy.titlePlaceholder}
             aria-invalid={Boolean(errors.title)}
             aria-describedby={errors.title ? "title-error" : undefined}
-            className="w-full border-0 border-b border-rule bg-transparent px-0 pb-3 font-serif text-[2.15rem] leading-tight tracking-[-0.035em] text-ink outline-none placeholder:text-ink/38 focus:border-oxblood"
+            className={`w-full border-0 border-b border-rule bg-transparent px-0 pb-3 font-serif leading-tight text-ink outline-none placeholder:text-ink/38 focus:border-oxblood ${
+              isJournalProduct
+                ? "text-[1.55rem] tracking-normal sm:text-[1.75rem]"
+                : "text-[2.15rem] tracking-[-0.035em]"
+            }`}
           />
           {errors.title ? (
             <span id="title-error" className="mt-2 block font-sans text-xs text-oxblood" role="alert">
@@ -204,17 +348,33 @@ export function MemoryForm({
         </label>
 
         <div className="mt-9">
-          <PhotoPicker
-            config={config}
-            photos={draft.photos}
-            registerObjectUrl={registerObjectUrl}
-            onAdd={(photos) => {
-              onDraftChange({ ...draft, photos: [...draft.photos, ...photos] });
-              if (errors.photos) setErrors((current) => ({ ...current, photos: undefined }));
-            }}
-            onReorder={(photos) => onDraftChange({ ...draft, photos })}
-            onRemove={onRemovePhoto}
-          />
+          {isJournalProduct ? (
+            <JournalPhotoPicker
+              config={config}
+              photos={draft.photos}
+              registerObjectUrl={registerObjectUrl}
+              onChange={(photos) => {
+                onDraftChange({ ...draft, photos });
+                if (errors.photos) {
+                  setErrors((current) => ({ ...current, photos: undefined }));
+                }
+              }}
+              onRemovePhoto={onRemovePhoto}
+            />
+          ) : (
+            <PhotoPicker
+              config={config}
+              photos={draft.photos}
+              registerObjectUrl={registerObjectUrl}
+              onAdd={(photos) => {
+                onDraftChange({ ...draft, photos: [...draft.photos, ...photos] });
+                if (errors.photos) setErrors((current) => ({ ...current, photos: undefined }));
+              }}
+              onReorder={(photos) => onDraftChange({ ...draft, photos })}
+              onRemove={onRemovePhoto}
+              productMode={productMode}
+            />
+          )}
           {errors.photos ? (
             <p className="mt-2 font-sans text-xs text-oxblood" role="alert">
               {errors.photos}
@@ -222,19 +382,42 @@ export function MemoryForm({
           ) : null}
         </div>
 
-        <div className="mt-9">
-          <VoiceRecorder
-            config={config}
-            voiceMemos={draft.voiceMemos}
-            onChange={onVoiceMemosChange}
-            onRecordingChange={setIsRecording}
-            registerObjectUrl={registerObjectUrl}
-            resolveVoiceMemoUrl={resolveVoiceMemoUrl}
-          />
-        </div>
+        {voiceMemosEnabled ? (
+          <div className="mt-9">
+            <VoiceRecorder
+              config={config}
+              voiceMemos={draft.voiceMemos}
+              onChange={onVoiceMemosChange}
+              onRecordingChange={setIsRecording}
+              registerObjectUrl={registerObjectUrl}
+              resolveVoiceMemoUrl={resolveVoiceMemoUrl}
+            />
+          </div>
+        ) : null}
 
-        <div className="mt-9 flex flex-col-reverse gap-3 sm:flex-row">
-          {showCancel && onCancel ? (
+        {isJournalProduct ? (
+          <div className="sticky bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mt-8 flex flex-col gap-2 border-t border-rule bg-paper/95 pt-3 shadow-[0_-14px_28px_rgba(35,29,24,0.08)] backdrop-blur">
+            <button
+              type="submit"
+              disabled={journalSaveDisabled || isRecording || isSaving}
+              className="min-h-13 rounded-sm bg-ink px-5 py-4 font-sans text-sm font-semibold text-paper shadow-[0_6px_18px_rgba(45,42,36,0.12)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saveButtonLabel}
+            </button>
+            {showCancel && onCancel ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isRecording || isSaving}
+                className="py-2 font-sans text-xs font-semibold text-ink-soft underline underline-offset-4 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
+        ) : !isJournalProduct ? (
+          <div className="mt-9 flex flex-col-reverse gap-3 sm:flex-row">
+            {showCancel && onCancel ? (
             <button
               type="button"
               onClick={onCancel}
@@ -243,27 +426,16 @@ export function MemoryForm({
             >
               Cancel
             </button>
-          ) : null}
-          <button
-            type="submit"
-            disabled={isRecording || isSaving}
-            className="flex-1 rounded-sm bg-ink px-5 py-4 font-sans text-sm font-semibold text-paper shadow-[0_6px_18px_rgba(45,42,36,0.12)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving
-              ? saveStatus === "preparing"
-                ? "Preparing photos…"
-                : saveStatus === "uploading"
-                  ? "Uploading media…"
-                  : saveStatus === "cleaningUp"
-                    ? "Finishing save…"
-                    : "Saving memory…"
-              : saveStatus === "error" || saveStatus === "partialFailure"
-                ? "Retry save"
-              : isEditing
-                ? "Save changes"
-                : "Save memory"}
-          </button>
-        </div>
+            ) : null}
+            <button
+              type="submit"
+              disabled={isRecording || isSaving}
+              className="flex-1 rounded-sm bg-ink px-5 py-4 font-sans text-sm font-semibold text-paper shadow-[0_6px_18px_rgba(45,42,36,0.12)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saveButtonLabel}
+            </button>
+          </div>
+        ) : null}
         {saveMessage ? (
           <p
             className={`mt-3 text-center font-sans text-xs ${

@@ -7,6 +7,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PersistentMemoryFlow } from "@/components/capsule/persistent-memory-flow";
 import type { PersistentMemoryEntry } from "@/data/memory-demo";
 import type { JournalMemoryContext } from "@/data/journal";
+import {
+  findStampForLocalDateKey,
+  toLocalDateKeyFromDate,
+} from "@/data/journal-stamps";
 import { loadJournalMemoryContext } from "@/lib/capsule/api";
 
 type JournalMemoryPageProps = {
@@ -37,7 +41,7 @@ export function JournalMemoryPage({
         if (active) setContext(next);
       })
       .catch(() => {
-        if (active) setError("This memory could not be opened.");
+        if (active) setError("This stamp could not be opened.");
       });
     return () => {
       active = false;
@@ -45,6 +49,7 @@ export function JournalMemoryPage({
   }, [capsuleId, client, memoryId]);
 
   const returnHome = () => router.push(`/c/${publicToken}`);
+  const openStamp = (id: string) => router.push(`/c/${publicToken}/m/${id}`);
 
   if (error) {
     return (
@@ -64,18 +69,44 @@ export function JournalMemoryPage({
   if (!context) {
     return (
       <div className="memory-entry font-sans text-sm text-ink-soft">
-        Opening memory…
+        Opening stamp…
       </div>
     );
   }
 
-  if (!initialMemory && context.effectivePhotoLimit === 0) {
+  const existingToday = !initialMemory
+    ? findStampForLocalDateKey(
+        context.memories,
+        toLocalDateKeyFromDate(new Date()),
+      )
+    : undefined;
+
+  if (existingToday && existingToday.id !== memoryId) {
     return (
       <div className="memory-entry text-center">
-        <p className="font-serif text-xl">This journal is full.</p>
+        <p className="font-serif text-xl">
+          Today is already sealed in this journal.
+        </p>
         <p className="mt-2 font-sans text-xs leading-relaxed text-ink-soft">
-          100 of 100 photos are in use. Delete a photograph or memory before
-          adding another memory.
+          You can revisit today’s stamp instead of making another one.
+        </p>
+        <button
+          type="button"
+          onClick={() => openStamp(existingToday.id)}
+          className="mt-5 font-sans text-xs font-semibold text-oxblood underline underline-offset-4"
+        >
+          Open today’s stamp
+        </button>
+      </div>
+    );
+  }
+
+  if (!initialMemory && context.effectivePhotoLimit <= 0) {
+    return (
+      <div className="memory-entry text-center">
+        <p className="font-serif text-xl">This journal needs a little space.</p>
+        <p className="mt-2 font-sans text-xs leading-relaxed text-ink-soft">
+          Delete a saved moment or stamp before sealing another day.
         </p>
         <button
           type="button"
@@ -96,10 +127,9 @@ export function JournalMemoryPage({
       memoryId={memoryId}
       initialMemory={initialMemory}
       maxPhotos={context.effectivePhotoLimit}
-      journalMode
-      journalPhotoCount={context.totalJournalPhotos}
-      existingMemoryPhotoCount={context.existingMemoryPhotos}
-      journalPhotoLimit={100}
+      productMode="journal"
+      journalStamps={context.memories}
+      onOpenJournalStamp={openStamp}
       onBack={returnHome}
       onCancelCreate={returnHome}
       onDeleted={returnHome}

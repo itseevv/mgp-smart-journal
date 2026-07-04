@@ -1,6 +1,7 @@
 "use client";
 
 import type { MemoryEntry } from "@/data/memory-demo";
+import { DailyMemoryStamp } from "@/components/stamp/daily-memory-stamp";
 import { PhotoCollection } from "@/components/memory/photo-collection";
 import { VoiceMemoCard } from "@/components/memory/voice-memo";
 import { useState } from "react";
@@ -17,6 +18,7 @@ type CompletedStateProps = {
     variant: "display" | "thumbnail",
     forceRefresh?: boolean,
   ) => Promise<string>;
+  journalMode?: boolean;
 };
 
 function formatCapturedAt(isoDate: string) {
@@ -32,8 +34,19 @@ export function CompletedState({
   onEdit,
   resolveVoiceMemoUrl,
   resolvePhotoUrl,
+  journalMode = false,
 }: CompletedStateProps) {
   const [activeMemoId, setActiveMemoId] = useState<string | null>(null);
+
+  if (journalMode) {
+    return (
+      <DailyMemoryStamp
+        memory={memory}
+        onEdit={onEdit}
+        resolvePhotoUrl={resolvePhotoUrl}
+      />
+    );
+  }
 
   return (
     <article aria-labelledby="completed-memory-title" className="memory-entry">

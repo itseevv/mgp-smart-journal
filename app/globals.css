@@ -41,6 +41,7 @@ body {
   color: var(--ink);
   font-family: var(--font-editorial);
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 button,
@@ -74,6 +75,267 @@ a:focus-visible {
   pointer-events: none;
   position: absolute;
   z-index: -1;
+}
+
+.journal-leather-surface {
+  background: var(--journal-background);
+  color: var(--journal-text);
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
+}
+
+.journal-leather-surface::before {
+  background-image:
+    var(--journal-texture),
+    linear-gradient(110deg, rgba(255, 255, 255, 0.055), transparent 38%, rgba(0, 0, 0, 0.13));
+  background-size: 8px 9px, auto;
+  content: "";
+  inset: 0;
+  opacity: 0.8;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.scrap-table-punch {
+  animation: scrap-table-punch 180ms ease-out;
+}
+
+.scrap-table-punch [data-scrap-aperture="stamp-window"] {
+  animation: scrap-aperture-press 180ms ease-out;
+}
+
+.scrap-table-punch [data-scrap-aperture="stamp-window"]::before {
+  animation: scrap-aperture-flash 180ms ease-out;
+  background: rgba(255, 255, 255, 0.22);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+@keyframes scrap-table-punch {
+  0% {
+    transform: scale(1);
+  }
+
+  48% {
+    transform: scale(0.982);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes scrap-aperture-press {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), inset 0 0 32px rgba(0, 0, 0, 0.22);
+    transform: scale(1);
+  }
+
+  46% {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38), inset 0 0 18px rgba(0, 0, 0, 0.35);
+    transform: scale(0.984);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), inset 0 0 32px rgba(0, 0, 0, 0.22);
+    transform: scale(1);
+  }
+}
+
+@keyframes scrap-aperture-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  42% {
+    opacity: 1;
+  }
+}
+
+.stamp-frame,
+.stamp-edge {
+  --stamp-rim-width: 4px;
+  --stamp-rim-color: rgba(246, 238, 218, 0.96);
+  --stamp-inner-contrast: rgba(70, 49, 42, 0.38);
+  --stamp-cutout-shadow: rgba(52, 36, 31, 0.54);
+  --stamp-edge-color-a: rgba(52, 36, 31, 0.64);
+  --stamp-edge-color-b: rgba(246, 238, 218, 0.98);
+  --stamp-edge-dot: 1.6px;
+  --stamp-edge-cutoff: 1.95px;
+  --stamp-edge-x: 0.42rem;
+  --stamp-edge-y: 0.42rem;
+  --stamp-edge-opacity: 0.92;
+  --stamp-edge-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.48),
+    inset 0 0 0 2px rgba(45, 42, 36, 0.16),
+    0 8px 18px rgba(42, 31, 25, 0.12);
+  isolation: isolate;
+  position: relative;
+}
+
+.stamp-frame::before,
+.stamp-edge::before {
+  box-shadow:
+    inset 0 0 0 var(--stamp-rim-width) var(--stamp-rim-color),
+    inset 0 0 0 calc(var(--stamp-rim-width) + 1px) var(--stamp-inner-contrast),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.54),
+    0 1px 0 rgba(255, 255, 255, 0.28);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
+}
+
+.stamp-frame::after,
+.stamp-edge::after {
+  background-image:
+    radial-gradient(circle, var(--stamp-cutout-shadow) 0 calc(var(--stamp-edge-dot) * 0.62), var(--stamp-edge-color-a) calc(var(--stamp-edge-dot) * 0.66) var(--stamp-edge-dot), transparent var(--stamp-edge-cutoff)),
+    radial-gradient(circle, var(--stamp-cutout-shadow) 0 calc(var(--stamp-edge-dot) * 0.62), var(--stamp-edge-color-a) calc(var(--stamp-edge-dot) * 0.66) var(--stamp-edge-dot), transparent var(--stamp-edge-cutoff)),
+    radial-gradient(circle, var(--stamp-cutout-shadow) 0 calc(var(--stamp-edge-dot) * 0.62), var(--stamp-edge-color-a) calc(var(--stamp-edge-dot) * 0.66) var(--stamp-edge-dot), transparent var(--stamp-edge-cutoff)),
+    radial-gradient(circle, var(--stamp-cutout-shadow) 0 calc(var(--stamp-edge-dot) * 0.62), var(--stamp-edge-color-a) calc(var(--stamp-edge-dot) * 0.66) var(--stamp-edge-dot), transparent var(--stamp-edge-cutoff)),
+    linear-gradient(var(--stamp-edge-color-b), var(--stamp-edge-color-b)),
+    linear-gradient(var(--stamp-edge-color-b), var(--stamp-edge-color-b)),
+    linear-gradient(var(--stamp-edge-color-b), var(--stamp-edge-color-b)),
+    linear-gradient(var(--stamp-edge-color-b), var(--stamp-edge-color-b));
+  background-position:
+    calc(var(--stamp-edge-x) * 0.5) top,
+    calc(var(--stamp-edge-x) * 0.5) bottom,
+    left calc(var(--stamp-edge-x) * 0.5),
+    right calc(var(--stamp-edge-x) * 0.5),
+    left top,
+    left bottom,
+    left top,
+    right top;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-size:
+    var(--stamp-edge-x) var(--stamp-edge-y),
+    var(--stamp-edge-x) var(--stamp-edge-y),
+    var(--stamp-edge-y) var(--stamp-edge-x),
+    var(--stamp-edge-y) var(--stamp-edge-x),
+    100% var(--stamp-rim-width),
+    100% var(--stamp-rim-width),
+    var(--stamp-rim-width) 100%,
+    var(--stamp-rim-width) 100%;
+  box-shadow: var(--stamp-edge-shadow);
+  content: "";
+  inset: 0;
+  opacity: var(--stamp-edge-opacity);
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+}
+
+.stamp-frame--lg {
+  --stamp-rim-width: 10px;
+  --stamp-rim-color: rgba(245, 238, 221, 0.98);
+  --stamp-inner-contrast: rgba(22, 31, 31, 0.52);
+  --stamp-cutout-shadow: rgba(13, 21, 22, 0.82);
+  --stamp-edge-color-a: rgba(18, 27, 28, 0.86);
+  --stamp-edge-color-b: rgba(245, 238, 221, 0.98);
+  --stamp-edge-dot: 3.2px;
+  --stamp-edge-cutoff: 3.8px;
+  --stamp-edge-x: 0.86rem;
+  --stamp-edge-y: 0.86rem;
+  --stamp-edge-opacity: 1;
+  --stamp-edge-shadow:
+    inset 0 0 0 1px rgba(246, 239, 221, 0.9),
+    inset 0 0 0 3px rgba(23, 33, 33, 0.34),
+    inset 0 0 0 10px rgba(245, 238, 221, 0.18),
+    inset 0 0 26px rgba(0, 0, 0, 0.34),
+    0 16px 34px rgba(0, 0, 0, 0.24);
+}
+
+.stamp-frame--md {
+  --stamp-rim-width: 7px;
+  --stamp-rim-color: rgba(246, 238, 218, 0.98);
+  --stamp-inner-contrast: rgba(111, 47, 50, 0.54);
+  --stamp-cutout-shadow: rgba(82, 43, 42, 0.74);
+  --stamp-edge-color-a: rgba(90, 45, 43, 0.78);
+  --stamp-edge-color-b: rgba(246, 238, 218, 0.98);
+  --stamp-edge-dot: 2.35px;
+  --stamp-edge-cutoff: 2.8px;
+  --stamp-edge-x: 0.66rem;
+  --stamp-edge-y: 0.66rem;
+  --stamp-edge-opacity: 0.98;
+  --stamp-edge-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58),
+    inset 0 0 0 3px rgba(111, 47, 50, 0.16),
+    inset 0 0 0 7px rgba(246, 238, 218, 0.12),
+    0 10px 22px rgba(45, 32, 26, 0.18);
+}
+
+.stamp-frame--sm {
+  --stamp-rim-width: 4px;
+  --stamp-rim-color: rgba(246, 238, 218, 0.96);
+  --stamp-inner-contrast: rgba(111, 47, 50, 0.46);
+  --stamp-cutout-shadow: rgba(82, 43, 42, 0.68);
+  --stamp-edge-color-a: rgba(90, 45, 43, 0.72);
+  --stamp-edge-color-b: rgba(246, 238, 218, 0.98);
+  --stamp-edge-dot: 1.55px;
+  --stamp-edge-cutoff: 1.95px;
+  --stamp-edge-x: 0.48rem;
+  --stamp-edge-y: 0.48rem;
+  --stamp-edge-opacity: 0.92;
+  --stamp-edge-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.48),
+    inset 0 0 0 2px rgba(111, 47, 50, 0.16),
+    0 5px 12px rgba(45, 32, 26, 0.12);
+}
+
+.stamp-edge--subtle::after {
+  opacity: 0.58;
+}
+
+.stamp-edge--preview::after {
+  opacity: 0.72;
+}
+
+.stamp-edge--aperture::after {
+  background-image:
+    radial-gradient(circle, rgba(238, 231, 216, 0.9) 0 1.8px, transparent 2px),
+    radial-gradient(circle, rgba(238, 231, 216, 0.9) 0 1.8px, transparent 2px),
+    radial-gradient(circle, rgba(238, 231, 216, 0.82) 0 1.8px, transparent 2px),
+    radial-gradient(circle, rgba(238, 231, 216, 0.82) 0 1.8px, transparent 2px);
+  background-size:
+    0.7rem 0.32rem,
+    0.7rem 0.32rem,
+    0.32rem 0.7rem,
+    0.32rem 0.7rem;
+  box-shadow:
+    inset 0 0 0 1px rgba(238, 231, 216, 0.74),
+    inset 0 0 18px rgba(0, 0, 0, 0.28),
+    0 14px 32px rgba(0, 0, 0, 0.2);
+  opacity: 1;
+}
+
+.journal-mobile-page {
+  background: var(--leather);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.journal-mobile-shell {
+  margin-inline: auto;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding-block-end: calc(1rem + env(safe-area-inset-bottom));
+  padding-block-start: calc(0.75rem + env(safe-area-inset-top));
+  padding-inline: 0.75rem;
+  width: min(100%, 30rem);
+}
+
+@media (min-width: 640px) {
+  .journal-mobile-shell {
+    padding-block: 1.5rem;
+    padding-inline: 1rem;
+  }
 }
 
 .memory-entry {

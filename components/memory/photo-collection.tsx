@@ -6,13 +6,14 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type RefObject,
 } from "react";
 
 import { PhotoViewer } from "@/components/memory/photo-viewer";
 import type { MemoryPhoto } from "@/data/memory-demo";
 
-type PhotoCollectionProps = {
+export type PhotoCollectionProps = {
   photos: MemoryPhoto[];
   resolvePhotoUrl?: (
     photo: MemoryPhoto,
@@ -21,23 +22,25 @@ type PhotoCollectionProps = {
   ) => Promise<string>;
 };
 
-type PrivatePhotoProps = {
+export type PrivatePhotoProps = {
   photo: MemoryPhoto;
   variant: "display" | "thumbnail";
   priority?: boolean;
   sizes: string;
   className: string;
+  imageStyle?: CSSProperties;
   resolvePhotoUrl?: PhotoCollectionProps["resolvePhotoUrl"];
   deferUntilVisible?: boolean;
   visibilityRootRef?: RefObject<HTMLDivElement | null>;
 };
 
-function PrivatePhoto({
+export function PrivatePhoto({
   photo,
   variant,
   priority,
   sizes,
   className,
+  imageStyle,
   resolvePhotoUrl,
   deferUntilVisible = false,
   visibilityRootRef,
@@ -158,56 +161,103 @@ function PrivatePhoto({
     void resolveAndLoad();
   }, [isVisible, readyUrl, resolveAndLoad]);
 
+  const imageClassName = `${className} transition-opacity duration-200`;
+
   return (
     <div ref={containerRef} className="absolute inset-0">
       {isVisible && previewUrl ? (
-        <Image
-          src={previewUrl}
-          alt=""
-          aria-hidden="true"
-          fill
-          priority={priority}
-          unoptimized
-          sizes={sizes}
-          className={`${className} transition-opacity duration-200 ${
-            previewLoaded && !displayLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          onLoad={() => setPreviewLoaded(true)}
-          onError={() => {
-            setPreviewLoaded(false);
-            setPreviewUrl(undefined);
-          }}
-        />
+        imageStyle ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt=""
+            aria-hidden="true"
+            className={`${imageClassName} ${
+              previewLoaded && !displayLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            style={imageStyle}
+            onLoad={() => setPreviewLoaded(true)}
+            onError={() => {
+              setPreviewLoaded(false);
+              setPreviewUrl(undefined);
+            }}
+          />
+        ) : (
+          <Image
+            src={previewUrl}
+            alt=""
+            aria-hidden="true"
+            fill
+            priority={priority}
+            unoptimized
+            sizes={sizes}
+            className={`${imageClassName} ${
+              previewLoaded && !displayLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            onLoad={() => setPreviewLoaded(true)}
+            onError={() => {
+              setPreviewLoaded(false);
+              setPreviewUrl(undefined);
+            }}
+          />
+        )
       ) : null}
 
       {isVisible && readyUrl ? (
-        <Image
-          src={readyUrl}
-          alt={photo.name}
-          fill
-          priority={priority}
-          loading={priority ? undefined : "lazy"}
-          unoptimized
-          sizes={sizes}
-          className={`${className} transition-opacity duration-200 ${
-            displayLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          onLoad={() => {
-            imageRetryRef.current = false;
-            setDisplayLoaded(true);
-            setPreviewUrl(undefined);
-          }}
-          onError={() => {
-            setDisplayLoaded(false);
-            setReadyUrl(undefined);
-            if (!imageRetryRef.current && resolvePhotoUrl) {
-              imageRetryRef.current = true;
-              void resolveAndLoad(true);
-              return;
-            }
-            setLoadError("Photograph unavailable. Open to retry.");
-          }}
-        />
+        imageStyle ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={readyUrl}
+            alt={photo.name}
+            className={`${imageClassName} ${
+              displayLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            style={imageStyle}
+            onLoad={() => {
+              imageRetryRef.current = false;
+              setDisplayLoaded(true);
+              setPreviewUrl(undefined);
+            }}
+            onError={() => {
+              setDisplayLoaded(false);
+              setReadyUrl(undefined);
+              if (!imageRetryRef.current && resolvePhotoUrl) {
+                imageRetryRef.current = true;
+                void resolveAndLoad(true);
+                return;
+              }
+              setLoadError("Photograph unavailable. Open to retry.");
+            }}
+          />
+        ) : (
+          <Image
+            src={readyUrl}
+            alt={photo.name}
+            fill
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
+            unoptimized
+            sizes={sizes}
+            className={`${imageClassName} ${
+              displayLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            onLoad={() => {
+              imageRetryRef.current = false;
+              setDisplayLoaded(true);
+              setPreviewUrl(undefined);
+            }}
+            onError={() => {
+              setDisplayLoaded(false);
+              setReadyUrl(undefined);
+              if (!imageRetryRef.current && resolvePhotoUrl) {
+                imageRetryRef.current = true;
+                void resolveAndLoad(true);
+                return;
+              }
+              setLoadError("Photograph unavailable. Open to retry.");
+            }}
+          />
+        )
       ) : null}
 
       {isVisible && loadError && !previewLoaded && !displayLoaded ? (

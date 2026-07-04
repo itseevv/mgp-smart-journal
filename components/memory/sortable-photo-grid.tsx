@@ -19,12 +19,16 @@ import {
 
 import { TrashIcon } from "@/components/memory/memory-icons";
 import { movePhoto } from "@/components/memory/photo-order";
+import { StampFrame } from "@/components/stamp/stamp-frame";
 import type { MemoryPhoto } from "@/data/memory-demo";
 
 type SortablePhotoGridProps = {
   photos: MemoryPhoto[];
   onChange: (photos: MemoryPhoto[]) => void;
   onRemove: (photo: MemoryPhoto) => void;
+  coverLabel?: string;
+  itemLabel?: string;
+  stampFramePreview?: boolean;
 };
 
 type SortablePhotoTileProps = {
@@ -32,6 +36,9 @@ type SortablePhotoTileProps = {
   index: number;
   total: number;
   onRemove: (photo: MemoryPhoto) => void;
+  coverLabel: string;
+  itemLabel: string;
+  stampFramePreview: boolean;
 };
 
 const pointerSensors = [
@@ -59,20 +66,23 @@ const pointerSensors = [
 function PhotoTileVisual({
   photo,
   index,
+  coverLabel,
+  stampFramePreview,
   overlay = false,
 }: {
   photo: MemoryPhoto;
   index: number;
+  coverLabel: string;
+  stampFramePreview: boolean;
   overlay?: boolean;
 }) {
-  return (
-    <div
-      className={`relative aspect-square overflow-hidden rounded-sm bg-paper-deep ${
-        overlay
-          ? "scale-[1.04] shadow-[0_18px_38px_rgba(35,29,24,0.35)] ring-1 ring-paper/70"
-          : ""
-      }`}
-    >
+  const frameClassName = `relative aspect-square overflow-hidden rounded-sm bg-paper-deep ${
+    overlay
+      ? "scale-[1.04] shadow-[0_18px_38px_rgba(35,29,24,0.35)] ring-1 ring-paper/70"
+      : ""
+  }`;
+  const tileContent = (
+    <>
       {photo.thumbnailObjectUrl ?? photo.objectUrl ? (
         <Image
           src={(photo.thumbnailObjectUrl ?? photo.objectUrl)!}
@@ -84,11 +94,29 @@ function PhotoTileVisual({
           className="pointer-events-none select-none object-cover"
         />
       ) : null}
-      {index === 0 ? (
-        <span className="absolute bottom-1.5 left-1.5 rounded-[2px] bg-paper/95 px-2 py-1 font-sans text-[0.58rem] font-semibold uppercase tracking-[0.08em] text-oxblood shadow-sm">
-          First photo
+      {index === 0 && coverLabel ? (
+        <span className="absolute bottom-1.5 left-1.5 z-10 rounded-[2px] bg-paper/95 px-2 py-1 font-sans text-[0.58rem] font-semibold uppercase tracking-[0.08em] text-oxblood shadow-sm">
+          {coverLabel}
         </span>
       ) : null}
+    </>
+  );
+
+  if (stampFramePreview) {
+    return (
+      <StampFrame
+        variant="sm"
+        className={frameClassName}
+        data-photo-preview-fit="stamp-cover"
+      >
+        {tileContent}
+      </StampFrame>
+    );
+  }
+
+  return (
+    <div className={frameClassName} data-photo-preview-fit="cover">
+      {tileContent}
     </div>
   );
 }
@@ -98,6 +126,9 @@ function SortablePhotoTile({
   index,
   total,
   onRemove,
+  coverLabel,
+  itemLabel,
+  stampFramePreview,
 }: SortablePhotoTileProps) {
   const { ref, handleRef, isDragging } = useSortable({
     id: photo.id,
@@ -116,13 +147,18 @@ function SortablePhotoTile({
         role="button"
         tabIndex={0}
         data-photo-name={photo.name}
-        aria-label={`Photo ${index + 1} of ${total}. Press to pick up and move.`}
+        aria-label={`${itemLabel} ${index + 1} of ${total}. Press to pick up and move.`}
         aria-roledescription="sortable photo"
         className={`cursor-grab touch-pan-y select-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-oxblood focus-visible:ring-offset-2 focus-visible:ring-offset-paper active:cursor-grabbing ${
           isDragging ? "opacity-25" : "opacity-100"
         }`}
       >
-        <PhotoTileVisual photo={photo} index={index} />
+        <PhotoTileVisual
+          photo={photo}
+          index={index}
+          coverLabel={coverLabel}
+          stampFramePreview={stampFramePreview}
+        />
       </div>
       <button
         type="button"
@@ -141,6 +177,9 @@ export function SortablePhotoGrid({
   photos,
   onChange,
   onRemove,
+  coverLabel = "First photo",
+  itemLabel = "Photo",
+  stampFramePreview = false,
 }: SortablePhotoGridProps) {
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -190,16 +229,21 @@ export function SortablePhotoGrid({
               index={index}
               total={photos.length}
               onRemove={onRemove}
+              coverLabel={coverLabel}
+              itemLabel={itemLabel}
+              stampFramePreview={stampFramePreview}
             />
           ))}
         </div>
 
         <DragOverlay dropAnimation={{ duration: 180, easing: "ease-out" }}>
           {activePhoto ? (
-            <div className="w-[calc((min(100vw,36rem)-4.5rem)/3)] max-w-[10.5rem]">
+            <div className="w-[calc((min(100vw,30rem)-4rem)/3)] max-w-[8.75rem]">
               <PhotoTileVisual
                 photo={activePhoto}
                 index={activeIndex}
+                coverLabel={coverLabel}
+                stampFramePreview={stampFramePreview}
                 overlay
               />
             </div>
