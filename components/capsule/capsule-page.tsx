@@ -68,10 +68,12 @@ export function CapsulePage({
   publicToken,
   memoryId,
   initialGate,
+  initialMonth,
 }: {
   publicToken: string;
   memoryId?: string;
   initialGate?: CapsuleInitialGate;
+  initialMonth?: string;
 }) {
   const router = useRouter();
   const [state, setState] = useState<PageState>(() =>
@@ -344,6 +346,7 @@ export function CapsulePage({
               client={state.client}
               capsuleId={state.capsuleId}
               publicToken={publicToken}
+              initialMonth={initialMonth}
               onLock={lock}
             />
           )}

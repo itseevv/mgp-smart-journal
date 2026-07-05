@@ -14,9 +14,14 @@ function createDemoPhotoCount(screen?: string, value?: string) {
 export default async function JournalDemoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ screen?: string; photos?: string; scenario?: string }>;
+  searchParams: Promise<{
+    screen?: string;
+    photos?: string;
+    scenario?: string;
+    month?: string;
+  }>;
 }) {
-  const { screen, photos, scenario } = await searchParams;
+  const { screen, photos, scenario, month } = await searchParams;
   return (
     <main className="journal-mobile-page">
       <JournalMobileShell>
@@ -36,6 +41,7 @@ export default async function JournalDemoPage({
               ? scenario
               : undefined
           }
+          initialMonth={month}
         />
       </JournalMobileShell>
     </main>

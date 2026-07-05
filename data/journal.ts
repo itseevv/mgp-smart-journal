@@ -1,4 +1,5 @@
 import { JOURNAL_YEAR_PHOTO_CAPACITY } from "./journal-product";
+import type { PhotoCropMetadata } from "./memory-demo";
 
 export const journalConfig = {
   defaultTitle: "My Journal",
@@ -17,9 +18,13 @@ export type JournalMemorySummary = {
   localTimezone?: string | null;
   photoCount: number;
   voiceMemoCount: number;
+  firstPhotoStoragePath?: string;
+  firstPhotoWidth?: number;
+  firstPhotoHeight?: number;
   firstThumbnailStoragePath?: string;
   thumbnailWidth?: number;
   thumbnailHeight?: number;
+  coverCropMetadata?: PhotoCropMetadata;
 };
 
 export type JournalHomeData = {

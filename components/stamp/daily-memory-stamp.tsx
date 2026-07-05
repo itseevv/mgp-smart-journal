@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeftIcon } from "@/components/memory/memory-icons";
 import { StampGrid } from "@/components/stamp/stamp-grid";
 import { defaultJournalTheme, journalThemeStyle } from "@/data/journal-themes";
 import type { MemoryEntry } from "@/data/memory-demo";
@@ -7,6 +8,7 @@ import type { MemoryEntry } from "@/data/memory-demo";
 type DailyMemoryStampProps = {
   memory: MemoryEntry;
   onEdit: () => void;
+  onBackToMonthSheet?: () => void;
   resolvePhotoUrl?: (
     photo: MemoryEntry["photos"][number],
     variant: "display" | "thumbnail",
@@ -24,6 +26,7 @@ function formatDisplayDate(isoDate: string) {
 export function DailyMemoryStamp({
   memory,
   onEdit,
+  onBackToMonthSheet,
   resolvePhotoUrl,
 }: DailyMemoryStampProps) {
   const dateLabel = formatDisplayDate(memory.capturedAt);
@@ -36,6 +39,17 @@ export function DailyMemoryStamp({
       style={journalThemeStyle(defaultJournalTheme)}
     >
       <div>
+        {onBackToMonthSheet ? (
+          <button
+            type="button"
+            onClick={onBackToMonthSheet}
+            className="mb-4 inline-flex min-h-10 items-center gap-1.5 font-sans text-[0.68rem] font-semibold text-[var(--journal-muted)] underline decoration-[var(--journal-accent-metal)] underline-offset-4"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+            <span>Back to month sheet</span>
+          </button>
+        ) : null}
+
         <header className="pb-4 text-[var(--journal-text)]">
           <div>
             <time

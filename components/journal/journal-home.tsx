@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
+import { useMonthQueryState } from "@/components/journal/use-month-query-state";
 import { memoryMediaConfig } from "@/data/memory-demo";
 import { journalConfig, type JournalHomeData } from "@/data/journal";
 import {
-  activeMonthlyStampSheet,
   findStampForLocalDate,
-  groupStampsByMonth,
+  monthlyStampArchive,
 } from "@/data/journal-stamps";
 import { defaultJournalTheme, journalThemeStyle } from "@/data/journal-themes";
 import {
@@ -24,16 +24,23 @@ type JournalHomeProps = {
   client: SupabaseClient;
   capsuleId: string;
   publicToken: string;
+  initialMonth?: string;
   onLock: () => Promise<void>;
 };
+
+function coverStoragePath(memory: JournalHomeData["memories"][number]) {
+  return memory.firstThumbnailStoragePath ?? memory.firstPhotoStoragePath;
+}
 
 export function JournalHome({
   client,
   capsuleId,
   publicToken,
+  initialMonth,
   onLock,
 }: JournalHomeProps) {
   const router = useRouter();
+  const [requestedMonth, selectMonth] = useMonthQueryState(initialMonth);
   const urlCache = useMemo(
     () =>
       new PrivateMediaUrlCache(
@@ -63,18 +70,17 @@ export function JournalHome({
       setJournal(next);
       setTitleDraft(next.title);
       setStatus("ready");
-      const paths = next.memories.flatMap((memory) =>
-        memory.firstThumbnailStoragePath
-          ? [memory.firstThumbnailStoragePath]
-          : [],
-      );
+      const paths = next.memories.flatMap((memory) => {
+        const path = coverStoragePath(memory);
+        return path ? [path] : [];
+      });
       try {
         const resolved =
           paths.length > 0 ? await urlCache.resolveMany(paths) : [];
         const urls: Record<string, string> = {};
         let resolvedIndex = 0;
         next.memories.forEach((memory) => {
-          if (!memory.firstThumbnailStoragePath) return;
+          if (!coverStoragePath(memory)) return;
           urls[memory.id] = resolved[resolvedIndex];
           resolvedIndex += 1;
         });
@@ -178,10 +184,7 @@ export function JournalHome({
   }
 
   const isAtJournalLimit = journal.photoCount >= journal.maxPhotos;
-  const activeSheet = activeMonthlyStampSheet(journal.memories);
-  const earlierSheets = groupStampsByMonth(journal.memories)
-    .filter((sheet) => sheet.key !== activeSheet.key)
-    .reverse();
+  const archive = monthlyStampArchive(journal.memories, requestedMonth);
 
   return (
     <div style={journalThemeStyle(defaultJournalTheme)}>
@@ -289,10 +292,10 @@ export function JournalHome({
         ) : null}
 
         <MonthlyStampSheet
-          sheet={activeSheet}
-          earlierSheets={earlierSheets}
+          archive={archive}
           thumbnailUrls={thumbnailUrls}
           onOpen={(memory) => router.push(`/c/${publicToken}/m/${memory.id}`)}
+          onSelectMonth={selectMonth}
           onSealToday={sealToday}
           sealBusy={navigationBusy}
           sealMessage={sealMessage}

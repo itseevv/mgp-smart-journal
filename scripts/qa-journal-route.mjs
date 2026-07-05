@@ -60,6 +60,16 @@ const createForbiddenStrings = [
   "1 moment added",
   "Press and drag to reorder",
 ];
+const archiveForbiddenStrings = [
+  "missed day",
+  "missed days",
+  "streak",
+  "habit",
+  "0/31",
+  "0 / 31",
+  "photo quota",
+  "voice memo",
+];
 
 const readSource = (path) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -144,11 +154,16 @@ assert.equal(rules.voiceMemosEnabled, false);
 const journalRouteSource = readSource("components/journal/journal-memory-page.tsx");
 const persistentFlowSource = readSource("components/capsule/persistent-memory-flow.tsx");
 const journalDemoSource = readSource("components/journal/journal-demo-flow.tsx");
+const monthSheetGridSource = readSource("components/journal/month-sheet-grid.tsx");
+const monthlyStampSheetSource = readSource("components/journal/monthly-stamp-sheet.tsx");
+const stampTileSource = readSource("components/journal/stamp-tile.tsx");
 const memoryDemoSource = readSource("app/memory/demo/page.tsx");
 const journalDemoPageSource = readSource("app/journal/demo/page.tsx");
 const capsulePageSource = readSource("components/capsule/capsule-page.tsx");
+const publicCapsulePageSource = readSource("app/c/[publicToken]/page.tsx");
 const stampDetailSource = readSource("components/stamp/daily-memory-stamp.tsx");
 const stampGridSource = readSource("components/stamp/stamp-grid.tsx");
+const croppedStampImageSource = readSource("components/stamp/cropped-stamp-image.tsx");
 const journalPhotoPickerSource = readSource("components/memory/journal-photo-picker.tsx");
 const scrapTableSource = readSource("components/scrap/scrap-table.tsx");
 const stampFrameSource = readSource("components/stamp/stamp-frame.tsx");
@@ -160,24 +175,69 @@ const migrationSource = readSource(
 const phase3MigrationSource = readSource(
   "supabase/migrations/202607040001_scrap_day_phase_3_local_date.sql",
 );
+const phase42MigrationSource = readSource(
+  "supabase/migrations/202607050001_scrap_day_phase_4_2_month_sheet_cover_crop.sql",
+);
 
+assert.match(publicCapsulePageSource, /searchParams/);
+assert.match(publicCapsulePageSource, /initialMonth=\{month\}/);
 assert.match(journalRouteSource, /productMode="journal"/);
 assert.match(journalRouteSource, /existingToday/);
 assert.match(journalRouteSource, /Today is already sealed in this journal/);
 assert.match(journalRouteSource, /Open today’s stamp/);
+assert.match(journalRouteSource, /monthKeyForJournalMemory/);
+assert.match(journalRouteSource, /\?month=/);
 assert.match(persistentFlowSource, /Math\.min\(productRules\.maxPhotosPerEntry, maxPhotos\)/);
 assert.match(persistentFlowSource, /journalStamps/);
 assert.match(persistentFlowSource, /findDuplicateStampForLocalDate/);
+assert.match(persistentFlowSource, /onBackToJournalMonth/);
 assert.match(journalDemoSource, /productMode="journal"/);
 assert.match(journalDemoSource, /initialScreen\?: "home" \| "create" \| "crop" \| "sealed" \| "detail"/);
 assert.match(journalDemoSource, /scenario\?: "duplicate-today" \| "backfill-may"/);
 assert.match(journalDemoSource, /createBackfillDemoStamp/);
+assert.match(journalDemoSource, /createArchiveDemoStamps/);
+assert.match(journalDemoSource, /monthlyStampArchive/);
+assert.match(journalDemoSource, /useMonthQueryState/);
+assert.match(journalDemoSource, /returnToMonthSheet/);
+assert.match(journalDemoSource, /searchParams\.set\("screen", "home"\)/);
+assert.match(journalDemoSource, /createArchiveMonthStamps\("2026-08"/);
+assert.match(journalDemoSource, /Array\.from\(\{ length: 31 \}/);
 assert.match(journalDemoSource, /maxPhotosPerMemory: DAILY_MEMORY_STAMP_MAX_PHOTOS/);
 assert.match(memoryDemoSource, /redirect\("\/journal\/demo"\)/);
 assert.match(journalDemoPageSource, /JournalMobileShell/);
+assert.match(journalDemoPageSource, /month\?: string/);
 assert.match(journalDemoPageSource, /screen === "crop"/);
 assert.match(journalDemoPageSource, /screen === "sealed"/);
 assert.match(capsulePageSource, /JournalMobileShell/);
+assert.match(capsulePageSource, /initialMonth\?: string/);
+assert.match(capsulePageSource, /initialMonth=\{initialMonth\}/);
+assert.match(monthlyStampSheetSource, /Back to this month/);
+assert.match(monthlyStampSheetSource, /Seal Today/);
+assert.match(monthlyStampSheetSource, /MonthSheetGrid/);
+assert.doesNotMatch(monthlyStampSheetSource, /journal-sheets-title/);
+assert.doesNotMatch(monthlyStampSheetSource, /archive\.stampedSheets/);
+assert.doesNotMatch(monthlyStampSheetSource, />\s*Sheets\s*</);
+assert.doesNotMatch(monthlyStampSheetSource, /grid-cols-2/);
+assert.doesNotMatch(
+  monthlyStampSheetSource,
+  /missed|streak|habit|voiceMemoCount|photo quota/i,
+);
+assert.match(monthSheetGridSource, /MONTH_SHEET_COLUMNS/);
+assert.match(monthSheetGridSource, /MONTH_SHEET_ROWS/);
+assert.match(monthSheetGridSource, /MONTH_SHEET_CAPACITY/);
+assert.match(monthSheetGridSource, /data-month-sheet-grid="true"/);
+assert.match(monthSheetGridSource, /grid-cols-4/);
+assert.match(monthSheetGridSource, /variant\?: "app" \| "export"/);
+assert.match(stampTileSource, /StampFrame/);
+assert.match(stampTileSource, /variant="sm"/);
+assert.match(stampTileSource, /data-month-sheet-day/);
+assert.match(stampTileSource, /data-month-sheet-position/);
+assert.match(stampTileSource, /CroppedStampImage/);
+assert.match(stampTileSource, /data-month-sheet-cover-crop/);
+assert.match(stampTileSource, /coverCropMetadata/);
+assert.doesNotMatch(stampTileSource, /<time|mt-2 block truncate/);
+assert.match(stampDetailSource, /Back to month sheet/);
+assert.match(stampDetailSource, /onBackToMonthSheet/);
 assert.doesNotMatch(stampDetailSource, />\s*SD\s*</);
 assert.match(stampGridSource, /buildStampFrameRows/);
 assert.match(stampGridSource, /PhotoViewer/);
@@ -186,6 +246,10 @@ assert.match(stampGridSource, /StampFrameButton/);
 assert.match(stampGridSource, /variant="sm"/);
 assert.match(stampGridSource, /data-stamp-frame-ratio/);
 assert.match(stampGridSource, /data-stamp-cover-crop/);
+assert.match(stampGridSource, /CroppedPrivateStampImage/);
+assert.match(croppedStampImageSource, /cropMetadataToImageStyle/);
+assert.match(croppedStampImageSource, /centerSquareCropMetadata/);
+assert.match(croppedStampImageSource, /data-stamp-cropped-image/);
 assert.doesNotMatch(stampGridSource, /object-contain|data-stamp-filler-count|StampFiller/);
 assert.match(journalPhotoPickerSource, /object-cover/);
 assert.match(journalPhotoPickerSource, /StampFrame/);
@@ -226,6 +290,8 @@ assert.match(photoViewerSource, /object-contain/);
 assert.doesNotMatch(photoViewerSource, /object-cover/);
 assert.match(migrationSource, /add column if not exists crop_metadata jsonb/);
 assert.match(migrationSource, /crop_metadata = item\.crop_metadata/);
+assert.match(phase42MigrationSource, /'coverCropMetadata', first_photo\.crop_metadata/);
+assert.match(phase42MigrationSource, /'firstPhotoStoragePath', first_photo\.storage_path/);
 assert.match(phase3MigrationSource, /add column if not exists local_date date/);
 assert.match(phase3MigrationSource, /add column if not exists local_timezone text/);
 assert.match(phase3MigrationSource, /memories_capsule_local_date_unique/);
@@ -238,6 +304,94 @@ assertMobileShell("journal demo home", journalHome.html);
 const journalHomeText = visibleText(journalHome.html);
 assert.match(journalHomeText, /Seal Today/);
 assert.match(journalHomeText, /Month Sheet/);
+
+const journalHomeScreen = await fetchRoute("/journal/demo?screen=home");
+assertNoOldStrings("journal demo home screen", journalHomeScreen.html);
+assertMobileShell("journal demo home screen", journalHomeScreen.html);
+assert.match(visibleText(journalHomeScreen.html), /AUGUST 2026/);
+
+const journalHomeJuly = await fetchRoute("/journal/demo?screen=home&month=2026-07");
+assertNoOldStrings("journal demo July sheet", journalHomeJuly.html);
+assertMobileShell("journal demo July sheet", journalHomeJuly.html);
+const journalHomeJulyText = visibleText(journalHomeJuly.html);
+assert.match(journalHomeJulyText, /JULY 2026/);
+assert.match(journalHomeJulyText, /12 days sealed/);
+assert.match(journalHomeJuly.html, /data-month-sheet-grid="true"/);
+assert.match(journalHomeJuly.html, /data-month-sheet-columns="4"/);
+assert.match(journalHomeJuly.html, /data-month-sheet-rows="8"/);
+assert.match(journalHomeJuly.html, /data-month-sheet-capacity="32"/);
+assert.match(journalHomeJuly.html, /data-month-sheet-cover-crop="metadata"/);
+assert.doesNotMatch(journalHomeJulyText, /\bSheets\b/);
+assert.doesNotMatch(journalHomeJulyText, /Peaches on the sill|Late light on the bus/);
+assert.doesNotMatch(journalHomeJulyText, /2026-07-/);
+
+const journalHomeJune = await fetchRoute("/journal/demo?screen=home&month=2026-06");
+assertNoOldStrings("journal demo June sheet", journalHomeJune.html);
+assertMobileShell("journal demo June sheet", journalHomeJune.html);
+const journalHomeJuneText = visibleText(journalHomeJune.html);
+assert.match(journalHomeJuneText, /JUNE 2026/);
+assert.match(journalHomeJuneText, /4 days sealed/);
+assert.match(journalHomeJuneText, /07 .*08 .*15 .*22/);
+assert.match(journalHomeJune.html, /data-month-sheet-position="1"/);
+assert.match(journalHomeJune.html, /data-month-sheet-position="4"/);
+assert.match(journalHomeJune.html, /data-month-sheet-cover-crop="metadata"/);
+assert.doesNotMatch(journalHomeJuneText, /\bSheets\b/);
+assert.doesNotMatch(journalHomeJuneText, /Market flowers|Blue hour walk/);
+assert.doesNotMatch(journalHomeJuneText, /2026-06-/);
+assert.match(journalHomeJuneText, /Back to this month/);
+
+const journalHomeAugust = await fetchRoute("/journal/demo?screen=home&month=2026-08");
+assertNoOldStrings("journal demo August dense sheet", journalHomeAugust.html);
+assertMobileShell("journal demo August dense sheet", journalHomeAugust.html);
+const journalHomeAugustText = visibleText(journalHomeAugust.html);
+assert.match(journalHomeAugustText, /AUGUST 2026/);
+assert.match(journalHomeAugustText, /31 days sealed/);
+assert.match(journalHomeAugust.html, /data-month-sheet-position="31"/);
+assert.doesNotMatch(journalHomeAugust.html, /data-month-sheet-position="33"/);
+assert.doesNotMatch(journalHomeAugustText, /Market flowers|Night market/);
+assert.doesNotMatch(journalHomeAugustText, /2026-08-/);
+
+const journalHomeMay = await fetchRoute("/journal/demo?screen=home&month=2026-05");
+assertNoOldStrings("journal demo May sheet", journalHomeMay.html);
+assertMobileShell("journal demo May sheet", journalHomeMay.html);
+const journalHomeMayText = visibleText(journalHomeMay.html);
+assert.match(journalHomeMayText, /MAY 2026/);
+assert.match(journalHomeMayText, /08 .*21/);
+assert.doesNotMatch(journalHomeMayText, /A quiet May morning|First iced coffee/);
+assert.doesNotMatch(journalHomeMayText, /2026-05-/);
+
+const journalHomeApril = await fetchRoute("/journal/demo?screen=home&month=2026-04");
+assertNoOldStrings("journal demo empty April sheet", journalHomeApril.html);
+assertMobileShell("journal demo empty April sheet", journalHomeApril.html);
+const journalHomeAprilText = visibleText(journalHomeApril.html);
+assert.match(journalHomeAprilText, /APRIL 2026/);
+assert.match(journalHomeAprilText, /This month is still blank/);
+assert.match(journalHomeAprilText, /Seal Today/);
+
+const journalHomeInvalidMonth = await fetchRoute(
+  "/journal/demo?screen=home&month=not-a-month",
+);
+assertNoOldStrings("journal demo invalid month", journalHomeInvalidMonth.html);
+assertMobileShell("journal demo invalid month", journalHomeInvalidMonth.html);
+assert.match(visibleText(journalHomeInvalidMonth.html), /AUGUST 2026/);
+
+for (const [routeName, html] of [
+  ["journal demo home", journalHome.html],
+  ["journal demo July sheet", journalHomeJuly.html],
+  ["journal demo June sheet", journalHomeJune.html],
+  ["journal demo August dense sheet", journalHomeAugust.html],
+  ["journal demo May sheet", journalHomeMay.html],
+  ["journal demo empty April sheet", journalHomeApril.html],
+]) {
+  const text = visibleText(html).toLowerCase();
+  for (const phrase of archiveForbiddenStrings) {
+    assert.equal(
+      text.includes(phrase),
+      false,
+      `${routeName} exposes archive pressure copy: ${phrase}`,
+    );
+  }
+}
 
 const journalCreate = await fetchRoute("/journal/demo?screen=create");
 assertNoOldStrings("journal demo create", journalCreate.html);
@@ -290,6 +444,12 @@ if (isSmoke) {
         timeoutMs: routeTimeoutMs,
         checkedRoutes: [
           `${baseUrl}/journal/demo`,
+          `${baseUrl}/journal/demo?screen=home`,
+          `${baseUrl}/journal/demo?screen=home&month=2026-07`,
+          `${baseUrl}/journal/demo?screen=home&month=2026-06`,
+          `${baseUrl}/journal/demo?screen=home&month=2026-08`,
+          `${baseUrl}/journal/demo?screen=home&month=2026-04`,
+          `${baseUrl}/journal/demo?screen=home&month=not-a-month`,
           `${baseUrl}/journal/demo?screen=create`,
         ],
       },
@@ -396,6 +556,7 @@ assertNoOldStrings("journal demo detail", journalDetail.html);
 assertMobileShell("journal demo detail", journalDetail.html);
 const journalDetailText = visibleText(journalDetail.html);
 assert.match(journalDetailText, /Coffee before the rain/);
+assert.match(journalDetailText, /Back to month sheet/);
 assert.doesNotMatch(
   journalDetailText,
   /\bSD\b/,
@@ -464,6 +625,12 @@ console.log(
     {
       ok: true,
       qaRoute: `${baseUrl}/journal/demo`,
+      monthHomeRoute: `${baseUrl}/journal/demo?screen=home`,
+      monthJulyRoute: `${baseUrl}/journal/demo?screen=home&month=2026-07`,
+      monthJuneRoute: `${baseUrl}/journal/demo?screen=home&month=2026-06`,
+      monthAugustDenseRoute: `${baseUrl}/journal/demo?screen=home&month=2026-08`,
+      monthMayRoute: `${baseUrl}/journal/demo?screen=home&month=2026-05`,
+      monthEmptyRoute: `${baseUrl}/journal/demo?screen=home&month=2026-04`,
       directCreateRoute: `${baseUrl}/journal/demo?screen=create`,
       duplicateTodayRoute: `${baseUrl}/journal/demo?screen=create&scenario=duplicate-today`,
       backfillDuplicateRoute: `${baseUrl}/journal/demo?screen=create&scenario=backfill-may`,
@@ -492,6 +659,8 @@ console.log(
         cropMetadata: true,
         semanticLocalDate: true,
         duplicateLocalDateGuard: true,
+        monthQuery: true,
+        monthArchiveNavigation: true,
         fullscreenFit: "contain",
       },
     },

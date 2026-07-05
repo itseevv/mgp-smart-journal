@@ -360,6 +360,38 @@ function mapPersistentMemory(row: Record<string, unknown>) {
   };
 }
 
+function optionalString(value: unknown) {
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function optionalNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+function mapJournalMemorySummary(
+  memory: Record<string, unknown>,
+): JournalMemorySummary {
+  return {
+    id: String(memory.id),
+    title: String(memory.title ?? ""),
+    capturedAt: String(memory.capturedAt ?? ""),
+    createdAt: String(memory.createdAt ?? memory.capturedAt ?? ""),
+    localDate: optionalString(memory.localDate),
+    localTimezone:
+      memory.localTimezone == null ? null : String(memory.localTimezone),
+    photoCount: Number(memory.photoCount ?? 0),
+    voiceMemoCount: Number(memory.voiceMemoCount ?? 0),
+    firstPhotoStoragePath: optionalString(memory.firstPhotoStoragePath),
+    firstPhotoWidth: optionalNumber(memory.firstPhotoWidth),
+    firstPhotoHeight: optionalNumber(memory.firstPhotoHeight),
+    firstThumbnailStoragePath: optionalString(memory.firstThumbnailStoragePath),
+    thumbnailWidth: optionalNumber(memory.thumbnailWidth),
+    thumbnailHeight: optionalNumber(memory.thumbnailHeight),
+    coverCropMetadata: parsePhotoCropMetadata(memory.coverCropMetadata),
+  };
+}
+
 export async function loadPersistentMemory(
   client: SupabaseClient,
   capsuleId: string,
@@ -397,7 +429,7 @@ export async function loadJournalHome(
     photoCount?: number;
     maxPhotos?: number;
     cleanupPendingCount?: number;
-    memories?: JournalMemorySummary[];
+    memories?: Record<string, unknown>[];
   };
   if (!data.ok || !data.capsuleId) {
     throw new Error("The journal could not be loaded.");
@@ -408,7 +440,9 @@ export async function loadJournalHome(
     photoCount: Number(data.photoCount ?? 0),
     maxPhotos: Number(data.maxPhotos ?? journalConfig.maxPhotos),
     cleanupPendingCount: Number(data.cleanupPendingCount ?? 0),
-    memories: data.memories ?? [],
+    memories: Array.isArray(data.memories)
+      ? data.memories.map(mapJournalMemorySummary)
+      : [],
   };
 }
 

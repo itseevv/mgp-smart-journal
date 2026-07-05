@@ -4,6 +4,10 @@ import { useRef, useState } from "react";
 
 import { PrivatePhoto } from "@/components/memory/photo-collection";
 import { PhotoViewer } from "@/components/memory/photo-viewer";
+import {
+  CroppedPrivateStampImage,
+  stampCropRender,
+} from "@/components/stamp/cropped-stamp-image";
 import { StampFrameButton } from "@/components/stamp/stamp-frame";
 import {
   buildStampFrameRows,
@@ -11,7 +15,6 @@ import {
   getStampLayout,
 } from "@/data/stamp-layouts";
 import type { MemoryPhoto } from "@/data/memory-demo";
-import { cropMetadataToImageStyle } from "@/lib/scrap/crop-math";
 
 type StampGridProps = {
   photos: MemoryPhoto[];
@@ -65,9 +68,13 @@ export function StampGrid({ photos, resolvePhotoUrl }: StampGridProps) {
             data-stamp-row-size={row.items.length}
           >
             {row.items.map(({ photo, index }: StampPhotoItem) => {
-              const cropStyle =
+              const cropMode =
                 index === 0
-                  ? cropMetadataToImageStyle(photo.cropMetadata)
+                  ? stampCropRender({
+                      cropMetadata: photo.cropMetadata,
+                      width: photo.width ?? photo.thumbnailWidth,
+                      height: photo.height ?? photo.thumbnailHeight,
+                    }).mode
                   : undefined;
               return (
                 <StampFrameButton
@@ -78,24 +85,26 @@ export function StampGrid({ photos, resolvePhotoUrl }: StampGridProps) {
                   className="relative aspect-square min-w-0 overflow-hidden bg-[var(--journal-filler-a)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--journal-accent-metal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--journal-paper)]"
                   data-stamp-photo-frame="true"
                   data-stamp-frame-fit="cover"
-                  data-stamp-cover-crop={
-                    index === 0
-                      ? cropStyle
-                        ? "metadata"
-                        : "center"
-                      : undefined
-                  }
+                  data-stamp-cover-crop={index === 0 ? cropMode : undefined}
                   aria-label={`Open ${photo.name} full screen`}
                 >
-                  <PrivatePhoto
-                    photo={photo}
-                    variant="display"
-                    priority={index === 0}
-                    sizes="(min-width: 768px) 180px, 33vw"
-                    className={cropStyle ? "max-w-none" : "object-cover"}
-                    imageStyle={cropStyle}
-                    resolvePhotoUrl={resolvePhotoUrl}
-                  />
+                  {index === 0 ? (
+                    <CroppedPrivateStampImage
+                      photo={photo}
+                      variant="display"
+                      priority
+                      sizes="(min-width: 768px) 180px, 33vw"
+                      resolvePhotoUrl={resolvePhotoUrl}
+                    />
+                  ) : (
+                    <PrivatePhoto
+                      photo={photo}
+                      variant="display"
+                      sizes="(min-width: 768px) 180px, 33vw"
+                      className="object-cover"
+                      resolvePhotoUrl={resolvePhotoUrl}
+                    />
+                  )}
                 </StampFrameButton>
               );
             })}

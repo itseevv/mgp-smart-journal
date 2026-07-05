@@ -45,6 +45,7 @@ type PersistentMemoryFlowProps = {
   productMode?: MemoryFormProductMode;
   journalStamps?: JournalMemorySummary[];
   onOpenJournalStamp?: (memoryId: string) => void;
+  onBackToJournalMonth?: (memory: PersistentMemoryEntry) => void;
   onBack?: () => void;
   onCancelCreate?: () => void;
   onDeleted?: () => void;
@@ -83,6 +84,7 @@ export function PersistentMemoryFlow({
   productMode = "memory",
   journalStamps = [],
   onOpenJournalStamp,
+  onBackToJournalMonth,
   onBack,
   onCancelCreate,
   onDeleted,
@@ -363,7 +365,7 @@ export function PersistentMemoryFlow({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        {isJournalMode && onBack ? (
+        {isJournalMode && onBack && mode !== "view" ? (
           <button
             type="button"
             onClick={onBack}
@@ -407,6 +409,17 @@ export function PersistentMemoryFlow({
             return urlCache.resolve(memo.storagePath, forceRefresh);
           }}
           onEdit={() => void beginEditing()}
+          onBackToMonthSheet={
+            isJournalMode
+              ? () => {
+                  if (onBackToJournalMonth) {
+                    onBackToJournalMonth(saved);
+                    return;
+                  }
+                  onBack?.();
+                }
+              : undefined
+          }
         />
       ) : (
         <MemoryForm

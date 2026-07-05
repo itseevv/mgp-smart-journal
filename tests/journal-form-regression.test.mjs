@@ -126,7 +126,11 @@ test("journal mobile surfaces remove placeholder branding", () => {
   const mobileShellSource = readSource("components/journal/journal-mobile-shell.tsx");
   const stampDetailSource = readSource("components/stamp/daily-memory-stamp.tsx");
   const journalDemoSource = readSource("components/journal/journal-demo-flow.tsx");
+  const monthSheetGridSource = readSource("components/journal/month-sheet-grid.tsx");
+  const monthlyStampSheetSource = readSource("components/journal/monthly-stamp-sheet.tsx");
+  const stampTileSource = readSource("components/journal/stamp-tile.tsx");
   const stampGridSource = readSource("components/stamp/stamp-grid.tsx");
+  const croppedStampImageSource = readSource("components/stamp/cropped-stamp-image.tsx");
   const journalPhotoPickerSource = readSource("components/memory/journal-photo-picker.tsx");
   const sortableGridSource = readSource("components/memory/sortable-photo-grid.tsx");
   const photoViewerSource = readSource("components/memory/photo-viewer.tsx");
@@ -136,6 +140,27 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(mobileShellSource, /data-journal-mobile-shell="true"/);
   assert.match(journalDemoSource, /initialScreen\?: "home" \| "create" \| "crop" \| "sealed" \| "detail"/);
   assert.match(stampDetailSource, /data-journal-stamp-detail="true"/);
+  assert.match(stampDetailSource, /Back to month sheet/);
+  assert.match(stampDetailSource, /onBackToMonthSheet/);
+  assert.match(journalDemoSource, /onBackToMonthSheet/);
+  assert.match(journalDemoSource, /createArchiveMonthStamps\("2026-08"/);
+  assert.match(journalDemoSource, /Array\.from\(\{ length: 31 \}/);
+  assert.match(monthlyStampSheetSource, /MonthSheetGrid/);
+  assert.doesNotMatch(monthlyStampSheetSource, /journal-sheets-title/);
+  assert.doesNotMatch(monthlyStampSheetSource, /archive\.stampedSheets/);
+  assert.doesNotMatch(monthlyStampSheetSource, />\s*Sheets\s*</);
+  assert.match(monthSheetGridSource, /MONTH_SHEET_COLUMNS/);
+  assert.match(monthSheetGridSource, /MONTH_SHEET_ROWS/);
+  assert.match(monthSheetGridSource, /MONTH_SHEET_CAPACITY/);
+  assert.match(monthSheetGridSource, /data-month-sheet-grid="true"/);
+  assert.match(monthSheetGridSource, /grid-cols-4/);
+  assert.match(monthSheetGridSource, /variant\?: "app" \| "export"/);
+  assert.match(stampTileSource, /data-month-sheet-day/);
+  assert.match(stampTileSource, /data-month-sheet-position/);
+  assert.match(stampTileSource, /CroppedStampImage/);
+  assert.match(stampTileSource, /data-month-sheet-cover-crop/);
+  assert.match(stampTileSource, /coverCropMetadata/);
+  assert.doesNotMatch(stampTileSource, /<time|memoryLocalDateKey\(memory\)\}/);
   assert.doesNotMatch(stampDetailSource, />\s*SD\s*</);
   assert.match(stampGridSource, /getStampLayout/);
   assert.match(stampGridSource, /data-stamp-layout/);
@@ -145,9 +170,13 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(stampGridSource, /data-stamp-cover-crop/);
   assert.match(stampGridSource, /StampFrameButton/);
   assert.match(stampGridSource, /variant="sm"/);
-  assert.match(stampGridSource, /cropMetadataToImageStyle/);
+  assert.match(stampGridSource, /CroppedPrivateStampImage/);
   assert.match(stampGridSource, /PhotoViewer/);
-  assert.match(stampGridSource, /object-cover/);
+  assert.match(croppedStampImageSource, /cropMetadataToImageStyle/);
+  assert.match(croppedStampImageSource, /centerSquareCropMetadata/);
+  assert.match(croppedStampImageSource, /PrivatePhoto/);
+  assert.match(croppedStampImageSource, /data-stamp-cropped-image/);
+  assert.match(croppedStampImageSource, /object-cover/);
   assert.doesNotMatch(stampGridSource, /StampFiller|data-stamp-filler-count|object-contain/);
   assert.match(journalPhotoPickerSource, /object-cover/);
   assert.match(journalPhotoPickerSource, /data-journal-cover-preview="stamp-frame"/);
@@ -181,13 +210,19 @@ test("journal cover crop metadata persists through app and database layers", () 
   const migrationSource = readSource(
     "supabase/migrations/202607030001_scrap_day_phase_2_cover_crop.sql",
   );
+  const phase42MigrationSource = readSource(
+    "supabase/migrations/202607050001_scrap_day_phase_4_2_month_sheet_cover_crop.sql",
+  );
 
   assert.match(memoryDemoSource, /export type PhotoCropMetadata/);
   assert.match(memoryDemoSource, /cropMetadata\?: PhotoCropMetadata/);
   assert.match(apiSource, /cropMetadata: parsePhotoCropMetadata/);
   assert.match(apiSource, /cropMetadata: photo\.cropMetadata \?\? null/);
+  assert.match(apiSource, /coverCropMetadata: parsePhotoCropMetadata/);
   assert.match(migrationSource, /add column if not exists crop_metadata jsonb/);
   assert.match(migrationSource, /crop_metadata = item\.crop_metadata/);
   assert.match(migrationSource, /value->'cropMetadata' crop_metadata/);
   assert.match(migrationSource, /item->'cropMetadata'/);
+  assert.match(phase42MigrationSource, /'coverCropMetadata', first_photo\.crop_metadata/);
+  assert.match(phase42MigrationSource, /'firstPhotoStoragePath', first_photo\.storage_path/);
 });

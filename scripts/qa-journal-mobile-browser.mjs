@@ -10,6 +10,10 @@ const routeTimeoutMs = Number.parseInt(
 const widths = isSmoke ? [390] : [375, 390, 430];
 const fullRoutes = [
   "/journal/demo",
+  "/journal/demo?screen=home&month=2026-07",
+  "/journal/demo?screen=home&month=2026-06",
+  "/journal/demo?screen=home&month=2026-08",
+  "/journal/demo?screen=home&month=2026-04",
   "/journal/demo?screen=create",
   "/journal/demo?screen=crop",
   "/journal/demo?screen=sealed",
@@ -23,6 +27,10 @@ const fullRoutes = [
 const routes = isSmoke
   ? [
       "/journal/demo",
+      "/journal/demo?screen=home&month=2026-07",
+      "/journal/demo?screen=home&month=2026-06",
+      "/journal/demo?screen=home&month=2026-08",
+      "/journal/demo?screen=home&month=2026-04",
       "/journal/demo?screen=create",
       "/journal/demo?screen=detail&photos=1",
     ]
@@ -132,6 +140,9 @@ for (const width of widths) {
       );
       const stamp = document.querySelector('[data-journal-stamp-detail="true"]');
       const grid = document.querySelector('[aria-label="Daily Memory Stamp"]');
+      const monthSheetGrid = document.querySelector(
+        '[data-month-sheet-grid="true"]',
+      );
       const scrapTable = document.querySelector('[data-scrap-table="true"]');
       const scrapMobileShell = document.querySelector(
         '[data-scrap-mobile-shell="true"]',
@@ -153,6 +164,7 @@ for (const width of widths) {
       const shellRect = shell?.getBoundingClientRect();
       const stampRect = stamp?.getBoundingClientRect();
       const gridRect = grid?.getBoundingClientRect();
+      const monthSheetGridRect = monthSheetGrid?.getBoundingClientRect();
       const scrapMobileShellRect = scrapMobileShell?.getBoundingClientRect();
       const scrapFrameRect = scrapFrame?.getBoundingClientRect();
       const scrapTitleRect = scrapTitle?.getBoundingClientRect();
@@ -216,6 +228,23 @@ for (const width of widths) {
         hasVisibleScrapTableEyebrow: /SCRAP TABLE|Scrap Table/.test(bodyText),
         innerWidth: window.innerWidth,
         journalPreviewFits,
+        monthSheetCapacity: monthSheetGrid?.getAttribute(
+          "data-month-sheet-capacity",
+        ),
+        monthSheetColumns: monthSheetGrid?.getAttribute(
+          "data-month-sheet-columns",
+        ),
+        monthSheetGridWidth: monthSheetGridRect?.width ?? null,
+        monthSheetPositionCount: document.querySelectorAll(
+          "[data-month-sheet-position]",
+        ).length,
+        monthSheetRows: monthSheetGrid?.getAttribute("data-month-sheet-rows"),
+        monthSheetVisibleFullDates: /\b2026-\d{2}-\d{2}\b/.test(bodyText),
+        monthSheetVisibleTitles:
+          bodyText.includes("Market flowers") ||
+          bodyText.includes("Peaches on the sill") ||
+          bodyText.includes("Night market"),
+        monthSheetVisibleSheetsHeading: /\bSheets\b/.test(bodyText),
         initialSealingCopyVisible:
           bodyTextLower.includes("one line to keep") &&
           titleInput?.getAttribute("placeholder") === "What would you call today?" &&
@@ -223,11 +252,12 @@ for (const width of widths) {
         inlineScrapTableVisible: Boolean(scrapTable) && !location.href.includes("screen=crop"),
         coverCropMarkers: [
           ...document.querySelectorAll(
-            '[data-journal-cover-crop], [data-stamp-cover-crop]',
+            '[data-journal-cover-crop], [data-stamp-cover-crop], [data-month-sheet-cover-crop]',
           ),
         ].map((node) =>
           node.getAttribute("data-journal-cover-crop") ??
-          node.getAttribute("data-stamp-cover-crop"),
+          node.getAttribute("data-stamp-cover-crop") ??
+          node.getAttribute("data-month-sheet-cover-crop"),
         ),
         scrapFrameHeight: scrapFrameRect?.height ?? null,
         scrapFrameWidth: scrapFrameRect?.width ?? null,
@@ -279,6 +309,42 @@ for (const width of widths) {
       failures.push(`${route} @ ${width}: shell too wide ${metrics.shellWidth}`);
     }
     if (metrics.hasOldCopy) failures.push(`${route} @ ${width}: old copy visible`);
+    if (route.includes("screen=home&month=") && !route.includes("2026-04")) {
+      if (metrics.monthSheetColumns !== "4") {
+        failures.push(`${route} @ ${width}: month sheet is not 4 columns`);
+      }
+      if (metrics.monthSheetRows !== "8") {
+        failures.push(`${route} @ ${width}: month sheet is not 8 rows`);
+      }
+      if (metrics.monthSheetCapacity !== "32") {
+        failures.push(`${route} @ ${width}: month sheet capacity is not 32`);
+      }
+      if (metrics.monthSheetGridWidth && metrics.monthSheetGridWidth > width + 1) {
+        failures.push(
+          `${route} @ ${width}: month sheet grid too wide ${metrics.monthSheetGridWidth}`,
+        );
+      }
+      if (metrics.monthSheetVisibleFullDates) {
+        failures.push(`${route} @ ${width}: full date visible on Month Sheet`);
+      }
+      if (metrics.monthSheetVisibleTitles) {
+        failures.push(`${route} @ ${width}: title visible on Month Sheet`);
+      }
+      if (metrics.monthSheetVisibleSheetsHeading) {
+        failures.push(`${route} @ ${width}: bottom Sheets list is visible`);
+      }
+      if (!metrics.coverCropMarkers.includes("metadata")) {
+        failures.push(`${route} @ ${width}: month sheet cover crop marker missing`);
+      }
+    }
+    if (
+      route.includes("month=2026-08") &&
+      metrics.monthSheetPositionCount !== 31
+    ) {
+      failures.push(
+        `${route} @ ${width}: dense month rendered ${metrics.monthSheetPositionCount} positions`,
+      );
+    }
     if (route.includes("screen=create") && metrics.createForbiddenCopy.length > 0) {
       failures.push(
         `${route} @ ${width}: dense create copy ${metrics.createForbiddenCopy.join(", ")}`,

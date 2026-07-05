@@ -11,6 +11,10 @@ import {
   findStampForLocalDateKey,
   toLocalDateKeyFromDate,
 } from "@/data/journal-stamps";
+import {
+  localDateKeyFromValue,
+  localMonthKeyFromDateKey,
+} from "@/data/local-date";
 import { loadJournalMemoryContext } from "@/lib/capsule/api";
 
 type JournalMemoryPageProps = {
@@ -21,6 +25,13 @@ type JournalMemoryPageProps = {
   initialMemory?: PersistentMemoryEntry;
   onLock: () => Promise<void>;
 };
+
+function monthKeyForJournalMemory(memory: PersistentMemoryEntry) {
+  return localMonthKeyFromDateKey(
+    localDateKeyFromValue(memory.localDate) ||
+      localDateKeyFromValue(memory.capturedAt),
+  );
+}
 
 export function JournalMemoryPage({
   client,
@@ -48,7 +59,12 @@ export function JournalMemoryPage({
     };
   }, [capsuleId, client, memoryId]);
 
-  const returnHome = () => router.push(`/c/${publicToken}`);
+  const returnToJournal = (monthKey?: string) => {
+    router.push(monthKey ? `/c/${publicToken}?month=${monthKey}` : `/c/${publicToken}`);
+  };
+  const returnHome = () => returnToJournal();
+  const returnToMemoryMonth = (memory: PersistentMemoryEntry) =>
+    returnToJournal(monthKeyForJournalMemory(memory));
   const openStamp = (id: string) => router.push(`/c/${publicToken}/m/${id}`);
 
   if (error) {
@@ -130,6 +146,7 @@ export function JournalMemoryPage({
       productMode="journal"
       journalStamps={context.memories}
       onOpenJournalStamp={openStamp}
+      onBackToJournalMonth={returnToMemoryMonth}
       onBack={returnHome}
       onCancelCreate={returnHome}
       onDeleted={returnHome}

@@ -9,6 +9,7 @@ import { useState } from "react";
 type CompletedStateProps = {
   memory: MemoryEntry;
   onEdit: () => void;
+  onBackToMonthSheet?: () => void;
   resolveVoiceMemoUrl?: (
     memo: MemoryEntry["voiceMemos"][number],
     forceRefresh?: boolean,
@@ -32,6 +33,7 @@ function formatCapturedAt(isoDate: string) {
 export function CompletedState({
   memory,
   onEdit,
+  onBackToMonthSheet,
   resolveVoiceMemoUrl,
   resolvePhotoUrl,
   journalMode = false,
@@ -43,6 +45,7 @@ export function CompletedState({
       <DailyMemoryStamp
         memory={memory}
         onEdit={onEdit}
+        onBackToMonthSheet={onBackToMonthSheet}
         resolvePhotoUrl={resolvePhotoUrl}
       />
     );

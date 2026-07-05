@@ -13,13 +13,25 @@ import {
 } from "../data/journal-product.ts";
 import {
   activeMonthKey,
+  availableStampedMonthKeys,
+  currentMonthKey,
   findDuplicateStampForLocalDate,
   findStampForLocalDate,
   findStampForLocalDateKey,
   groupStampsByMonth,
   localMonthKeyFromDateKey,
   memoryLocalDateKey,
+  monthSheetStampPositions,
+  MONTH_SHEET_CAPACITY,
+  MONTH_SHEET_COLUMNS,
+  MONTH_SHEET_ROWS,
+  monthlyStampArchive,
+  nextLocalMonthKey,
+  normalizeLocalMonthKey,
+  previousLocalMonthKey,
+  resolveSelectedMonthKey,
   sortStampsBySemanticDay,
+  stampsForMonth,
   toLocalDateKeyFromDate,
 } from "../data/journal-stamps.ts";
 import {
@@ -37,7 +49,13 @@ const stamp = (input) => ({
   localTimezone: input.localTimezone,
   photoCount: input.photoCount ?? 1,
   voiceMemoCount: input.voiceMemoCount ?? 0,
+  firstPhotoStoragePath: input.firstPhotoStoragePath,
+  firstPhotoWidth: input.firstPhotoWidth,
+  firstPhotoHeight: input.firstPhotoHeight,
   firstThumbnailStoragePath: input.firstThumbnailStoragePath,
+  thumbnailWidth: input.thumbnailWidth,
+  thumbnailHeight: input.thumbnailHeight,
+  coverCropMetadata: input.coverCropMetadata,
 });
 
 test("journal product constants describe one 9-image daily stamp", () => {
@@ -74,6 +92,9 @@ test("preserves semantic local date keys without UTC shifting", () => {
 
   assert.equal(toLocalDateKeyFromDate(localDate), "2026-05-08");
   assert.equal(localMonthKeyFromDateKey("2026-05-08"), "2026-05");
+  assert.equal(normalizeLocalMonthKey("2026-05"), "2026-05");
+  assert.equal(normalizeLocalMonthKey("2026-13"), undefined);
+  assert.equal(normalizeLocalMonthKey("not-a-month"), undefined);
 });
 
 test("uses localDate before capturedAt or createdAt for stamp identity", () => {
@@ -172,6 +193,38 @@ test("sorts stamps within a month by semantic local date then createdAt ascendin
   );
 });
 
+test("month sheet stamp positions preserve cover crop summary fields", () => {
+  const crop = {
+    kind: "cover-scrap",
+    aspectRatio: 1,
+    x: 0.25,
+    y: 0,
+    width: 0.5,
+    height: 1,
+    imageWidth: 1600,
+    imageHeight: 800,
+    createdAt: "2026-07-03T12:00:00.000Z",
+  };
+  const positions = monthSheetStampPositions([
+    stamp({
+      id: "cropped-cover",
+      localDate: "2026-07-03",
+      capturedAt: "2026-07-03T12:00:00.000Z",
+      firstPhotoStoragePath: "capsules/demo/display.webp",
+      firstPhotoWidth: 1600,
+      firstPhotoHeight: 800,
+      firstThumbnailStoragePath: "capsules/demo/thumb.webp",
+      thumbnailWidth: 480,
+      thumbnailHeight: 240,
+      coverCropMetadata: crop,
+    }),
+  ]);
+
+  assert.equal(positions[0].memory.firstThumbnailStoragePath, "capsules/demo/thumb.webp");
+  assert.equal(positions[0].memory.firstPhotoStoragePath, "capsules/demo/display.webp");
+  assert.equal(positions[0].memory.coverCropMetadata, crop);
+});
+
 test("uses current month when it has stamps, otherwise latest stamped month", () => {
   const memories = [
     stamp({
@@ -196,6 +249,184 @@ test("uses current month when it has stamps, otherwise latest stamped month", ()
     activeMonthKey([], new Date("2026-07-01T12:00:00.000Z")),
     "2026-07",
   );
+});
+
+test("builds month archive selection from valid query months and local-date groups", () => {
+  const memories = [
+    stamp({
+      id: "july-03",
+      localDate: "2026-07-03",
+      capturedAt: "2026-07-03T12:00:00.000Z",
+      createdAt: "2026-07-03T12:10:00.000Z",
+    }),
+    stamp({
+      id: "june-02",
+      localDate: "2026-06-02",
+      capturedAt: "2026-06-02T12:00:00.000Z",
+    }),
+    stamp({
+      id: "backfilled-may-08",
+      localDate: "2026-05-08",
+      capturedAt: "2026-07-02T12:00:00.000Z",
+      createdAt: "2026-07-02T12:10:00.000Z",
+    }),
+  ];
+
+  const archive = monthlyStampArchive(
+    memories,
+    "2026-05",
+    new Date("2026-07-04T12:00:00.000Z"),
+  );
+
+  assert.equal(currentMonthKey(new Date("2026-07-04T12:00:00.000Z")), "2026-07");
+  assert.deepEqual(availableStampedMonthKeys(memories), [
+    "2026-07",
+    "2026-06",
+    "2026-05",
+  ]);
+  assert.equal(archive.selectedMonthKey, "2026-05");
+  assert.equal(archive.selectedSheet.title, "May 2026");
+  assert.deepEqual(
+    archive.selectedSheet.stamps.map((item) => item.id),
+    ["backfilled-may-08"],
+  );
+  assert.equal(archive.previousMonthKey, "2026-04");
+  assert.equal(archive.nextMonthKey, "2026-06");
+  assert.equal(archive.canNavigateNext, true);
+  assert.equal(archive.selectedMonthStatus, "past");
+});
+
+test("resolves selected month fallback and empty month sheets without calendar gaps", () => {
+  const memories = [
+    stamp({
+      id: "may-08",
+      localDate: "2026-05-08",
+      capturedAt: "2026-05-08T12:00:00.000Z",
+    }),
+    stamp({
+      id: "june-03",
+      localDate: "2026-06-03",
+      capturedAt: "2026-06-03T12:00:00.000Z",
+    }),
+  ];
+  const currentDate = new Date("2026-07-04T12:00:00.000Z");
+
+  assert.equal(resolveSelectedMonthKey(memories, "2026-04", currentDate), "2026-04");
+  assert.equal(resolveSelectedMonthKey(memories, "bogus", currentDate), "2026-06");
+  assert.equal(resolveSelectedMonthKey([], undefined, currentDate), "2026-07");
+
+  const emptyPast = monthlyStampArchive(memories, "2026-04", currentDate);
+  assert.equal(emptyPast.selectedSheet.key, "2026-04");
+  assert.equal(emptyPast.selectedSheet.stamps.length, 0);
+  assert.equal(emptyPast.selectedMonthStatus, "past");
+
+  const emptyCurrent = monthlyStampArchive([], undefined, currentDate);
+  assert.equal(emptyCurrent.selectedSheet.key, "2026-07");
+  assert.equal(emptyCurrent.selectedSheet.stamps.length, 0);
+  assert.equal(emptyCurrent.selectedMonthStatus, "current");
+});
+
+test("uses calendar previous and next month helpers independent of stamped months", () => {
+  assert.equal(previousLocalMonthKey("2026-01"), "2025-12");
+  assert.equal(nextLocalMonthKey("2026-12"), "2027-01");
+  assert.equal(previousLocalMonthKey("invalid"), "");
+  assert.equal(nextLocalMonthKey("invalid"), "");
+});
+
+test("returns selected month stamps sorted by local date then createdAt", () => {
+  const memories = [
+    stamp({
+      id: "may-09",
+      localDate: "2026-05-09",
+      capturedAt: "2026-07-01T12:00:00.000Z",
+      createdAt: "2026-07-01T12:05:00.000Z",
+    }),
+    stamp({
+      id: "may-08-created-second",
+      localDate: "2026-05-08",
+      capturedAt: "2026-07-02T12:00:00.000Z",
+      createdAt: "2026-07-02T12:10:00.000Z",
+    }),
+    stamp({
+      id: "may-08-created-first",
+      localDate: "2026-05-08",
+      capturedAt: "2026-07-03T12:00:00.000Z",
+      createdAt: "2026-07-02T12:00:00.000Z",
+    }),
+  ];
+
+  assert.deepEqual(
+    stampsForMonth(memories, "2026-05").map((item) => item.id),
+    ["may-08-created-first", "may-08-created-second", "may-09"],
+  );
+});
+
+test("month sheet exposes a fixed 4 by 8 capacity", () => {
+  assert.equal(MONTH_SHEET_COLUMNS, 4);
+  assert.equal(MONTH_SHEET_ROWS, 8);
+  assert.equal(MONTH_SHEET_CAPACITY, 32);
+
+  const memories = Array.from({ length: 31 }, (_, index) =>
+    stamp({
+      id: `aug-${index + 1}`,
+      localDate: `2026-08-${String(index + 1).padStart(2, "0")}`,
+      capturedAt: `2026-08-${String(index + 1).padStart(2, "0")}T12:00:00.000Z`,
+    }),
+  );
+
+  const positions = monthSheetStampPositions(memories);
+  assert.equal(positions.length, 31);
+  assert.equal(positions.at(-1).position, 31);
+});
+
+test("month sheet compacts stamps sequentially without calendar gaps", () => {
+  const positions = monthSheetStampPositions([
+    stamp({
+      id: "day-22",
+      localDate: "2026-06-22",
+      capturedAt: "2026-06-22T12:00:00.000Z",
+    }),
+    stamp({
+      id: "day-07",
+      localDate: "2026-06-07",
+      capturedAt: "2026-06-07T12:00:00.000Z",
+    }),
+    stamp({
+      id: "day-15",
+      localDate: "2026-06-15",
+      capturedAt: "2026-06-15T12:00:00.000Z",
+    }),
+    stamp({
+      id: "day-08",
+      localDate: "2026-06-08",
+      capturedAt: "2026-06-08T12:00:00.000Z",
+    }),
+  ]);
+
+  assert.deepEqual(
+    positions.map((slot) => [slot.position, slot.dayLabel, slot.memory.id]),
+    [
+      [1, "07", "day-07"],
+      [2, "08", "day-08"],
+      [3, "15", "day-15"],
+      [4, "22", "day-22"],
+    ],
+  );
+});
+
+test("month sheet caps visible positions at 32", () => {
+  const memories = Array.from({ length: 35 }, (_, index) =>
+    stamp({
+      id: `stamp-${index + 1}`,
+      localDate: `2026-08-${String((index % 31) + 1).padStart(2, "0")}`,
+      capturedAt: `2026-08-${String((index % 31) + 1).padStart(2, "0")}T12:00:00.000Z`,
+      createdAt: `2026-08-${String((index % 31) + 1).padStart(2, "0")}T12:${String(index).padStart(2, "0")}:00.000Z`,
+    }),
+  );
+
+  const positions = monthSheetStampPositions(memories);
+  assert.equal(positions.length, 32);
+  assert.equal(positions.at(-1).position, 32);
 });
 
 test("maps daily stamp image counts to normalized square frame rows", () => {

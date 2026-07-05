@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
+import { useMonthQueryState } from "@/components/journal/use-month-query-state";
 import { CompletedState } from "@/components/memory/completed-state";
 import { MemoryForm } from "@/components/memory/memory-form";
 import { ScrapTable } from "@/components/scrap/scrap-table";
@@ -11,8 +12,9 @@ import {
   JOURNAL_YEAR_PHOTO_CAPACITY,
 } from "@/data/journal-product";
 import {
-  activeMonthlyStampSheet,
   findStampForLocalDate,
+  memoryMonthKey,
+  monthlyStampArchive,
 } from "@/data/journal-stamps";
 import { defaultJournalTheme, journalThemeStyle } from "@/data/journal-themes";
 import {
@@ -30,12 +32,21 @@ type JournalDemoFlowProps = {
   detailPhotoCount?: number;
   createPhotoCount?: number;
   scenario?: "duplicate-today" | "backfill-may";
+  initialMonth?: string;
 };
 
-const DEMO_NOW_ISO = "2026-07-04T16:00:00.000Z";
+const DEMO_NOW_ISO = "2026-08-31T16:00:00.000Z";
 const DEMO_NOW = new Date(DEMO_NOW_ISO);
 
-function copyDraft(memory: PersistentMemoryEntry): MemoryDraft {
+type DemoPersistentStamp = PersistentMemoryEntry & {
+  createdAt?: string;
+};
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function copyDraft(memory: DemoPersistentStamp): MemoryDraft {
   return {
     capturedAt: memory.capturedAt,
     localDate: memory.localDate,
@@ -46,16 +57,24 @@ function copyDraft(memory: PersistentMemoryEntry): MemoryDraft {
   };
 }
 
-function stampSummary(memory: PersistentMemoryEntry) {
+function stampSummary(memory: DemoPersistentStamp) {
+  const firstPhoto = memory.photos[0];
   return {
     id: memory.id,
     title: memory.title,
     capturedAt: memory.capturedAt,
-    createdAt: memory.capturedAt,
+    createdAt: memory.createdAt ?? memory.capturedAt,
     localDate: memory.localDate,
     localTimezone: memory.localTimezone,
     photoCount: Math.min(memory.photos.length, DAILY_MEMORY_STAMP_MAX_PHOTOS),
     voiceMemoCount: 0,
+    firstPhotoStoragePath: firstPhoto?.storagePath,
+    firstPhotoWidth: firstPhoto?.width,
+    firstPhotoHeight: firstPhoto?.height,
+    firstThumbnailStoragePath: firstPhoto?.thumbnailStoragePath,
+    thumbnailWidth: firstPhoto?.thumbnailWidth ?? firstPhoto?.width,
+    thumbnailHeight: firstPhoto?.thumbnailHeight ?? firstPhoto?.height,
+    coverCropMetadata: firstPhoto?.cropMetadata,
   };
 }
 
@@ -119,17 +138,22 @@ function demoPhoto(index: number, withCoverCrop = false): MemoryPhoto {
 
 function createDemoStamp(
   photoCount: number,
-  overrides: Partial<PersistentMemoryEntry> = {},
-): PersistentMemoryEntry {
+  overrides: Partial<DemoPersistentStamp> = {},
+): DemoPersistentStamp {
+  const id = overrides.id ?? "journal-demo-stamp";
   return {
-    id: "journal-demo-stamp",
+    id,
     capsuleId: "journal-demo",
     capturedAt: DEMO_NOW_ISO,
-    localDate: "2026-07-04",
+    createdAt: DEMO_NOW_ISO,
+    localDate: "2026-08-31",
     localTimezone: "Europe/London",
     title: "Coffee before the rain",
     photos: Array.from({ length: photoCount }, (_, index) =>
-      demoPhoto(index, index === 0),
+      ({
+        ...demoPhoto(index, index === 0),
+        id: `${id}-photo-${index + 1}`,
+      }),
     ),
     voiceMemos: [],
     ...overrides,
@@ -140,10 +164,78 @@ function createBackfillDemoStamp(photoCount: number) {
   return createDemoStamp(photoCount, {
     id: "journal-demo-backfill-may-8",
     capturedAt: "2026-06-20T16:00:00.000Z",
+    createdAt: "2026-07-02T09:00:00.000Z",
     localDate: "2026-05-08",
     localTimezone: "Europe/London",
     title: "A quiet May morning",
   });
+}
+
+const archiveTitles = [
+  "Market flowers",
+  "Blue hour walk",
+  "Peaches on the sill",
+  "Late light on the bus",
+  "First iced coffee",
+  "Window rain",
+  "Paper bag cherries",
+  "Train platform light",
+  "Corner shop receipt",
+  "Kitchen radio",
+  "Warm sidewalk",
+  "Little green bowl",
+  "Postcard morning",
+  "After-dinner sky",
+  "Tea at the window",
+  "Tiny silver moon",
+  "Bus stop roses",
+  "Pocket notebook",
+  "Clouds over the library",
+  "One quiet pear",
+  "Bakery paper",
+  "Long shadow walk",
+  "Desk lamp glow",
+  "Last slice of melon",
+  "Fresh page",
+  "Soft thunder",
+  "Blue mug",
+  "Key ring shine",
+  "Laundry sun",
+  "Doorstep mint",
+  "Night market",
+];
+
+function createArchiveStamp(
+  monthKey: string,
+  day: number,
+  index: number,
+): DemoPersistentStamp {
+  const dayLabel = pad2(day);
+  const localDate = `${monthKey}-${dayLabel}`;
+  const title = archiveTitles[index % archiveTitles.length];
+  return createDemoStamp((index % 4) + 1, {
+    id: `journal-demo-${monthKey}-${dayLabel}`,
+    capturedAt: `${localDate}T${pad2(8 + (index % 12))}:20:00.000Z`,
+    createdAt: `${localDate}T${pad2(8 + (index % 12))}:42:00.000Z`,
+    localDate,
+    title,
+  });
+}
+
+function createArchiveMonthStamps(monthKey: string, days: number[], offset = 0) {
+  return days.map((day, index) =>
+    createArchiveStamp(monthKey, day, offset + index),
+  );
+}
+
+function createArchiveDemoStamps(): DemoPersistentStamp[] {
+  return [
+    ...createArchiveMonthStamps("2026-08", Array.from({ length: 31 }, (_, index) => index + 1), 0),
+    ...createArchiveMonthStamps("2026-07", [1, 2, 4, 7, 8, 11, 13, 16, 18, 21, 24, 29], 8),
+    ...createArchiveMonthStamps("2026-06", [7, 8, 15, 22], 20),
+    createBackfillDemoStamp(1),
+    ...createArchiveMonthStamps("2026-05", [21], 28),
+  ];
 }
 
 function createDemoDraft(
@@ -182,31 +274,41 @@ export function JournalDemoFlow({
   detailPhotoCount = 1,
   createPhotoCount = 0,
   scenario,
+  initialMonth,
 }: JournalDemoFlowProps) {
   const objectUrlsRef = useRef(new Set<string>());
-  const initialStamp = useMemo(
+  const [requestedMonth, selectMonth] = useMonthQueryState(initialMonth);
+  const initialStamps = useMemo(
     () => {
+      if (initialScreen === "home") {
+        return createArchiveDemoStamps();
+      }
       if (initialScreen === "detail") {
-        return scenario === "backfill-may"
-          ? createBackfillDemoStamp(detailPhotoCount)
-          : createDemoStamp(detailPhotoCount);
+        return [
+          scenario === "backfill-may"
+            ? createBackfillDemoStamp(detailPhotoCount)
+            : createDemoStamp(detailPhotoCount),
+        ];
       }
       if (scenario === "duplicate-today") {
-        return createDemoStamp(Math.max(detailPhotoCount, 1));
+        return [createDemoStamp(Math.max(detailPhotoCount, 1))];
       }
       if (scenario === "backfill-may") {
-        return createBackfillDemoStamp(Math.max(detailPhotoCount, 1));
+        return [createBackfillDemoStamp(Math.max(detailPhotoCount, 1))];
       }
-      return undefined;
+      return [];
     },
     [detailPhotoCount, initialScreen, scenario],
   );
-  const [savedStamp, setSavedStamp] = useState<PersistentMemoryEntry | undefined>(
-    initialStamp,
+  const [savedStamps, setSavedStamps] =
+    useState<DemoPersistentStamp[]>(initialStamps);
+  const [activeStampId, setActiveStampId] = useState(
+    initialStamps[0]?.id ?? "",
   );
+  const activeStamp = savedStamps.find((stamp) => stamp.id === activeStampId);
   const [draft, setDraft] = useState<MemoryDraft>(() =>
-    initialStamp && initialScreen === "detail"
-      ? copyDraft(initialStamp)
+    activeStamp && initialScreen === "detail"
+      ? copyDraft(activeStamp)
       : createDemoDraft(initialScreen, createPhotoCount, scenario),
   );
   const [mode, setMode] = useState<"home" | "create" | "crop" | "view" | "edit">(
@@ -247,7 +349,7 @@ export function JournalDemoFlow({
       ...current,
       photos: current.photos.filter((candidate) => candidate.id !== photo.id),
     }));
-    const belongsToSavedStamp = savedStamp?.photos.some(
+    const belongsToSavedStamp = activeStamp?.photos.some(
       (candidate) => candidate.id === photo.id,
     );
     if (!belongsToSavedStamp) revokeObjectUrl(photo.objectUrl);
@@ -255,31 +357,37 @@ export function JournalDemoFlow({
 
   const startNewStamp = () => {
     setSealMessage("");
+    setActiveStampId("");
     setDraft(createDemoDraft("create", 0, undefined));
     setMode("create");
   };
 
   const sealToday = () => {
-    if (savedStamp) {
-      const existingToday = findStampForLocalDate(
-        [stampSummary(savedStamp)],
-        DEMO_NOW,
-      );
-      if (existingToday) {
-        setSealMessage("Today is already sealed. You can revisit today's stamp.");
-        setMode("view");
-        return;
+    const existingToday = findStampForLocalDate(
+      savedStamps.map(stampSummary),
+      DEMO_NOW,
+    );
+    if (existingToday) {
+      const stamp = savedStamps.find((item) => item.id === existingToday.id);
+      if (stamp) {
+        setActiveStampId(stamp.id);
+        setDraft(copyDraft(stamp));
       }
+      setSealMessage("Today is already sealed. You can revisit today's stamp.");
+      setMode("view");
+      return;
     }
 
     startNewStamp();
   };
 
   const saveStamp = () => {
-    const nextStamp: PersistentMemoryEntry = {
-      id: savedStamp?.id ?? crypto.randomUUID(),
+    const existingStamp = mode === "edit" ? activeStamp : undefined;
+    const nextStamp: DemoPersistentStamp = {
+      id: existingStamp?.id ?? crypto.randomUUID(),
       capsuleId: "journal-demo",
       capturedAt: draft.capturedAt,
+      createdAt: existingStamp?.createdAt ?? new Date().toISOString(),
       localDate: draft.localDate,
       localTimezone: draft.localTimezone,
       title: draft.title.trim(),
@@ -287,22 +395,33 @@ export function JournalDemoFlow({
       voiceMemos: [],
     };
 
-    setSavedStamp(nextStamp);
+    setSavedStamps((current) => {
+      const existingIndex = current.findIndex(
+        (stamp) => stamp.id === nextStamp.id,
+      );
+      if (existingIndex < 0) return [...current, nextStamp];
+      return current.map((stamp) =>
+        stamp.id === nextStamp.id ? nextStamp : stamp,
+      );
+    });
+    setActiveStampId(nextStamp.id);
     setDraft(copyDraft(nextStamp));
     setMode("view");
   };
 
   const cancel = () => {
-    if (mode === "edit" && savedStamp) {
+    if (mode === "edit" && activeStamp) {
       const savedObjectUrls = new Set(
-        savedStamp.photos.flatMap((photo) => (photo.objectUrl ? [photo.objectUrl] : [])),
+        activeStamp.photos.flatMap((photo) =>
+          photo.objectUrl ? [photo.objectUrl] : [],
+        ),
       );
       draft.photos.forEach((photo) => {
         if (photo.objectUrl && !savedObjectUrls.has(photo.objectUrl)) {
           revokeObjectUrl(photo.objectUrl);
         }
       });
-      setDraft(copyDraft(savedStamp));
+      setDraft(copyDraft(activeStamp));
       setMode("view");
       return;
     }
@@ -312,20 +431,37 @@ export function JournalDemoFlow({
     setMode("home");
   };
 
-  const summaries = savedStamp ? [stampSummary(savedStamp)] : [];
+  const summaries = savedStamps.map(stampSummary);
+  const returnToMonthSheet = (stamp: DemoPersistentStamp) => {
+    const monthKey = memoryMonthKey(stampSummary(stamp));
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("screen", "home");
+      window.history.replaceState(
+        {},
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+    }
+    if (monthKey) selectMonth(monthKey);
+    setMode("home");
+  };
+
   const openJournalStamp = (memoryId: string) => {
-    if (!savedStamp || savedStamp.id !== memoryId) return;
-    setDraft(copyDraft(savedStamp));
+    const stamp = savedStamps.find((item) => item.id === memoryId);
+    if (!stamp) return;
+    setActiveStampId(stamp.id);
+    setDraft(copyDraft(stamp));
     setMode("view");
   };
-  const activeSheet = activeMonthlyStampSheet(summaries);
-  const thumbnailUrls =
-    savedStamp?.photos[0]?.thumbnailObjectUrl ?? savedStamp?.photos[0]?.objectUrl
-      ? {
-          [savedStamp.id]:
-            savedStamp.photos[0].thumbnailObjectUrl ?? savedStamp.photos[0].objectUrl!,
-        }
-      : {};
+  const archive = monthlyStampArchive(summaries, requestedMonth, DEMO_NOW);
+  const thumbnailUrls = Object.fromEntries(
+    savedStamps.flatMap((stamp) => {
+      const firstPhoto = stamp.photos[0];
+      const url = firstPhoto?.thumbnailObjectUrl ?? firstPhoto?.objectUrl;
+      return url ? [[stamp.id, url]] : [];
+    }),
+  );
 
   return (
     <div style={journalThemeStyle(defaultJournalTheme)}>
@@ -353,26 +489,30 @@ export function JournalDemoFlow({
           </header>
 
           <MonthlyStampSheet
-            sheet={activeSheet}
-            earlierSheets={[]}
+            archive={archive}
             thumbnailUrls={thumbnailUrls}
-            onOpen={() => setMode("view")}
+            onOpen={(memory) => openJournalStamp(memory.id)}
+            onSelectMonth={selectMonth}
             onSealToday={sealToday}
             sealBusy={false}
             sealMessage={sealMessage}
-            limitReached={summaries.reduce((total, item) => total + item.photoCount, 0) >= JOURNAL_YEAR_PHOTO_CAPACITY}
+            limitReached={
+              summaries.reduce((total, item) => total + item.photoCount, 0) >=
+              JOURNAL_YEAR_PHOTO_CAPACITY
+            }
           />
         </article>
       ) : null}
 
-      {mode === "view" && savedStamp ? (
+      {mode === "view" && activeStamp ? (
         <CompletedState
-          memory={savedStamp}
+          memory={activeStamp}
           journalMode
           onEdit={() => {
-            setDraft(copyDraft(savedStamp));
+            setDraft(copyDraft(activeStamp));
             setMode("edit");
           }}
+          onBackToMonthSheet={() => returnToMonthSheet(activeStamp)}
         />
       ) : null}
 
@@ -405,7 +545,7 @@ export function JournalDemoFlow({
           onCancel={cancel}
           showCancel
           registerObjectUrl={registerObjectUrl}
-          currentMemoryId={mode === "edit" ? savedStamp?.id : undefined}
+          currentMemoryId={mode === "edit" ? activeStamp?.id : undefined}
           journalStamps={summaries}
           onOpenJournalStamp={openJournalStamp}
         />

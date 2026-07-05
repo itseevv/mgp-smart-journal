@@ -1,4 +1,5 @@
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 
 function pad(value: number) {
   return value.toString().padStart(2, "0");
@@ -16,12 +17,24 @@ export function normalizeLocalDateKey(value?: string | null) {
   return LOCAL_DATE_PATTERN.test(trimmed) ? trimmed : undefined;
 }
 
+export function normalizeLocalMonthKey(value?: string | null) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!LOCAL_MONTH_PATTERN.test(trimmed)) return undefined;
+  const month = Number(trimmed.slice(5, 7));
+  return month >= 1 && month <= 12 ? trimmed : undefined;
+}
+
 export function toLocalDateKeyFromDate(date: Date) {
   return [
     date.getFullYear(),
     pad(date.getMonth() + 1),
     pad(date.getDate()),
   ].join("-");
+}
+
+export function toLocalMonthKeyFromDate(date: Date) {
+  return [date.getFullYear(), pad(date.getMonth() + 1)].join("-");
 }
 
 export function localDateKeyFromValue(value?: string | Date | null) {
@@ -37,6 +50,24 @@ export function localDateKeyFromValue(value?: string | Date | null) {
 export function localMonthKeyFromDateKey(localDate?: string | null) {
   const dateKey = normalizeLocalDateKey(localDate);
   return dateKey ? dateKey.slice(0, 7) : "";
+}
+
+export function addLocalMonthsToMonthKey(
+  localMonth: string | undefined | null,
+  offset: number,
+) {
+  const monthKey = normalizeLocalMonthKey(localMonth);
+  if (!monthKey) return "";
+  const [year, month] = monthKey.split("-").map(Number);
+  return toLocalMonthKeyFromDate(new Date(year, month - 1 + offset, 1));
+}
+
+export function previousLocalMonthKey(localMonth: string | undefined | null) {
+  return addLocalMonthsToMonthKey(localMonth, -1);
+}
+
+export function nextLocalMonthKey(localMonth: string | undefined | null) {
+  return addLocalMonthsToMonthKey(localMonth, 1);
 }
 
 export function resolvedLocalTimezone() {
