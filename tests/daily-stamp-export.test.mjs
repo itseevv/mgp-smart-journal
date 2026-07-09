@@ -78,8 +78,12 @@ test("daily stamp export uses one fixed 9:16 PNG format", () => {
 });
 
 test("daily stamp export artifact model includes only the approved content", () => {
-  const model = dailyStampExportArtifactModel({ memory });
+  const model = dailyStampExportArtifactModel({
+    memory,
+    journalTitle: "Margot's Journal",
+  });
 
+  assert.equal(model.journalTitle, "Margot's Journal");
   assert.equal(model.dateLabel, "JULY 4, 2026");
   assert.equal(model.localDate, "2026-07-04");
   assert.equal(model.title, "Coffee before the rain 🌧️");
@@ -89,7 +93,6 @@ test("daily stamp export artifact model includes only the approved content", () 
   assert.equal(model.photos[1].cropMode, "center");
 
   const serialized = JSON.stringify(model);
-  assert.doesNotMatch(serialized, /My Journal/);
   assert.doesNotMatch(serialized, /Private by nature/);
   assert.doesNotMatch(serialized, /Edit stamp/);
   assert.doesNotMatch(serialized, /photo count/i);
@@ -120,7 +123,7 @@ test("daily stamp export crop items preserve metadata and fall back safely", () 
 });
 
 test("daily stamp export uses the provided MGP logo asset as a subtle brand mark", () => {
-  assert.equal(DAILY_STAMP_EXPORT_LOGO_SRC, "/brand/logo-square-mgp.jpeg");
+  assert.equal(DAILY_STAMP_EXPORT_LOGO_SRC, "/brand/mgp-full-logo-transparent.png");
   assert.deepEqual(defaultDailyStampExportBrandMark, {
     kind: "logo",
     src: DAILY_STAMP_EXPORT_LOGO_SRC,
@@ -183,11 +186,61 @@ test("daily detail demo exposes the Phase 5A export composer entry point", () =>
   assert.match(stampDetailSource, /Save \/ Share/);
   assert.match(composerSource, /Save or share/);
   assert.match(composerSource, /data-daily-stamp-export-preview/);
+  assert.match(composerSource, /data-save-share-modal-surface="edit-stamp-beige-overlay"/);
+  assert.match(composerSource, /data-save-share-modal-position="fixed-viewport-centered"/);
+  assert.match(composerSource, /data-save-share-modal-preview-scale="proportional-artifact"/);
+  assert.match(composerSource, /src=\{composerState\.previewUrl\}/);
+  assert.match(composerSource, /object-contain/);
+  assert.match(composerSource, /data-export-artifact-loading-treatment="quiet-leather-only"/);
+  assert.match(composerSource, /data-save-share-modal-primary-color="journal-theme"/);
+  assert.match(composerSource, /data-save-share-modal-secondary-color="previous-primary-control"/);
   assert.match(composerSource, /Save Image/);
   assert.match(composerSource, /Share/);
   assert.match(composerSource, /Sharing isn’t supported here/);
+  assert.doesNotMatch(composerSource, /items-end/);
+  assert.doesNotMatch(composerSource, /Image ready\./);
   assert.match(journalDemoSource, /initialScreen === "detail"/);
   assert.match(journalDemoPageSource, /screen === "detail"/);
   assert.doesNotMatch(composerSource, /Monthly Sheet|Year in Stamps/);
   assert.doesNotMatch(composerSource, /format selector|template selector/i);
+});
+
+test("daily stamp export modal is fixed, centered, and scroll contained", () => {
+  const composerSource = readSource(
+    "components/export/daily-stamp-export-composer.tsx",
+  );
+
+  assert.match(composerSource, /className="fixed inset-0 z-50 grid place-items-center/);
+  assert.match(composerSource, /height: "100dvh"/);
+  assert.match(composerSource, /minHeight: "100svh"/);
+  assert.match(composerSource, /env\(safe-area-inset-top\)/);
+  assert.match(composerSource, /env\(safe-area-inset-bottom\)/);
+  assert.match(composerSource, /body\.style\.overflow = "hidden"/);
+  assert.match(composerSource, /documentElement\.style\.overflow = "hidden"/);
+  assert.match(composerSource, /overscroll-contain/);
+  assert.match(composerSource, /maxHeight: "calc\(100dvh - 1\.5rem\)"/);
+  assert.doesNotMatch(composerSource, /sm:items-center/);
+});
+
+test("daily stamp export canvas uses dedicated 9:16 scale tokens", () => {
+  const exportSource = readSource("lib/export/daily-memory-stamp-export.ts");
+
+  assert.match(exportSource, /const dailyStampExportLayout = \{/);
+  assert.match(exportSource, /"Cormorant Garamond"/);
+  assert.match(exportSource, /"Avenir Next"/);
+  assert.match(exportSource, /"Helvetica Neue"/);
+  assert.match(exportSource, /journalTitleCenterY: 77/);
+  assert.match(exportSource, /overlayX: 27/);
+  assert.match(exportSource, /overlayTop: 153/);
+  assert.match(exportSource, /overlayWidth: 1026/);
+  assert.match(exportSource, /dateFontSize: 22/);
+  assert.match(exportSource, /titleFontSize: 53/);
+  assert.match(exportSource, /gridTop: 328/);
+  assert.match(exportSource, /gridGap: 18/);
+  assert.match(exportSource, /singlePhotoMaxWidth: 981/);
+  assert.match(exportSource, /logoBoxSize: 220/);
+  assert.match(exportSource, /drawSingleLineText/);
+  assert.match(exportSource, /drawTrackedText/);
+  assert.doesNotMatch(exportSource, /maxLines:\s*2/);
+  assert.doesNotMatch(exportSource, /strokeRect|perforated|postage/i);
 });
