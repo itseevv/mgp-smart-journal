@@ -69,22 +69,6 @@ function expectedLayout(photoCount) {
   return { variant: "three-three-three", rowSizes: "3,3,3" };
 }
 
-function hasVisibleStampFrame(metrics, variant, expectedRimWidth, minimumOpacity) {
-  return metrics.stampFrameStyles.some((frame) => {
-    const rimWidth = Number.parseFloat(frame.rimWidth);
-    const opacity = Number.parseFloat(frame.edgeOpacity);
-    return (
-      frame.variant === variant &&
-      Number.isFinite(rimWidth) &&
-      rimWidth >= expectedRimWidth &&
-      Number.isFinite(opacity) &&
-      opacity >= minimumOpacity &&
-      frame.beforeBoxShadow !== "none" &&
-      frame.afterBackgroundImage !== "none"
-    );
-  });
-}
-
 let chromium;
 try {
   if (process.env.PLAYWRIGHT_MODULE_DIR) {
@@ -149,16 +133,20 @@ for (const width of widths) {
       );
       const scrapFrame = document.querySelector('[data-scrap-frame="square"]');
       const scrapFinderPlate = document.querySelector(
-        '[data-finder-tool="physical-frame"]',
+        '[data-finder-tool="editorial-finder"]',
       );
       const scrapAperture = document.querySelector(
-        '[data-scrap-aperture="stamp-window"]',
+        '[data-scrap-aperture="finder-window"]',
       );
       const scrapPhoto = document.querySelector('[data-scrap-photo-natural="true"]');
       const scrapTitle = document.querySelector("#scrap-table-title");
-      const scrapControls = document.querySelector('[data-scrap-controls="tight"]');
+      const scrapHelper = document.querySelector(".scrap-finder-helper");
+      const scrapControls = document.querySelector('[data-scrap-controls="action-row"]');
+      const scrapPrimary = document.querySelector(
+        '[data-scrap-primary-action="use-this-scrap"]',
+      );
       const coverPreview = document.querySelector(
-        '[data-journal-cover-preview="stamp-frame"]',
+        '[data-journal-cover-preview="editorial-photo"]',
       );
       const bodyText = document.body.innerText;
       const shellRect = shell?.getBoundingClientRect();
@@ -166,32 +154,34 @@ for (const width of widths) {
       const gridRect = grid?.getBoundingClientRect();
       const monthSheetGridRect = monthSheetGrid?.getBoundingClientRect();
       const scrapMobileShellRect = scrapMobileShell?.getBoundingClientRect();
+      const scrapFinderPlateRect = scrapFinderPlate?.getBoundingClientRect();
       const scrapFrameRect = scrapFrame?.getBoundingClientRect();
       const scrapTitleRect = scrapTitle?.getBoundingClientRect();
+      const scrapHelperRect = scrapHelper?.getBoundingClientRect();
       const scrapControlsRect = scrapControls?.getBoundingClientRect();
       const scrapPhotoRect = scrapPhoto?.getBoundingClientRect();
       const coverRect = coverPreview?.getBoundingClientRect();
       const bodyTextLower = bodyText.toLowerCase();
       const titleInput = document.querySelector('input[placeholder]');
       const stampFrameRects = [
-        ...document.querySelectorAll('[data-stamp-photo-frame="true"]'),
+        ...document.querySelectorAll('[data-daily-detail-photo-tile]'),
       ].map((frame) => {
         const rect = frame.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
       });
       const stampImageFits = [
         ...document.querySelectorAll(
-          '[data-stamp-photo-frame="true"] img',
+          '[data-daily-detail-photo-tile] img',
         ),
       ].map((image) => getComputedStyle(image).objectFit);
       const coverImageFits = [
         ...document.querySelectorAll(
-          '[data-journal-cover-preview="stamp-frame"] img',
+          '[data-journal-cover-preview="editorial-photo"] img',
         ),
       ].map((image) => getComputedStyle(image).objectFit);
       const journalPreviewFits = [
         ...document.querySelectorAll(
-          '[data-journal-cover-preview="stamp-frame"] img, [data-photo-preview-fit="stamp-cover"] img',
+          '[data-journal-cover-preview="editorial-photo"] img, [data-photo-preview-fit="editorial-square"] img',
         ),
       ].map((image) => getComputedStyle(image).objectFit);
       const stampFrameStyles = [
@@ -231,6 +221,9 @@ for (const width of widths) {
         monthSheetCapacity: monthSheetGrid?.getAttribute(
           "data-month-sheet-capacity",
         ),
+        monthSheetAppColumns: monthSheetGrid?.getAttribute(
+          "data-month-sheet-app-columns",
+        ),
         monthSheetColumns: monthSheetGrid?.getAttribute(
           "data-month-sheet-columns",
         ),
@@ -262,13 +255,14 @@ for (const width of widths) {
         scrapFrameHeight: scrapFrameRect?.height ?? null,
         scrapFrameWidth: scrapFrameRect?.width ?? null,
         scrapHeaderGap:
-          scrapTitleRect && scrapFrameRect
-            ? scrapFrameRect.top - scrapTitleRect.bottom
+          scrapFinderPlateRect && (scrapHelperRect ?? scrapTitleRect)
+            ? scrapFinderPlateRect.top - (scrapHelperRect ?? scrapTitleRect).bottom
             : null,
-        scrapControlsGap:
-          scrapFrameRect && scrapControlsRect
-            ? scrapControlsRect.top - scrapFrameRect.bottom
-            : null,
+        scrapControlsBottom: scrapControlsRect?.bottom ?? null,
+        scrapPrimaryCtaVisual: scrapPrimary?.getAttribute(
+          "data-scrap-primary-cta-visual",
+        ),
+        scrapPrimaryClassName: scrapPrimary?.getAttribute("class"),
         scrapMobileShellWidth: scrapMobileShellRect?.width ?? null,
         scrapPhotoHeight: scrapPhotoRect?.height ?? null,
         scrapPhotoNaturalHeight: scrapPhoto?.naturalHeight ?? null,
@@ -285,6 +279,7 @@ for (const width of widths) {
         ].map((node) => node.getAttribute("data-stamp-frame")),
         stampFrameStyles,
         stampFrameRatio: grid?.getAttribute("data-stamp-frame-ratio"),
+        stampGridColumns: grid?.getAttribute("data-stamp-grid-columns"),
         stampFrameRects,
         stampImageFits,
         stampLayout: grid?.getAttribute("data-stamp-layout"),
@@ -310,11 +305,14 @@ for (const width of widths) {
     }
     if (metrics.hasOldCopy) failures.push(`${route} @ ${width}: old copy visible`);
     if (route.includes("screen=home&month=") && !route.includes("2026-04")) {
-      if (metrics.monthSheetColumns !== "4") {
-        failures.push(`${route} @ ${width}: month sheet is not 4 columns`);
+      if (metrics.monthSheetAppColumns !== "3") {
+        failures.push(`${route} @ ${width}: month sheet app columns are not 3`);
       }
-      if (metrics.monthSheetRows !== "8") {
-        failures.push(`${route} @ ${width}: month sheet is not 8 rows`);
+      if (metrics.monthSheetColumns !== "3") {
+        failures.push(`${route} @ ${width}: month sheet render columns are not 3`);
+      }
+      if (metrics.monthSheetRows !== null) {
+        failures.push(`${route} @ ${width}: app month sheet should not expose export rows`);
       }
       if (metrics.monthSheetCapacity !== "32") {
         failures.push(`${route} @ ${width}: month sheet capacity is not 32`);
@@ -361,10 +359,10 @@ for (const width of widths) {
         failures.push(`${route} @ ${width}: Scrap Table missing`);
       }
       if (!metrics.hasScrapFinderPlate) {
-        failures.push(`${route} @ ${width}: physical finder plate missing`);
+        failures.push(`${route} @ ${width}: editorial finder plate missing`);
       }
       if (!metrics.hasScrapAperture) {
-        failures.push(`${route} @ ${width}: stamp aperture missing`);
+        failures.push(`${route} @ ${width}: finder aperture missing`);
       }
       if (!metrics.hasScrapPhoto) {
         failures.push(`${route} @ ${width}: natural photo surface missing`);
@@ -386,20 +384,23 @@ for (const width of widths) {
       ) {
         failures.push(`${route} @ ${width}: Scrap Table header is detached from finder`);
       }
-      if (metrics.stampEdgeCount < 1) {
-        failures.push(`${route} @ ${width}: perforated aperture edge missing`);
+      if (metrics.stampEdgeCount > 0 || metrics.stampFrameVariants.includes("lg")) {
+        failures.push(`${route} @ ${width}: old Scrap Finder stamp-frame markers visible`);
       }
-      if (!metrics.stampFrameVariants.includes("lg")) {
-        failures.push(`${route} @ ${width}: large Scrap Table stamp frame missing`);
-      }
-      if (!hasVisibleStampFrame(metrics, "lg", 10, 1)) {
-        failures.push(`${route} @ ${width}: large Scrap Table stamp edge is too faint`);
+      if (metrics.scrapPrimaryCtaVisual !== "journal-primary-bottom-cta") {
+        failures.push(`${route} @ ${width}: Scrap Finder primary CTA is not using shared CTA`);
       }
       if (
-        metrics.scrapControlsGap !== null &&
-        (metrics.scrapControlsGap < 0 || metrics.scrapControlsGap > 56)
+        typeof metrics.scrapPrimaryClassName === "string" &&
+        !metrics.scrapPrimaryClassName.includes("journal-primary-bottom-cta")
       ) {
-        failures.push(`${route} @ ${width}: Scrap Table controls are detached from finder`);
+        failures.push(`${route} @ ${width}: Scrap Finder primary CTA class missing`);
+      }
+      if (
+        metrics.scrapControlsBottom !== null &&
+        metrics.scrapControlsBottom > 812 + 1
+      ) {
+        failures.push(`${route} @ ${width}: Scrap Table controls overflow the viewport`);
       }
       if (
         !metrics.scrapFrameWidth ||
@@ -426,7 +427,7 @@ for (const width of widths) {
       (route.includes("screen=create&photos=") || route.includes("screen=sealed")) &&
       metrics.journalPreviewFits.some((fit) => !["cover", "fill"].includes(fit))
     ) {
-      failures.push(`${route} @ ${width}: journal preview is not using a stamp crop`);
+      failures.push(`${route} @ ${width}: journal preview is not using the editorial crop`);
     }
     if (
       (route.includes("screen=create&photos=") || route.includes("screen=sealed")) &&
@@ -436,33 +437,15 @@ for (const width of widths) {
     }
     if (
       (route.includes("screen=create&photos=") || route.includes("screen=sealed")) &&
-      metrics.stampEdgeCount < 1
+      (metrics.stampEdgeCount > 0 || metrics.stampFrameVariants.includes("md"))
     ) {
-      failures.push(`${route} @ ${width}: cover preview stamp edge missing`);
-    }
-    if (
-      (route.includes("screen=create&photos=") || route.includes("screen=sealed")) &&
-      !metrics.stampFrameVariants.includes("md")
-    ) {
-      failures.push(`${route} @ ${width}: medium cover stamp frame missing`);
-    }
-    if (
-      (route.includes("screen=create&photos=") || route.includes("screen=sealed")) &&
-      !hasVisibleStampFrame(metrics, "md", 7, 0.98)
-    ) {
-      failures.push(`${route} @ ${width}: medium cover stamp edge is too faint`);
+      failures.push(`${route} @ ${width}: old cover preview stamp-frame markers visible`);
     }
     if (
       route.includes("screen=create&photos=2") &&
-      !metrics.stampFrameVariants.includes("sm")
+      metrics.stampFrameVariants.includes("sm")
     ) {
-      failures.push(`${route} @ ${width}: small additional moment stamp frame missing`);
-    }
-    if (
-      route.includes("screen=create&photos=2") &&
-      !hasVisibleStampFrame(metrics, "sm", 4, 0.92)
-    ) {
-      failures.push(`${route} @ ${width}: small additional moment stamp edge is too faint`);
+      failures.push(`${route} @ ${width}: old additional moment stamp-frame marker visible`);
     }
     if (route.includes("screen=detail")) {
       const photoCount = Number(new URL(`${baseUrl}${route}`).searchParams.get("photos"));
@@ -484,6 +467,13 @@ for (const width of widths) {
         failures.push(`${route} @ ${width}: frame ratio ${metrics.stampFrameRatio} !== 1`);
       }
       if (
+        metrics.stampGridColumns !== String(photoCount <= 1 ? 1 : photoCount <= 4 ? 2 : 3)
+      ) {
+        failures.push(
+          `${route} @ ${width}: grid columns ${metrics.stampGridColumns} do not match photo count ${photoCount}`,
+        );
+      }
+      if (
         metrics.stampFrameRects.some(
           (rect) => Math.abs(rect.width - rect.height) > 1,
         )
@@ -493,17 +483,11 @@ for (const width of widths) {
       if (metrics.stampFillerMarkerCount > 0) {
         failures.push(`${route} @ ${width}: filler markers still present`);
       }
-      if (metrics.stampEdgeCount < photoCount) {
-        failures.push(`${route} @ ${width}: missing stamp-edge markers`);
+      if (metrics.stampEdgeCount > 0) {
+        failures.push(`${route} @ ${width}: old stamp-edge markers visible`);
       }
-      if (
-        metrics.stampFrameVariants.filter((variant) => variant === "sm")
-          .length < photoCount
-      ) {
-        failures.push(`${route} @ ${width}: missing small stamp-frame markers`);
-      }
-      if (!hasVisibleStampFrame(metrics, "sm", 4, 0.92)) {
-        failures.push(`${route} @ ${width}: saved detail stamp edge is too faint`);
+      if (metrics.stampFrameVariants.includes("sm")) {
+        failures.push(`${route} @ ${width}: old small stamp-frame marker visible`);
       }
       if (!metrics.coverCropMarkers.includes("metadata")) {
         failures.push(`${route} @ ${width}: stamp cover crop marker missing`);
@@ -513,7 +497,7 @@ for (const width of widths) {
       }
 
       const firstStampFrame = page
-        .locator('[data-stamp-photo-frame="true"]')
+        .locator('[data-daily-detail-photo-tile]')
         .first();
       await firstStampFrame.waitFor({
         state: "visible",
@@ -522,7 +506,7 @@ for (const width of widths) {
       await page.waitForFunction(
         () => {
           const frame = document.querySelector(
-            '[data-stamp-photo-frame="true"]',
+            '[data-daily-detail-photo-tile]',
           );
           return Boolean(frame && !frame.querySelector('[role="status"]'));
         },

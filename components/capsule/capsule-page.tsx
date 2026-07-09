@@ -24,6 +24,11 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { PersistentMemoryEntry } from "@/data/memory-demo";
 import type { CapsuleProductType } from "@/data/journal";
+import {
+  journalThemeStyle,
+  resolveJournalTheme,
+  type JournalTheme,
+} from "@/data/journal-themes";
 import type { CapsuleInitialGate } from "@/lib/capsule/gate-state";
 
 type PageState =
@@ -36,6 +41,7 @@ type PageState =
       client: SupabaseClient;
       capsuleId: string;
       productType: CapsuleProductType;
+      journalTheme?: JournalTheme;
       initialMemory?: PersistentMemoryEntry;
     }
   | { type: "error"; message: string };
@@ -67,11 +73,13 @@ function isUuid(value?: string) {
 export function CapsulePage({
   publicToken,
   memoryId,
+  createIntent,
   initialGate,
   initialMonth,
 }: {
   publicToken: string;
   memoryId?: string;
+  createIntent?: "backfill";
   initialGate?: CapsuleInitialGate;
   initialMonth?: string;
 }) {
@@ -136,6 +144,7 @@ export function CapsulePage({
         client,
         capsuleId: inspection.capsuleId,
         productType: inspection.productType,
+        journalTheme: resolveJournalTheme(inspection.journalTheme),
         initialMemory: cacheAccessMemory(inspection.memory),
       });
     } else setState({ type: "error", message: "The capsule could not be opened." });
@@ -329,15 +338,24 @@ export function CapsulePage({
   };
 
   if (state.productType === "journal") {
+    const theme = state.journalTheme ?? resolveJournalTheme();
     return (
-      <main className="journal-mobile-page">
-        <JournalMobileShell>
+      <main
+        className="journal-mobile-page"
+        style={{ background: theme.journalBackground, color: theme.textOnJournal }}
+      >
+        <JournalMobileShell
+          className="journal-themed-background"
+          style={journalThemeStyle(theme)}
+        >
           {memoryId ? (
             <JournalMemoryPage
               client={state.client}
               capsuleId={state.capsuleId}
               publicToken={publicToken}
               memoryId={memoryId}
+              createIntent={createIntent}
+              theme={state.journalTheme}
               initialMemory={state.initialMemory}
               onLock={lock}
             />

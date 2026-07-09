@@ -7,6 +7,10 @@ import { CompletedState } from "@/components/memory/completed-state";
 import { MemoryForm } from "@/components/memory/memory-form";
 import type { JournalMemorySummary } from "@/data/journal";
 import {
+  journalThemeStyle,
+  type JournalTheme,
+} from "@/data/journal-themes";
+import {
   findDuplicateStampForLocalDate,
   localDateKey,
 } from "@/data/journal-stamps";
@@ -40,10 +44,13 @@ type PersistentMemoryFlowProps = {
   capsuleId: string;
   publicToken: string;
   memoryId?: string;
+  createIntent?: "backfill";
   initialMemory?: PersistentMemoryEntry;
   maxPhotos?: number;
   productMode?: MemoryFormProductMode;
   journalStamps?: JournalMemorySummary[];
+  journalTitle?: string;
+  theme?: JournalTheme;
   onOpenJournalStamp?: (memoryId: string) => void;
   onBackToJournalMonth?: (memory: PersistentMemoryEntry) => void;
   onBack?: () => void;
@@ -74,15 +81,28 @@ function withoutPersistenceFields(memory: PersistentMemoryEntry): MemoryDraft {
   };
 }
 
+function createDraftForIntent(createIntent?: "backfill") {
+  if (createIntent !== "backfill") {
+    return createEmptyMemory(new Date().toISOString());
+  }
+
+  const backfillDate = new Date();
+  backfillDate.setDate(backfillDate.getDate() - 1);
+  return createEmptyMemory(backfillDate.toISOString());
+}
+
 export function PersistentMemoryFlow({
   client,
   capsuleId,
   publicToken,
   memoryId,
+  createIntent,
   initialMemory,
   maxPhotos = memoryMediaConfig.maxPhotosPerMemory,
   productMode = "memory",
   journalStamps = [],
+  journalTitle,
+  theme,
   onOpenJournalStamp,
   onBackToJournalMonth,
   onBack,
@@ -129,7 +149,7 @@ export function PersistentMemoryFlow({
   const [draft, setDraft] = useState<MemoryDraft>(() =>
     cachedMemory
       ? copyDraft(cachedMemory)
-      : createEmptyMemory(new Date().toISOString()),
+      : createDraftForIntent(createIntent),
   );
   const [mode, setMode] = useState<"loading" | "create" | "view" | "edit">(
     cachedMemory ? "view" : "loading",
@@ -149,7 +169,7 @@ export function PersistentMemoryFlow({
       setDraft(copyDraft(memory));
       setMode("view");
     } else {
-      setDraft(createEmptyMemory(new Date().toISOString()));
+      setDraft(createDraftForIntent(createIntent));
       setMode("create");
     }
   };
@@ -363,36 +383,52 @@ export function PersistentMemoryFlow({
   const formMemoryId = memoryId ?? saved?.id;
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        {isJournalMode && onBack && mode !== "view" ? (
+    <div
+      className={
+        isJournalMode
+          ? "journal-leather-surface journal-memory-flow-surface min-h-[calc(100dvh-2rem)]"
+          : undefined
+      }
+      data-journal-memory-flow={isJournalMode ? "themed-leather" : undefined}
+      style={isJournalMode && theme ? journalThemeStyle(theme) : undefined}
+    >
+      {isJournalMode && mode === "view" ? null : (
+        <div className="mb-3 flex items-center justify-between">
+          {isJournalMode && onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={formBusy}
+              className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:opacity-40"
+            >
+              Back to journal
+            </button>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
-            onClick={onBack}
+            onClick={() => {
+              urlCache.clear();
+              void onLock();
+            }}
             disabled={formBusy}
-            className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:opacity-40"
+            className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Back to journal
+            Lock journal
           </button>
-        ) : (
-          <span />
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            urlCache.clear();
-            void onLock();
-          }}
-          disabled={formBusy}
-          className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Lock journal
-        </button>
-      </div>
+        </div>
+      )}
       {mode === "view" && saved ? (
         <CompletedState
           memory={saved}
           journalMode={isJournalMode}
+          journalTitle={journalTitle}
+          onLock={() => {
+            urlCache.clear();
+            void onLock();
+          }}
+          theme={theme}
           resolvePhotoUrl={(photo, variant, forceRefresh) => {
             const path =
               variant === "thumbnail"
@@ -441,6 +477,7 @@ export function PersistentMemoryFlow({
           saveMessage={saveMessage}
           saveProgress={saveProgress}
           onBusyChange={setFormBusy}
+          theme={theme}
           resolveVoiceMemoUrl={async (memo, forceRefresh) => {
             if (memo.objectUrl) return memo.objectUrl;
             if (!memo.storagePath) {

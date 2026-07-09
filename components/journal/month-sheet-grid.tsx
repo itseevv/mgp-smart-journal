@@ -1,6 +1,6 @@
 "use client";
 
-import { StampTile } from "@/components/journal/stamp-tile";
+import { MonthTile } from "@/components/journal/month-tile";
 import type { JournalMemorySummary } from "@/data/journal";
 import {
   MONTH_SHEET_CAPACITY,
@@ -17,9 +17,11 @@ type MonthSheetGridProps = {
 };
 
 const variantClassName = {
-  app: "gap-1.5 p-1.5 sm:gap-2 sm:p-2",
-  export: "gap-2 p-2",
+  app: "grid-cols-3 gap-1",
+  export: "grid-cols-4 gap-2 bg-[var(--journal-paper-muted)] p-2 shadow-[inset_0_0_0_1px_var(--journal-stamp-border)]",
 };
+
+const APP_MONTH_SHEET_COLUMNS = 3;
 
 export function MonthSheetGrid({
   stamps,
@@ -31,16 +33,22 @@ export function MonthSheetGrid({
 
   return (
     <ol
-      aria-label="Saved scraps arranged as a monthly stamp sheet"
-      className={`mt-6 grid grid-cols-4 bg-[var(--journal-paper-muted)] shadow-[inset_0_0_0_1px_var(--journal-stamp-border)] ${variantClassName[variant]}`}
+      aria-label="Saved cover scraps arranged as a monthly sheet"
+      className={`${variant === "app" ? "mt-2" : "mt-3"} grid ${variantClassName[variant]}`}
+      data-month-sheet-app-columns={
+        variant === "app" ? APP_MONTH_SHEET_COLUMNS : undefined
+      }
       data-month-sheet-capacity={MONTH_SHEET_CAPACITY}
-      data-month-sheet-columns={MONTH_SHEET_COLUMNS}
+      data-month-sheet-columns={
+        variant === "app" ? APP_MONTH_SHEET_COLUMNS : MONTH_SHEET_COLUMNS
+      }
       data-month-sheet-grid="true"
-      data-month-sheet-rows={MONTH_SHEET_ROWS}
+      data-month-sheet-renders="sealed-days-only"
+      data-month-sheet-rows={variant === "app" ? undefined : MONTH_SHEET_ROWS}
       data-month-sheet-variant={variant}
     >
       {positions.map(({ dayLabel, memory, position }) => (
-        <StampTile
+        <MonthTile
           key={memory.id}
           dayLabel={dayLabel}
           memory={memory}

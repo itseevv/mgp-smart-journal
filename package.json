@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:stable": "next dev --webpack",
+    "predev": "node scripts/dev-preflight.mjs",
+    "dev": "next dev --webpack",
+    "dev:stable": "npm run dev",
+    "predev:turbo": "JOURNAL_CHIP_DEV_MODE=turbo node scripts/dev-preflight.mjs",
+    "dev:turbo": "JOURNAL_CHIP_ALLOW_TURBO=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",

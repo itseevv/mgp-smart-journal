@@ -83,3 +83,29 @@ export function CalendarIcon({ className = "h-5 w-5" }: IconProps) {
     </svg>
   );
 }
+
+export function DownloadIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none">
+      <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 18.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ShareIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none">
+      <path d="M8.5 12.5 15.5 8M8.5 11.5l7 4.5M7 15.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5ZM17 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5ZM17 19.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function MoreIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="currentColor">
+      <circle cx="6" cy="12" r="1.35" />
+      <circle cx="12" cy="12" r="1.35" />
+      <circle cx="18" cy="12" r="1.35" />
+    </svg>
+  );
+}

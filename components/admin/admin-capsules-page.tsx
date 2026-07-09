@@ -36,6 +36,15 @@ type AdminCapsule = {
   memoryCount: number;
   photoCount: number;
   voiceMemoCount: number;
+  journalTheme?: AdminJournalTheme | null;
+};
+
+type AdminJournalTheme = {
+  id: string;
+  slug: string;
+  name: string;
+  status: "draft" | "active" | "archived";
+  fallbackBackgroundColor: string;
 };
 
 type RecoveryHandoffItem = {
@@ -62,6 +71,7 @@ export function AdminCapsulesPage() {
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<AdminBatch[]>([]);
   const [capsules, setCapsules] = useState<AdminCapsule[]>([]);
+  const [journalThemes, setJournalThemes] = useState<AdminJournalTheme[]>([]);
   const [handoff, setHandoff] = useState<RecoveryHandoffItem[]>([]);
   const [urlConfig, setUrlConfig] = useState<AdminUrlConfig | null>(null);
   const [message, setMessage] = useState("");
@@ -76,6 +86,7 @@ export function AdminCapsulesPage() {
     productType: "journal" as ProductType,
     quantity: 5,
     serialPrefix: "",
+    journalThemeId: "",
     notes: "",
     issueRecovery: false,
   });
@@ -103,6 +114,7 @@ export function AdminCapsulesPage() {
       setAuthenticated(true);
       setBatches(result.batches ?? []);
       setCapsules(result.capsules ?? []);
+      setJournalThemes(result.journalThemes ?? []);
       setUrlConfig(result.urlConfig ?? null);
     } catch {
       setMessage("Admin capsule data could not be loaded.");
@@ -149,6 +161,11 @@ export function AdminCapsulesPage() {
 
   const generateBatch = async (event: FormEvent) => {
     event.preventDefault();
+    if (form.productType === "journal" && !form.journalThemeId) {
+      setMessage("Choose a journal theme before generating journal capsules.");
+      setHandoff([]);
+      return;
+    }
     setLoading(true);
     setMessage("");
     setHandoff([]);
@@ -167,8 +184,12 @@ export function AdminCapsulesPage() {
           : "Batch generated.",
       );
       await loadCapsules();
-    } catch {
-      setMessage("Batch generation failed. No silent recovery handoff was created.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error && error.message === "JOURNAL_THEME_REQUIRED"
+          ? "Choose a journal theme before generating journal capsules."
+          : "Batch generation failed. No silent recovery handoff was created.",
+      );
     } finally {
       setLoading(false);
     }
@@ -225,12 +246,20 @@ export function AdminCapsulesPage() {
               private customer media or memory contents are shown here.
             </p>
           </div>
-          <a
-            href={`/api/admin/capsules/export${query ? `?${query}` : ""}`}
-            className="inline-flex justify-center border border-oxblood px-4 py-2 font-sans text-sm font-bold text-oxblood"
-          >
-            Export CSV
-          </a>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/admin/journal-themes"
+              className="inline-flex justify-center border border-rule px-4 py-2 font-sans text-sm font-bold text-ink"
+            >
+              Theme library
+            </Link>
+            <a
+              href={`/api/admin/capsules/export${query ? `?${query}` : ""}`}
+              className="inline-flex justify-center border border-oxblood px-4 py-2 font-sans text-sm font-bold text-oxblood"
+            >
+              Export CSV
+            </a>
+          </div>
         </header>
 
         <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -252,7 +281,12 @@ export function AdminCapsulesPage() {
                 <select
                   value={form.productType}
                   onChange={(event) =>
-                    setForm({ ...form, productType: event.target.value as ProductType })
+                    setForm({
+                      ...form,
+                      productType: event.target.value as ProductType,
+                      journalThemeId:
+                        event.target.value === "journal" ? form.journalThemeId : "",
+                    })
                   }
                   className="mt-2 w-full border border-rule bg-paper px-3 py-2"
                 >
@@ -274,6 +308,30 @@ export function AdminCapsulesPage() {
                 />
               </label>
             </div>
+            {form.productType === "journal" ? (
+              <label className="block font-sans text-sm font-semibold">
+                Journal theme
+                <select
+                  value={form.journalThemeId}
+                  onChange={(event) =>
+                    setForm({ ...form, journalThemeId: event.target.value })
+                  }
+                  className="mt-2 w-full border border-rule bg-paper px-3 py-2"
+                >
+                  <option value="">Choose a journal theme</option>
+                  {journalThemes.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name} ({theme.slug})
+                    </option>
+                  ))}
+                </select>
+                {journalThemes.length === 0 ? (
+                  <span className="mt-2 block text-xs font-normal text-oxblood">
+                    Add or activate a journal theme before generating journals.
+                  </span>
+                ) : null}
+              </label>
+            ) : null}
             <label className="block font-sans text-sm font-semibold">
               Optional serial prefix
               <input
@@ -376,6 +434,7 @@ export function AdminCapsulesPage() {
                 <tr>
                   <th className="border-b border-rule p-3">Serial</th>
                   <th className="border-b border-rule p-3">Product</th>
+                  <th className="border-b border-rule p-3">Theme</th>
                   <th className="border-b border-rule p-3">Fulfilment</th>
                   <th className="border-b border-rule p-3">Activation</th>
                   <th className="border-b border-rule p-3">Recovery</th>
@@ -388,6 +447,9 @@ export function AdminCapsulesPage() {
                   <tr key={capsule.id} className="align-top">
                     <td className="border-b border-rule p-3 font-bold">{capsule.serialNumber}</td>
                     <td className="border-b border-rule p-3 capitalize">{capsule.productType}</td>
+                    <td className="border-b border-rule p-3">
+                      {capsule.journalTheme?.name ?? "None"}
+                    </td>
                     <td className="border-b border-rule p-3 capitalize">{statusLabel(capsule.fulfillmentStatus)}</td>
                     <td className="border-b border-rule p-3 capitalize">{capsule.activationStatus}</td>
                     <td className="border-b border-rule p-3">{statusLabel(capsule.recoveryStatus)}</td>

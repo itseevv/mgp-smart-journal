@@ -268,6 +268,37 @@ async function isCapsuleDisabled(
     : fulfillment?.fulfillment_status === "disabled";
 }
 
+function mapJournalTheme(theme?: Record<string, unknown> | null) {
+  if (!theme) return null;
+  return {
+    id: theme.id,
+    slug: theme.slug,
+    name: theme.name,
+    description: theme.description,
+    status: theme.status,
+    sortOrder: theme.sort_order,
+    textureStoragePath: theme.texture_storage_path,
+    textureUrl: theme.texture_public_url,
+    texturePublicUrl: theme.texture_public_url,
+    textureWidth: theme.texture_width,
+    textureHeight: theme.texture_height,
+    textureMimeType: theme.texture_mime_type,
+    focusX: theme.focus_x,
+    focusY: theme.focus_y,
+    zoom: theme.zoom,
+    overlayColor: theme.overlay_color,
+    overlayOpacity: theme.overlay_opacity,
+    fallbackBackgroundColor: theme.fallback_background_color,
+    textPrimary: theme.text_primary,
+    textSecondary: theme.text_secondary,
+    paperSurface: theme.paper_surface,
+    paperSurfaceMuted: theme.paper_surface_muted,
+    stampBorder: theme.stamp_border,
+    accentColor: theme.accent_color,
+    logoVariant: theme.logo_variant,
+  };
+}
+
 Deno.serve(async (request) => {
   const origin = request.headers.get("Origin");
   const requestCorsHeaders = corsHeaders(origin);
@@ -573,14 +604,25 @@ Deno.serve(async (request) => {
   try {
     const capsule = await admin
       .from("capsules")
-      .select("product_type")
+      .select("product_type,journal_theme_id")
       .eq("id", capsuleId)
       .single();
     if (capsule.error) throw capsule.error;
     const productType = capsule.data.product_type;
+    let journalTheme = data?.journalTheme ?? null;
+    if (capsule.data.journal_theme_id) {
+      const theme = await admin
+        .from("journal_themes")
+        .select("*")
+        .eq("id", capsule.data.journal_theme_id)
+        .maybeSingle();
+      if (theme.error) throw theme.error;
+      journalTheme = mapJournalTheme(theme.data);
+    }
     return json({
       ...data,
       productType,
+      journalTheme,
       memory:
         productType === "bookmark" || input.memoryId
           ? await loadUnlockedMemory(admin, capsuleId, input.memoryId)

@@ -4,15 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { BottomRitualAction } from "@/components/journal/bottom-ritual-action";
+import { JournalIdentityHeader } from "@/components/journal/journal-identity-header";
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
 import { useMonthQueryState } from "@/components/journal/use-month-query-state";
 import { memoryMediaConfig } from "@/data/memory-demo";
-import { journalConfig, type JournalHomeData } from "@/data/journal";
+import type { JournalHomeData } from "@/data/journal";
 import {
   findStampForLocalDate,
   monthlyStampArchive,
 } from "@/data/journal-stamps";
-import { defaultJournalTheme, journalThemeStyle } from "@/data/journal-themes";
+import { journalThemeStyle, resolveJournalTheme } from "@/data/journal-themes";
 import {
   loadJournalHome,
   processMediaCleanup,
@@ -60,7 +62,6 @@ export function JournalHome({
   const [titleBusy, setTitleBusy] = useState(false);
   const [titleError, setTitleError] = useState("");
   const [navigationBusy, setNavigationBusy] = useState(false);
-  const [sealMessage, setSealMessage] = useState("");
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupError, setCleanupError] = useState("");
 
@@ -108,23 +109,28 @@ export function JournalHome({
 
     const existingToday = findStampForLocalDate(journal.memories, new Date());
     if (existingToday) {
-      setSealMessage("Today is already sealed. You can revisit today's stamp.");
       setNavigationBusy(true);
       router.push(`/c/${publicToken}/m/${existingToday.id}`);
       return;
     }
 
     if (journal.photoCount >= journal.maxPhotos) {
-      setSealMessage(
-        "This journal needs a little space before another day can be sealed.",
-      );
       return;
     }
 
-    setSealMessage("");
     setNavigationBusy(true);
     const memoryId = crypto.randomUUID();
     router.push(`/c/${publicToken}/m/${memoryId}`);
+  };
+
+  const sealAnotherDay = () => {
+    if (navigationBusy || !journal || journal.photoCount >= journal.maxPhotos) {
+      return;
+    }
+
+    setNavigationBusy(true);
+    const memoryId = crypto.randomUUID();
+    router.push(`/c/${publicToken}/m/${memoryId}?create=backfill`);
   };
 
   const saveTitle = async () => {
@@ -183,93 +189,44 @@ export function JournalHome({
     );
   }
 
+  const existingToday = findStampForLocalDate(journal.memories, new Date());
   const isAtJournalLimit = journal.photoCount >= journal.maxPhotos;
+  const sealDisabled = isAtJournalLimit && !existingToday;
   const archive = monthlyStampArchive(journal.memories, requestedMonth);
+  const theme = resolveJournalTheme(journal.theme);
+  const lock = () => {
+    urlCache.clear();
+    void onLock();
+  };
 
   return (
-    <div style={journalThemeStyle(defaultJournalTheme)}>
-      <div className="mb-3 flex justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            urlCache.clear();
-            void onLock();
+    <div style={journalThemeStyle(theme)}>
+      <article
+        className="journal-home-surface journal-home-surface--mobile-density journal-leather-surface px-3 py-2 sm:px-4"
+        aria-labelledby="journal-title"
+      >
+        <JournalIdentityHeader
+          title={journal.title}
+          typography="home-variant-c"
+          titleDraft={titleDraft}
+          isEditingTitle={isEditingTitle}
+          titleBusy={titleBusy}
+          titleError={titleError}
+          onTitleDraftChange={setTitleDraft}
+          onSaveTitle={() => void saveTitle()}
+          onCancelTitle={() => {
+            setTitleDraft(journal.title);
+            setIsEditingTitle(false);
           }}
-          className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4"
-        >
-          Lock journal
-        </button>
-      </div>
-
-      <article className="journal-leather-surface p-3 shadow-[0_22px_55px_rgba(18,11,10,0.28)] sm:p-4" aria-labelledby="journal-title">
-        <header className="pb-5 text-[var(--journal-text)]">
-          <p className="font-sans text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--journal-muted)]">
-            Journal
-          </p>
-          {isEditingTitle ? (
-            <div className="mt-3">
-              <label htmlFor="journal-title-input" className="sr-only">
-                Journal title
-              </label>
-              <input
-                id="journal-title-input"
-                value={titleDraft}
-                maxLength={journalConfig.maxTitleLength}
-                onChange={(event) => setTitleDraft(event.target.value)}
-                className="w-full border-0 border-b border-[var(--journal-muted)] bg-transparent pb-2 font-serif text-[2.25rem] leading-none text-[var(--journal-text)] outline-none placeholder:text-[var(--journal-muted)] focus:border-[var(--journal-accent-metal)]"
-                autoFocus
-              />
-              <div className="mt-3 flex gap-4 font-sans text-xs">
-                <button
-                  type="button"
-                  onClick={() => void saveTitle()}
-                  disabled={titleBusy}
-                  className="font-semibold text-[var(--journal-text)] underline underline-offset-4 disabled:opacity-50"
-                >
-                  {titleBusy ? "Saving…" : "Save title"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTitleDraft(journal.title);
-                    setIsEditingTitle(false);
-                  }}
-                  disabled={titleBusy}
-                  className="text-[var(--journal-muted)] underline underline-offset-4 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-              {titleError ? (
-                <p className="mt-2 font-sans text-xs text-[var(--journal-text)]" role="alert">
-                  {titleError}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-3 flex flex-col gap-3">
-              <h1
-                id="journal-title"
-                className="font-serif text-[2.35rem] leading-none text-[var(--journal-text)]"
-              >
-                {journal.title}
-              </h1>
-              <button
-                type="button"
-                onClick={() => {
-                  setTitleError("");
-                  setIsEditingTitle(true);
-                }}
-                className="shrink-0 font-sans text-[0.68rem] text-[var(--journal-muted)] underline underline-offset-4"
-              >
-                Rename
-              </button>
-            </div>
-          )}
-        </header>
+          onBeginRename={() => {
+            setTitleError("");
+            setIsEditingTitle(true);
+          }}
+          onLock={lock}
+        />
 
         {journal.cleanupPendingCount > 0 ? (
-          <div className="mb-5 border border-[var(--journal-stamp-border)] bg-[var(--journal-paper)] p-3 font-sans text-xs text-[var(--journal-paper-muted-text)]">
+          <div className="mb-4 bg-[var(--journal-paper)] p-3 font-sans text-xs text-[var(--journal-paper-muted-text)]">
             <p>
               Private media cleanup is still pending for{" "}
               {journal.cleanupPendingCount}{" "}
@@ -296,10 +253,15 @@ export function JournalHome({
           thumbnailUrls={thumbnailUrls}
           onOpen={(memory) => router.push(`/c/${publicToken}/m/${memory.id}`)}
           onSelectMonth={selectMonth}
-          onSealToday={sealToday}
-          sealBusy={navigationBusy}
-          sealMessage={sealMessage}
-          limitReached={isAtJournalLimit}
+        />
+
+        <BottomRitualAction
+          busy={navigationBusy}
+          todaySealed={Boolean(existingToday)}
+          todayActionDisabled={sealDisabled}
+          backfillDisabled={isAtJournalLimit}
+          onTodayAction={sealToday}
+          onBackfillAction={sealAnotherDay}
         />
       </article>
     </div>

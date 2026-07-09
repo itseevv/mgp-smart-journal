@@ -8,9 +8,7 @@ import {
   CroppedPrivateStampImage,
   stampCropRender,
 } from "@/components/stamp/cropped-stamp-image";
-import { StampFrameButton } from "@/components/stamp/stamp-frame";
 import {
-  buildStampFrameRows,
   getStampFrameAspectRatio,
   getStampLayout,
 } from "@/data/stamp-layouts";
@@ -30,15 +28,27 @@ type StampPhotoItem = {
   photo: MemoryPhoto;
 };
 
+function gridColumns(photoCount: number) {
+  if (photoCount <= 1) return 1;
+  if (photoCount <= 4) return 2;
+  return 3;
+}
+
+const gridColumnClassName: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+};
+
 export function StampGrid({ photos, resolvePhotoUrl }: StampGridProps) {
   const layout = getStampLayout(photos.length);
   const visiblePhotos = photos.slice(0, layout.visiblePhotoCount);
-  const rows = buildStampFrameRows(
-    visiblePhotos.map((photo, index) => ({ photo, index })),
-  );
+  const items = visiblePhotos.map((photo, index) => ({ photo, index }));
+  const columns = gridColumns(visiblePhotos.length);
   const frameRatio = getStampFrameAspectRatio();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const imageSizes = "(min-width: 768px) 420px, calc(100vw - 2rem)";
 
   const openViewer = (
     index: number,
@@ -51,65 +61,57 @@ export function StampGrid({ photos, resolvePhotoUrl }: StampGridProps) {
   return (
     <>
       <div
-        className="space-y-1.5 bg-[var(--journal-paper-muted)] p-1.5 shadow-[inset_0_0_0_1px_var(--journal-stamp-border)] sm:space-y-2 sm:p-2"
+        className={`daily-detail-photo-grid grid ${gridColumnClassName[columns]} gap-1.5 sm:gap-2`}
         aria-label="Daily Memory Stamp"
+        data-daily-detail-photo-grid="borderless-adaptive"
+        data-stamp-app-grid="daily-detail-photo-grid"
+        data-stamp-grid-columns={columns}
         data-stamp-layout={layout.variant}
         data-stamp-photo-count={layout.visiblePhotoCount}
         data-stamp-row-sizes={layout.rowSizes.join(",")}
         data-stamp-frame-ratio={frameRatio}
+        data-daily-detail-photo-ratio={frameRatio}
       >
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className="grid gap-1.5 sm:gap-2"
-            style={{
-              gridTemplateColumns: `repeat(${row.items.length}, minmax(0, 1fr))`,
-            }}
-            data-stamp-row-size={row.items.length}
-          >
-            {row.items.map(({ photo, index }: StampPhotoItem) => {
-              const cropMode =
-                index === 0
-                  ? stampCropRender({
-                      cropMetadata: photo.cropMetadata,
-                      width: photo.width ?? photo.thumbnailWidth,
-                      height: photo.height ?? photo.thumbnailHeight,
-                    }).mode
-                  : undefined;
-              return (
-                <StampFrameButton
-                  key={photo.id}
-                  variant="sm"
-                  type="button"
-                  onClick={(event) => openViewer(index, event.currentTarget)}
-                  className="relative aspect-square min-w-0 overflow-hidden bg-[var(--journal-filler-a)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--journal-accent-metal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--journal-paper)]"
-                  data-stamp-photo-frame="true"
-                  data-stamp-frame-fit="cover"
-                  data-stamp-cover-crop={index === 0 ? cropMode : undefined}
-                  aria-label={`Open ${photo.name} full screen`}
-                >
-                  {index === 0 ? (
-                    <CroppedPrivateStampImage
-                      photo={photo}
-                      variant="display"
-                      priority
-                      sizes="(min-width: 768px) 180px, 33vw"
-                      resolvePhotoUrl={resolvePhotoUrl}
-                    />
-                  ) : (
-                    <PrivatePhoto
-                      photo={photo}
-                      variant="display"
-                      sizes="(min-width: 768px) 180px, 33vw"
-                      className="object-cover"
-                      resolvePhotoUrl={resolvePhotoUrl}
-                    />
-                  )}
-                </StampFrameButton>
-              );
-            })}
-          </div>
-        ))}
+        {items.map(({ photo, index }: StampPhotoItem) => {
+          const cropMode =
+            index === 0
+              ? stampCropRender({
+                  cropMetadata: photo.cropMetadata,
+                  width: photo.width ?? photo.thumbnailWidth,
+                  height: photo.height ?? photo.thumbnailHeight,
+                }).mode
+              : undefined;
+          return (
+            <button
+              key={photo.id}
+              type="button"
+              onClick={(event) => openViewer(index, event.currentTarget)}
+              className="daily-detail-photo-tile relative aspect-square min-w-0 overflow-hidden bg-[var(--journal-filler-a)]"
+              data-daily-detail-photo-tile="borderless-square"
+              data-daily-detail-photo-fit="cover"
+              data-stamp-cover-crop={index === 0 ? cropMode : undefined}
+              aria-label={`Open ${photo.name} full screen`}
+            >
+              {index === 0 ? (
+                <CroppedPrivateStampImage
+                  photo={photo}
+                  variant="display"
+                  priority
+                  sizes={imageSizes}
+                  resolvePhotoUrl={resolvePhotoUrl}
+                />
+              ) : (
+                <PrivatePhoto
+                  photo={photo}
+                  variant="display"
+                  sizes={imageSizes}
+                  className="object-cover"
+                  resolvePhotoUrl={resolvePhotoUrl}
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {viewerIndex !== null ? (

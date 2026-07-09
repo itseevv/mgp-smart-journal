@@ -13,6 +13,7 @@ import {
   requireAdminSession,
   type RecoveryHandoffItem,
 } from "@/lib/admin/capsules";
+import { listAdminJournalThemes } from "@/lib/admin/journal-themes";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase";
 
 export async function GET(request: Request) {
@@ -58,7 +59,12 @@ export async function GET(request: Request) {
       batchId,
       search,
     });
-    return NextResponse.json({ ...result, urlConfig });
+    const themes = await listAdminJournalThemes({ status: "active" });
+    return NextResponse.json({
+      ...result,
+      urlConfig,
+      journalThemes: themes.themes ?? [],
+    });
   } catch (error) {
     console.error(
       "admin capsule list failed",
@@ -82,6 +88,7 @@ export async function POST(request: Request) {
     serialPrefix?: unknown;
     notes?: unknown;
     issueRecovery?: unknown;
+    journalThemeId?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -107,8 +114,28 @@ export async function POST(request: Request) {
       ? body.serialPrefix.trim()
       : null;
   const notes = typeof body.notes === "string" ? body.notes : null;
+  const journalThemeId =
+    typeof body.journalThemeId === "string" && body.journalThemeId
+      ? body.journalThemeId
+      : null;
 
   if (!batchName || !productType || quantity < 1 || quantity > 500) {
+    return NextResponse.json(
+      { ok: false, code: "INVALID_REQUEST" },
+      { status: 400 },
+    );
+  }
+  if (productType === "journal" && !journalThemeId) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "JOURNAL_THEME_REQUIRED",
+        message: "Choose a journal theme before generating journal capsules.",
+      },
+      { status: 400 },
+    );
+  }
+  if (journalThemeId && !isUuid(journalThemeId)) {
     return NextResponse.json(
       { ok: false, code: "INVALID_REQUEST" },
       { status: 400 },
@@ -128,6 +155,8 @@ export async function POST(request: Request) {
       requested_serial_prefix: serialPrefix,
       requested_notes: notes,
       requested_actor: "internal-admin",
+      requested_journal_theme_id:
+        productType === "journal" ? journalThemeId : null,
     });
     if (generated.error) throw generated.error;
     if (!generated.data?.ok) {

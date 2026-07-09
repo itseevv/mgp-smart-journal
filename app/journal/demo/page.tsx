@@ -1,5 +1,9 @@
 import { JournalDemoFlow } from "@/components/journal/journal-demo-flow";
 import { JournalMobileShell } from "@/components/journal/journal-mobile-shell";
+import {
+  defaultJournalTheme,
+  journalThemeStyle,
+} from "@/data/journal-themes";
 
 function demoPhotoCount(value?: string) {
   const parsed = Number(value);
@@ -24,7 +28,10 @@ export default async function JournalDemoPage({
   const { screen, photos, scenario, month } = await searchParams;
   return (
     <main className="journal-mobile-page">
-      <JournalMobileShell>
+      <JournalMobileShell
+        className="journal-themed-background"
+        style={journalThemeStyle(defaultJournalTheme)}
+      >
         <JournalDemoFlow
           initialScreen={
             screen === "create" ||

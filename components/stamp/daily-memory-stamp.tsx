@@ -1,19 +1,47 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { useState } from "react";
+
 import { ChevronLeftIcon } from "@/components/memory/memory-icons";
+import {
+  JournalPrimaryCTA,
+  JournalShellIconButton,
+  JournalStageOverlay,
+} from "@/components/journal/journal-visual-primitives";
+import { JournalIdentityHeader } from "@/components/journal/journal-identity-header";
 import { StampGrid } from "@/components/stamp/stamp-grid";
-import { defaultJournalTheme, journalThemeStyle } from "@/data/journal-themes";
+import { journalConfig } from "@/data/journal";
+import {
+  defaultJournalTheme,
+  journalThemeStyle,
+  type JournalTheme,
+} from "@/data/journal-themes";
 import type { MemoryEntry } from "@/data/memory-demo";
+
+const detailSurfaceClassName =
+  "daily-detail-shell-surface journal-leather-surface flex min-h-[calc(100dvh-2rem)] flex-col px-3 py-3";
+
+const DailyStampExportComposer = dynamic(
+  () =>
+    import("@/components/export/daily-stamp-export-composer").then(
+      (module) => module.DailyStampExportComposer,
+    ),
+  { ssr: false },
+);
 
 type DailyMemoryStampProps = {
   memory: MemoryEntry;
   onEdit: () => void;
   onBackToMonthSheet?: () => void;
+  journalTitle?: string;
+  onLock?: () => void;
   resolvePhotoUrl?: (
     photo: MemoryEntry["photos"][number],
     variant: "display" | "thumbnail",
     forceRefresh?: boolean,
   ) => Promise<string>;
+  theme?: JournalTheme;
 };
 
 function formatDisplayDate(isoDate: string) {
@@ -23,68 +51,137 @@ function formatDisplayDate(isoDate: string) {
   }).format(value);
 }
 
+function EditStampIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none">
+      <path
+        d="m5 19 3.2-.7L18.1 8.4a2.1 2.1 0 0 0-3-3L5.2 15.3 5 19Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="m13.7 6.8 3.5 3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
 export function DailyMemoryStamp({
   memory,
   onEdit,
   onBackToMonthSheet,
+  journalTitle = journalConfig.defaultTitle,
+  onLock = () => undefined,
   resolvePhotoUrl,
+  theme = defaultJournalTheme,
 }: DailyMemoryStampProps) {
+  const [exportOpen, setExportOpen] = useState(false);
   const dateLabel = formatDisplayDate(memory.capturedAt);
+  const backControl = onBackToMonthSheet ? (
+    <JournalShellIconButton
+      type="button"
+      onClick={onBackToMonthSheet}
+      aria-label="Back to month sheet"
+      className="month-sheet-nav-button daily-detail-shell-back-button"
+      data-daily-detail-back-placement="shell-icon"
+    >
+      <ChevronLeftIcon className="h-4 w-4" />
+    </JournalShellIconButton>
+  ) : undefined;
 
   return (
     <article
       aria-labelledby="daily-memory-stamp-title"
-      className="journal-leather-surface p-3 shadow-[0_22px_55px_rgba(18,11,10,0.28)] sm:p-4"
+      className={detailSurfaceClassName}
+      data-journal-detail-background="themed-leather"
       data-journal-stamp-detail="true"
-      style={journalThemeStyle(defaultJournalTheme)}
+      data-daily-detail-shell="journal-identity"
+      data-phase-7r4-detail="daily-detail-production"
+      style={journalThemeStyle(theme)}
     >
-      <div>
-        {onBackToMonthSheet ? (
-          <button
-            type="button"
-            onClick={onBackToMonthSheet}
-            className="mb-4 inline-flex min-h-10 items-center gap-1.5 font-sans text-[0.68rem] font-semibold text-[var(--journal-muted)] underline decoration-[var(--journal-accent-metal)] underline-offset-4"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-            <span>Back to month sheet</span>
-          </button>
-        ) : null}
+      <JournalIdentityHeader
+        title={journalTitle}
+        typography="home-variant-c"
+        leftControl={backControl}
+        showSettings={false}
+        onLock={onLock}
+      />
 
-        <header className="pb-4 text-[var(--journal-text)]">
-          <div>
+      <JournalStageOverlay
+        variant="daily-detail"
+        className="daily-detail-content-surface min-h-0 flex-1 overflow-hidden p-2.5"
+        data-daily-detail-surface="sheer-overlay"
+        data-daily-detail-mobile-width="approved-playground"
+        data-daily-detail-spacing="approved-playground-baseline"
+      >
+        <header className="daily-detail-artifact-header grid grid-cols-[minmax(0,1fr)_2.25rem] items-start gap-2">
+          <div className="min-w-0">
             <time
               dateTime={memory.capturedAt}
-              className="font-sans text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--journal-muted)]"
+              className="daily-detail-date font-sans text-[0.62rem] font-semibold uppercase"
             >
               {dateLabel}
             </time>
             <h1
               id="daily-memory-stamp-title"
-              className="mt-2 max-w-full font-serif text-[2.15rem] leading-none text-[var(--journal-text)]"
+              className="daily-detail-title mt-2 max-w-full font-serif text-[1.48rem] leading-none"
             >
               {memory.title}
             </h1>
           </div>
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit stamp"
+            className="daily-detail-edit-button flex h-9 w-9 items-center justify-center rounded-full"
+            data-daily-detail-edit-placement="overlay-icon"
+          >
+            <EditStampIcon className="h-3.5 w-3.5" />
+          </button>
         </header>
 
-        <section className="paper-surface bg-[var(--journal-paper)] p-2.5 shadow-[0_18px_45px_rgba(18,11,10,0.24)] sm:p-3">
+        <section
+          className="daily-detail-photo-surface mt-3"
+          aria-label="Daily photographs"
+          data-daily-detail-photo-surface="photo-first"
+        >
           <StampGrid
             photos={memory.photos}
             resolvePhotoUrl={resolvePhotoUrl}
           />
         </section>
+      </JournalStageOverlay>
 
-        <footer className="flex items-center justify-between gap-3 pt-4 font-sans text-[0.68rem] text-[var(--journal-muted)]">
-          <span>Private by nature.</span>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="font-semibold text-[var(--journal-text)] underline decoration-[var(--journal-accent-metal)] underline-offset-4"
-          >
-            Edit stamp
-          </button>
-        </footer>
-      </div>
+      <footer
+        className="daily-detail-bottom-action mt-3 shrink-0"
+        data-daily-detail-actions="bottom-shell-primary"
+      >
+        <JournalPrimaryCTA
+          type="button"
+          onClick={() => setExportOpen(true)}
+          className="daily-detail-save-share-button journal-primary-bottom-cta"
+          aria-haspopup="dialog"
+          data-daily-stamp-export-action="true"
+          data-daily-detail-bottom-cta="save-share"
+        >
+          Save / Share
+        </JournalPrimaryCTA>
+      </footer>
+
+      {exportOpen ? (
+        <DailyStampExportComposer
+          open={exportOpen}
+          memory={memory}
+          onClose={() => setExportOpen(false)}
+          resolvePhotoUrl={resolvePhotoUrl}
+          theme={theme}
+        />
+      ) : null}
     </article>
   );
 }

@@ -8,6 +8,10 @@ import { PersistentMemoryFlow } from "@/components/capsule/persistent-memory-flo
 import type { PersistentMemoryEntry } from "@/data/memory-demo";
 import type { JournalMemoryContext } from "@/data/journal";
 import {
+  resolveJournalTheme,
+  type JournalTheme,
+} from "@/data/journal-themes";
+import {
   findStampForLocalDateKey,
   toLocalDateKeyFromDate,
 } from "@/data/journal-stamps";
@@ -22,6 +26,8 @@ type JournalMemoryPageProps = {
   capsuleId: string;
   publicToken: string;
   memoryId: string;
+  createIntent?: "backfill";
+  theme?: JournalTheme;
   initialMemory?: PersistentMemoryEntry;
   onLock: () => Promise<void>;
 };
@@ -38,6 +44,8 @@ export function JournalMemoryPage({
   capsuleId,
   publicToken,
   memoryId,
+  createIntent,
+  theme,
   initialMemory,
   onLock,
 }: JournalMemoryPageProps) {
@@ -90,7 +98,8 @@ export function JournalMemoryPage({
     );
   }
 
-  const existingToday = !initialMemory
+  const isBackfillCreate = createIntent === "backfill" && !initialMemory;
+  const existingToday = !initialMemory && !isBackfillCreate
     ? findStampForLocalDateKey(
         context.memories,
         toLocalDateKeyFromDate(new Date()),
@@ -141,10 +150,13 @@ export function JournalMemoryPage({
       capsuleId={capsuleId}
       publicToken={publicToken}
       memoryId={memoryId}
+      createIntent={createIntent}
       initialMemory={initialMemory}
       maxPhotos={context.effectivePhotoLimit}
       productMode="journal"
       journalStamps={context.memories}
+      journalTitle={context.title}
+      theme={theme ?? resolveJournalTheme(context.theme)}
       onOpenJournalStamp={openStamp}
       onBackToJournalMonth={returnToMemoryMonth}
       onBack={returnHome}

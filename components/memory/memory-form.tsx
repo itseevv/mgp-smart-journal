@@ -7,6 +7,7 @@ import { PhotoPicker } from "@/components/memory/photo-picker";
 import { VoiceRecorder } from "@/components/memory/voice-recorder";
 import { CalendarIcon } from "@/components/memory/memory-icons";
 import type { JournalMemorySummary } from "@/data/journal";
+import type { JournalTheme } from "@/data/journal-themes";
 import {
   findDuplicateStampForLocalDate,
   localDateKey,
@@ -48,6 +49,7 @@ type MemoryFormProps = {
   currentMemoryId?: string;
   journalStamps?: JournalMemorySummary[];
   onOpenJournalStamp?: (memoryId: string) => void;
+  theme?: JournalTheme;
   resolveVoiceMemoUrl?: (
     memo: MemoryVoiceMemo,
     forceRefresh?: boolean,
@@ -115,6 +117,7 @@ export function MemoryForm({
   currentMemoryId,
   journalStamps = [],
   onOpenJournalStamp,
+  theme,
   resolveVoiceMemoUrl,
 }: MemoryFormProps) {
   const [errors, setErrors] = useState<FormErrors>({});
@@ -157,6 +160,18 @@ export function MemoryForm({
       : isEditing
         ? copy.saveEdit
         : copy.saveNew;
+  const articleClassName = isJournalProduct
+    ? "journal-create-edit-form"
+    : "memory-entry";
+  const formHeaderClassName = isJournalProduct
+    ? "journal-create-edit-form__header flex items-center justify-between pb-4"
+    : "flex items-center justify-between border-b border-rule pb-4";
+  const formTitleLabelClassName = isJournalProduct
+    ? "journal-form-label mb-2 block font-sans text-[0.65rem] font-semibold uppercase"
+    : "mb-2 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft";
+  const titleInputClassName = isJournalProduct
+    ? "journal-form-title-input w-full border-0 bg-transparent px-0 pb-3 font-serif text-[1.55rem] leading-tight outline-none sm:text-[1.75rem]"
+    : "w-full border-0 border-b border-rule bg-transparent px-0 pb-3 font-serif text-[2.15rem] leading-tight tracking-[-0.035em] text-ink outline-none placeholder:text-ink/38 focus:border-oxblood";
 
   useEffect(() => {
     onBusyChange?.(isRecording || isSaving);
@@ -179,9 +194,20 @@ export function MemoryForm({
   };
 
   return (
-    <article className="memory-entry">
-      <header className="flex items-center justify-between border-b border-rule pb-4">
-        <p className="font-sans text-xs font-semibold tracking-[0.08em] text-oxblood">
+    <article
+      className={articleClassName}
+      data-journal-create-edit-form={
+        isJournalProduct ? "translucent-form-overlay" : undefined
+      }
+    >
+      <header className={formHeaderClassName}>
+        <p
+          className={
+            isJournalProduct
+              ? "journal-create-edit-form__eyebrow font-sans text-xs font-semibold tracking-[0.08em]"
+              : "font-sans text-xs font-semibold tracking-[0.08em] text-oxblood"
+          }
+        >
           {isEditing ? copy.editTitle : copy.newTitle}
         </p>
         {!isJournalProduct ? (
@@ -200,16 +226,20 @@ export function MemoryForm({
       >
         {isJournalProduct ? (
           <div>
-            <span className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+            <span className="mb-1.5 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--journal-paper-muted-text)]">
               Date
             </span>
-            <label className="relative flex min-h-12 cursor-pointer items-center justify-between gap-3 border-b border-rule pb-2 font-sans text-sm">
-              <time dateTime={selectedLocalDate || draft.capturedAt}>
+            <label className="journal-form-date-row relative flex min-h-12 cursor-pointer items-center justify-between gap-3 pb-2 font-sans text-sm">
+              <time
+                dateTime={selectedLocalDate || draft.capturedAt}
+                data-journal-date-value="paper-text"
+                className="text-[var(--journal-paper-text)]"
+              >
                 {selectedLocalDate
                   ? formatLocalDateLabel(selectedLocalDate, draft.capturedAt)
                   : dateTime.date}
               </time>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-rule text-oxblood">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--journal-photo-edge)] text-[var(--journal-paper-muted-text)]">
                 <CalendarIcon className="h-4 w-4" />
               </span>
               <input
@@ -320,7 +350,7 @@ export function MemoryForm({
         )}
 
         <label className={isJournalProduct ? "mt-7 block" : "mt-8 block"}>
-          <span className="mb-2 block font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+          <span className={formTitleLabelClassName}>
             {copy.titleLabel}
           </span>
           <input
@@ -334,11 +364,7 @@ export function MemoryForm({
             placeholder={copy.titlePlaceholder}
             aria-invalid={Boolean(errors.title)}
             aria-describedby={errors.title ? "title-error" : undefined}
-            className={`w-full border-0 border-b border-rule bg-transparent px-0 pb-3 font-serif leading-tight text-ink outline-none placeholder:text-ink/38 focus:border-oxblood ${
-              isJournalProduct
-                ? "text-[1.55rem] tracking-normal sm:text-[1.75rem]"
-                : "text-[2.15rem] tracking-[-0.035em]"
-            }`}
+            className={titleInputClassName}
           />
           {errors.title ? (
             <span id="title-error" className="mt-2 block font-sans text-xs text-oxblood" role="alert">
@@ -353,6 +379,7 @@ export function MemoryForm({
               config={config}
               photos={draft.photos}
               registerObjectUrl={registerObjectUrl}
+              theme={theme}
               onChange={(photos) => {
                 onDraftChange({ ...draft, photos });
                 if (errors.photos) {
@@ -396,11 +423,14 @@ export function MemoryForm({
         ) : null}
 
         {isJournalProduct ? (
-          <div className="sticky bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mt-8 flex flex-col gap-2 border-t border-rule bg-paper/95 pt-3 shadow-[0_-14px_28px_rgba(35,29,24,0.08)] backdrop-blur">
+          <div
+            className="journal-create-edit-actions mt-8 flex flex-col gap-2 pt-3"
+            data-journal-create-edit-actions="in-flow-form-footer"
+          >
             <button
               type="submit"
               disabled={journalSaveDisabled || isRecording || isSaving}
-              className="min-h-13 rounded-sm bg-ink px-5 py-4 font-sans text-sm font-semibold text-paper shadow-[0_6px_18px_rgba(45,42,36,0.12)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="journal-create-edit-save-button min-h-13 px-5 py-4 font-sans text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saveButtonLabel}
             </button>
@@ -409,7 +439,7 @@ export function MemoryForm({
                 type="button"
                 onClick={onCancel}
                 disabled={isRecording || isSaving}
-                className="py-2 font-sans text-xs font-semibold text-ink-soft underline underline-offset-4 disabled:opacity-50"
+                className="journal-create-edit-cancel-button py-2 font-sans text-xs font-semibold underline underline-offset-4 disabled:opacity-50"
               >
                 Cancel
               </button>

@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { BottomRitualAction } from "@/components/journal/bottom-ritual-action";
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
+import { JournalIdentityHeader } from "@/components/journal/journal-identity-header";
 import { useMonthQueryState } from "@/components/journal/use-month-query-state";
 import { CompletedState } from "@/components/memory/completed-state";
 import { MemoryForm } from "@/components/memory/memory-form";
@@ -92,8 +94,14 @@ function demoImageShape(index: number) {
   ][index % 9];
 }
 
+const demoImageUrlCache = new Map<number, string>();
+
 function demoImageUrl(index: number) {
-  const { width, height } = demoImageShape(index);
+  const cacheKey = index % 9;
+  const cached = demoImageUrlCache.get(cacheKey);
+  if (cached) return cached;
+
+  const { width, height } = demoImageShape(cacheKey);
   const palette = [
     ["#7c3438", "#f1dfbf"],
     ["#2f5c57", "#e8c98d"],
@@ -104,9 +112,11 @@ function demoImageUrl(index: number) {
     ["#6d2f4c", "#ede0cf"],
     ["#4a5d38", "#f6e8bd"],
     ["#243c4f", "#d9edf1"],
-  ][index % 9];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></linearGradient></defs><rect width="${width}" height="${height}" fill="url(#g)"/><circle cx="${Math.round(width * 0.32) + index * 10}" cy="${Math.round(height * 0.28) + index * 12}" r="${Math.round(Math.min(width, height) * 0.18)}" fill="rgba(255,255,255,.18)"/><path d="M${Math.round(width * 0.12)} ${Math.round(height * 0.72)} C ${Math.round(width * 0.34)} ${Math.round(height * 0.48)}, ${Math.round(width * 0.56)} ${Math.round(height * 0.82)}, ${Math.round(width * 0.86)} ${Math.round(height * 0.56)}" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="${Math.round(Math.min(width, height) * 0.05)}" stroke-linecap="round"/></svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  ][cacheKey];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></linearGradient></defs><rect width="${width}" height="${height}" fill="url(#g)"/><circle cx="${Math.round(width * 0.32) + cacheKey * 10}" cy="${Math.round(height * 0.28) + cacheKey * 12}" r="${Math.round(Math.min(width, height) * 0.18)}" fill="rgba(255,255,255,.18)"/><path d="M${Math.round(width * 0.12)} ${Math.round(height * 0.72)} C ${Math.round(width * 0.34)} ${Math.round(height * 0.48)}, ${Math.round(width * 0.56)} ${Math.round(height * 0.82)}, ${Math.round(width * 0.86)} ${Math.round(height * 0.56)}" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="${Math.round(Math.min(width, height) * 0.05)}" stroke-linecap="round"/></svg>`;
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  demoImageUrlCache.set(cacheKey, url);
+  return url;
 }
 
 function demoPhoto(index: number, withCoverCrop = false): MemoryPhoto {
@@ -269,6 +279,14 @@ function createDemoDraft(
   return draft;
 }
 
+function createDemoBackfillDraft() {
+  return {
+    ...createEmptyMemory("2026-04-12T16:00:00.000Z"),
+    localDate: "2026-04-12",
+    localTimezone: "Europe/London",
+  };
+}
+
 export function JournalDemoFlow({
   initialScreen = "home",
   detailPhotoCount = 1,
@@ -318,7 +336,7 @@ export function JournalDemoFlow({
         ? "create"
         : initialScreen,
   );
-  const [sealMessage, setSealMessage] = useState("");
+  const [titleDraft, setTitleDraft] = useState("My Journal");
   const demoConfig = useMemo(
     () => ({
       ...memoryMediaConfig,
@@ -356,9 +374,15 @@ export function JournalDemoFlow({
   };
 
   const startNewStamp = () => {
-    setSealMessage("");
     setActiveStampId("");
     setDraft(createDemoDraft("create", 0, undefined));
+    setMode("create");
+  };
+
+  const sealAnotherDay = () => {
+    if (isAtJournalLimit) return;
+    setActiveStampId("");
+    setDraft(createDemoBackfillDraft());
     setMode("create");
   };
 
@@ -373,7 +397,6 @@ export function JournalDemoFlow({
         setActiveStampId(stamp.id);
         setDraft(copyDraft(stamp));
       }
-      setSealMessage("Today is already sealed. You can revisit today's stamp.");
       setMode("view");
       return;
     }
@@ -431,7 +454,7 @@ export function JournalDemoFlow({
     setMode("home");
   };
 
-  const summaries = savedStamps.map(stampSummary);
+  const summaries = useMemo(() => savedStamps.map(stampSummary), [savedStamps]);
   const returnToMonthSheet = (stamp: DemoPersistentStamp) => {
     const monthKey = memoryMonthKey(stampSummary(stamp));
     if (typeof window !== "undefined") {
@@ -454,52 +477,68 @@ export function JournalDemoFlow({
     setDraft(copyDraft(stamp));
     setMode("view");
   };
-  const archive = monthlyStampArchive(summaries, requestedMonth, DEMO_NOW);
-  const thumbnailUrls = Object.fromEntries(
-    savedStamps.flatMap((stamp) => {
-      const firstPhoto = stamp.photos[0];
-      const url = firstPhoto?.thumbnailObjectUrl ?? firstPhoto?.objectUrl;
-      return url ? [[stamp.id, url]] : [];
-    }),
+  const archive = useMemo(
+    () => monthlyStampArchive(summaries, requestedMonth, DEMO_NOW),
+    [requestedMonth, summaries],
+  );
+  const existingToday = findStampForLocalDate(summaries, DEMO_NOW);
+  const isAtJournalLimit =
+    summaries.reduce((total, item) => total + item.photoCount, 0) >=
+    JOURNAL_YEAR_PHOTO_CAPACITY;
+  const thumbnailUrls = useMemo(
+    () =>
+      Object.fromEntries(
+        savedStamps.flatMap((stamp) => {
+          const firstPhoto = stamp.photos[0];
+          const url = firstPhoto?.thumbnailObjectUrl ?? firstPhoto?.objectUrl;
+          return url ? [[stamp.id, url]] : [];
+        }),
+      ),
+    [savedStamps],
   );
 
   return (
     <div style={journalThemeStyle(defaultJournalTheme)}>
-      <div className="mb-3 flex justify-end">
-        <span className="font-sans text-[0.68rem] font-semibold text-paper/80">
-          Local journal demo
-        </span>
-      </div>
+      {mode !== "home" && mode !== "view" ? (
+        <div className="mb-3 flex justify-end">
+          <span className="font-sans text-[0.68rem] font-semibold text-paper/80">
+            Local journal demo
+          </span>
+        </div>
+      ) : null}
 
       {mode === "home" ? (
         <article
-          className="journal-leather-surface p-3 shadow-[0_22px_55px_rgba(18,11,10,0.28)] sm:p-4"
-          aria-labelledby="journal-demo-title"
+          className="journal-home-surface journal-home-surface--mobile-density journal-leather-surface px-3 py-2 sm:px-4"
+          aria-labelledby="journal-title"
         >
-          <header className="pb-5 text-[var(--journal-text)]">
-            <p className="font-sans text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--journal-muted)]">
-              Journal
-            </p>
-            <h1
-              id="journal-demo-title"
-              className="mt-3 font-serif text-[2.35rem] leading-none text-[var(--journal-text)]"
-            >
-              My Journal
-            </h1>
-          </header>
+          <JournalIdentityHeader
+            title="My Journal"
+            typography="home-variant-c"
+            titleDraft={titleDraft}
+            isEditingTitle={false}
+            titleBusy={false}
+            titleError=""
+            onTitleDraftChange={setTitleDraft}
+            onSaveTitle={() => undefined}
+            onCancelTitle={() => setTitleDraft("My Journal")}
+            onBeginRename={() => undefined}
+            onLock={() => undefined}
+          />
 
           <MonthlyStampSheet
             archive={archive}
             thumbnailUrls={thumbnailUrls}
             onOpen={(memory) => openJournalStamp(memory.id)}
             onSelectMonth={selectMonth}
-            onSealToday={sealToday}
-            sealBusy={false}
-            sealMessage={sealMessage}
-            limitReached={
-              summaries.reduce((total, item) => total + item.photoCount, 0) >=
-              JOURNAL_YEAR_PHOTO_CAPACITY
-            }
+          />
+
+          <BottomRitualAction
+            todaySealed={Boolean(existingToday)}
+            todayActionDisabled={isAtJournalLimit && !existingToday}
+            backfillDisabled={isAtJournalLimit}
+            onTodayAction={sealToday}
+            onBackfillAction={sealAnotherDay}
           />
         </article>
       ) : null}
@@ -508,6 +547,9 @@ export function JournalDemoFlow({
         <CompletedState
           memory={activeStamp}
           journalMode
+          journalTitle="My Journal"
+          onLock={() => undefined}
+          theme={defaultJournalTheme}
           onEdit={() => {
             setDraft(copyDraft(activeStamp));
             setMode("edit");
@@ -527,6 +569,7 @@ export function JournalDemoFlow({
             setMode("create");
           }}
           onCancel={() => setMode("create")}
+          theme={defaultJournalTheme}
         />
       ) : null}
 
@@ -548,6 +591,7 @@ export function JournalDemoFlow({
           currentMemoryId={mode === "edit" ? activeStamp?.id : undefined}
           journalStamps={summaries}
           onOpenJournalStamp={openJournalStamp}
+          theme={defaultJournalTheme}
         />
       ) : null}
     </div>

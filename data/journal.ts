@@ -1,4 +1,5 @@
 import { JOURNAL_YEAR_PHOTO_CAPACITY } from "./journal-product";
+import type { JournalTheme } from "./journal-themes";
 import type { PhotoCropMetadata } from "./memory-demo";
 
 export const journalConfig = {
@@ -30,6 +31,7 @@ export type JournalMemorySummary = {
 export type JournalHomeData = {
   capsuleId: string;
   title: string;
+  theme?: Partial<JournalTheme>;
   photoCount: number;
   maxPhotos: number;
   cleanupPendingCount: number;
@@ -37,8 +39,10 @@ export type JournalHomeData = {
 };
 
 export type JournalMemoryContext = {
+  title: string;
   totalJournalPhotos: number;
   existingMemoryPhotos: number;
   effectivePhotoLimit: number;
+  theme?: Partial<JournalTheme>;
   memories: JournalMemorySummary[];
 };

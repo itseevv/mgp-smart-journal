@@ -19,7 +19,6 @@ import {
 
 import { TrashIcon } from "@/components/memory/memory-icons";
 import { movePhoto } from "@/components/memory/photo-order";
-import { StampFrame } from "@/components/stamp/stamp-frame";
 import type { MemoryPhoto } from "@/data/memory-demo";
 
 type SortablePhotoGridProps = {
@@ -76,11 +75,15 @@ function PhotoTileVisual({
   stampFramePreview: boolean;
   overlay?: boolean;
 }) {
-  const frameClassName = `relative aspect-square overflow-hidden rounded-sm bg-paper-deep ${
-    overlay
-      ? "scale-[1.04] shadow-[0_18px_38px_rgba(35,29,24,0.35)] ring-1 ring-paper/70"
-      : ""
-  }`;
+  const frameClassName = stampFramePreview
+    ? `journal-moment-photo-preview relative aspect-square overflow-hidden ${
+        overlay ? "scale-[1.04]" : ""
+      }`
+    : `relative aspect-square overflow-hidden rounded-sm bg-paper-deep ${
+        overlay
+          ? "scale-[1.04] shadow-[0_18px_38px_rgba(35,29,24,0.35)] ring-1 ring-paper/70"
+          : ""
+      }`;
   const tileContent = (
     <>
       {photo.thumbnailObjectUrl ?? photo.objectUrl ? (
@@ -104,13 +107,13 @@ function PhotoTileVisual({
 
   if (stampFramePreview) {
     return (
-      <StampFrame
-        variant="sm"
+      <div
         className={frameClassName}
-        data-photo-preview-fit="stamp-cover"
+        data-photo-preview-fit="editorial-square"
+        data-photo-preview-frame="borderless-editorial"
       >
         {tileContent}
-      </StampFrame>
+      </div>
     );
   }
 
@@ -149,7 +152,7 @@ function SortablePhotoTile({
         data-photo-name={photo.name}
         aria-label={`${itemLabel} ${index + 1} of ${total}. Press to pick up and move.`}
         aria-roledescription="sortable photo"
-        className={`cursor-grab touch-pan-y select-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-oxblood focus-visible:ring-offset-2 focus-visible:ring-offset-paper active:cursor-grabbing ${
+        className={`journal-photo-sort-handle cursor-grab touch-pan-y select-none active:cursor-grabbing ${
           isDragging ? "opacity-25" : "opacity-100"
         }`}
       >

@@ -414,6 +414,33 @@ test("month sheet compacts stamps sequentially without calendar gaps", () => {
   );
 });
 
+test("month sheet keeps saved records even when image paths look placeholder-like", () => {
+  const positions = monthSheetStampPositions([
+    stamp({
+      id: "generated-looking-cover",
+      localDate: "2026-06-09",
+      capturedAt: "2026-06-09T12:00:00.000Z",
+      firstPhotoStoragePath: "development/demo-placeholder-card.jpg",
+      firstThumbnailStoragePath: "development/generated-placeholder-thumb.jpg",
+    }),
+    stamp({
+      id: "real-camera-cover",
+      localDate: "2026-06-10",
+      capturedAt: "2026-06-10T12:00:00.000Z",
+      firstPhotoStoragePath: "capsules/customer/photo.jpg",
+    }),
+  ]);
+
+  assert.deepEqual(
+    positions.map((slot) => slot.memory.id),
+    ["generated-looking-cover", "real-camera-cover"],
+  );
+  assert.equal(
+    positions[0].memory.firstThumbnailStoragePath,
+    "development/generated-placeholder-thumb.jpg",
+  );
+});
+
 test("month sheet caps visible positions at 32", () => {
   const memories = Array.from({ length: 35 }, (_, index) =>
     stamp({

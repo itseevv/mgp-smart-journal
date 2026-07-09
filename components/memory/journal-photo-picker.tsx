@@ -2,15 +2,16 @@
 
 import Image from "next/image";
 import { useRef, useState, type ChangeEvent } from "react";
+import { createPortal } from "react-dom";
 
 import { PlusIcon } from "@/components/memory/memory-icons";
 import { SortablePhotoGrid } from "@/components/memory/sortable-photo-grid";
 import { ScrapTable } from "@/components/scrap/scrap-table";
-import { StampFrame } from "@/components/stamp/stamp-frame";
 import {
   DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS,
   DAILY_MEMORY_STAMP_MAX_PHOTOS,
 } from "@/data/journal-product";
+import type { JournalTheme } from "@/data/journal-themes";
 import type { MemoryMediaConfig, MemoryPhoto } from "@/data/memory-demo";
 import { cropMetadataToImageStyle } from "@/lib/scrap/crop-math";
 
@@ -20,6 +21,7 @@ type JournalPhotoPickerProps = {
   onChange: (photos: MemoryPhoto[]) => void;
   onRemovePhoto: (photo: MemoryPhoto) => void;
   registerObjectUrl: (url: string) => void;
+  theme?: JournalTheme;
 };
 
 function makePhotoId() {
@@ -61,6 +63,7 @@ export function JournalPhotoPicker({
   onChange,
   onRemovePhoto,
   registerObjectUrl,
+  theme,
 }: JournalPhotoPickerProps) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const additionalInputRef = useRef<HTMLInputElement>(null);
@@ -199,8 +202,13 @@ export function JournalPhotoPicker({
   const scrapTablePhoto = pendingCover ?? (adjustingCover ? cover : undefined);
 
   if (scrapTablePhoto) {
-    return (
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    return createPortal(
       <ScrapTable
+        data-scrap-finder-portal="body-overlay"
         photo={scrapTablePhoto}
         initialCropMetadata={
           adjustingCover ? scrapTablePhoto.cropMetadata : undefined
@@ -208,7 +216,9 @@ export function JournalPhotoPicker({
         onConfirmCrop={confirmCoverCrop}
         onCancel={cancelScrapTable}
         onChooseAnother={chooseAnotherCover}
-      />
+        theme={theme}
+      />,
+      document.body,
     );
   }
 
@@ -231,10 +241,10 @@ export function JournalPhotoPicker({
 
       {cover ? (
         <div className="mt-3">
-          <StampFrame
-            variant="md"
-            className="relative aspect-square overflow-hidden bg-paper-deep"
-            data-journal-cover-preview="stamp-frame"
+          <div
+            className="journal-cover-photo-preview relative aspect-square overflow-hidden bg-[var(--journal-filler-a)]"
+            data-journal-cover-preview="editorial-photo"
+            data-journal-cover-treatment="borderless-editorial"
             data-journal-cover-crop={cover?.cropMetadata ? "metadata" : "center"}
           >
             {photoPreviewUrl(cover) && coverCropStyle ? (
@@ -256,12 +266,12 @@ export function JournalPhotoPicker({
                 style={coverCropStyle}
               />
             ) : (
-              <span className="absolute inset-0 bg-[linear-gradient(135deg,var(--paper-deep),var(--paper))]" />
+              <span className="absolute inset-0 bg-[linear-gradient(135deg,var(--journal-filler-a),var(--journal-filler-b))]" />
             )}
-            <span className="absolute left-3 top-3 z-10 bg-paper/90 px-2 py-1 font-sans text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-oxblood">
+            <span className="journal-cover-photo-label absolute left-3 top-3 z-10 px-2 py-1 font-sans text-[0.62rem] font-semibold uppercase tracking-[0.12em]">
               Cover Scrap
             </span>
-          </StampFrame>
+          </div>
           <div className="mt-3 flex gap-3 font-sans text-xs">
             <button
               type="button"
@@ -290,13 +300,13 @@ export function JournalPhotoPicker({
         <button
           type="button"
           onClick={() => coverInputRef.current?.click()}
-          className="mt-3 flex min-h-36 w-full flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-oxblood/45 bg-paper-deep/20 px-4 text-center font-sans text-sm font-semibold text-oxblood"
+          className="journal-cover-empty-button mt-3 flex min-h-36 w-full flex-col items-center justify-center gap-3 rounded-sm px-4 text-center font-sans text-sm font-semibold"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-oxblood/45">
+          <span className="journal-cover-empty-button__icon flex h-9 w-9 items-center justify-center rounded-full">
             <PlusIcon className="h-4 w-4" />
           </span>
           Choose today&apos;s scrap
-          <span className="max-w-[22ch] font-normal leading-relaxed text-ink-soft">
+          <span className="max-w-[22ch] font-normal leading-relaxed">
             One photo is enough to seal the day.
           </span>
         </button>
@@ -343,7 +353,7 @@ export function JournalPhotoPicker({
                 type="button"
                 disabled={remainingAdditional === 0}
                 onClick={() => additionalInputRef.current?.click()}
-                className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-sm border border-rule bg-paper/75 px-3 font-sans text-sm font-semibold text-oxblood disabled:cursor-not-allowed disabled:text-ink-soft/65"
+                className="journal-add-moments-button mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-sm px-3 font-sans text-sm font-semibold disabled:cursor-not-allowed"
               >
                 <PlusIcon className="h-4 w-4" />
                 Add moments

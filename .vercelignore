@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+
+.git/
+.next/
+.vercel/
+node_modules/
+supabase/.temp/
+tsconfig.tsbuildinfo
+
+*.pdf
+*.zip

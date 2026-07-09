@@ -30,6 +30,15 @@ type CapsuleDetail = {
   photoCount: number;
   voiceMemoCount: number;
   storageEstimateBytes: number;
+  journalTheme?: AdminJournalTheme | null;
+};
+
+type AdminJournalTheme = {
+  id: string;
+  slug: string;
+  name: string;
+  status: "draft" | "active" | "archived";
+  fallbackBackgroundColor: string;
 };
 
 function dateLabel(value?: string | null) {
@@ -46,6 +55,9 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
   const [message, setMessage] = useState("");
   const [reason, setReason] = useState("");
   const [confirmActivated, setConfirmActivated] = useState(false);
+  const [themes, setThemes] = useState<AdminJournalTheme[]>([]);
+  const [themeDraft, setThemeDraft] = useState("");
+  const [themeBusy, setThemeBusy] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -61,6 +73,14 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
       return;
     }
     setCapsule(result.capsule);
+    setThemeDraft(result.capsule.journalTheme?.id ?? "");
+    if (result.capsule.productType === "journal") {
+      const themesResponse = await fetch("/api/admin/journal-themes");
+      if (themesResponse.ok) {
+        const themesResult = await themesResponse.json();
+        setThemes(themesResult.themes ?? []);
+      }
+    }
   };
 
   useEffect(() => {
@@ -109,6 +129,40 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
     setRecoveryCode(result.recoveryCode);
     setMessage("Recovery Passcode rotated. Save the new code now.");
     await load();
+  };
+
+  const updateTheme = async () => {
+    if (!themeDraft || themeBusy) return;
+    setThemeBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/capsules/${capsuleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_theme",
+          journalThemeId: themeDraft,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        setMessage(
+          result.code === "JOURNAL_THEME_REQUIRED"
+            ? "Choose a journal theme before saving."
+            : result.code === "INVALID_JOURNAL_THEME"
+              ? "That journal theme is not available for assignment."
+              : "The journal theme could not be updated.",
+        );
+        return;
+      }
+      setCapsule(result.capsule);
+      setThemeDraft(result.capsule.journalTheme?.id ?? "");
+      setMessage("Journal theme updated.");
+    } catch {
+      setMessage("The journal theme could not be updated.");
+    } finally {
+      setThemeBusy(false);
+    }
   };
 
   if (!capsule) {
@@ -165,6 +219,9 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
             <Info label="Photos" value={String(capsule.photoCount)} />
             <Info label="Voice memos" value={String(capsule.voiceMemoCount)} />
             <Info label="Storage estimate" value={bytesLabel(capsule.storageEstimateBytes)} />
+            {capsule.productType === "journal" ? (
+              <Info label="Journal theme" value={capsule.journalTheme?.name ?? "Fallback default"} />
+            ) : null}
           </div>
           <div className="space-y-3">
             <Image
@@ -190,6 +247,59 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
             </button>
           </div>
         </section>
+
+        {capsule.productType === "journal" ? (
+          <section className="space-y-4 border-t border-rule pt-6">
+            <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
+              Journal theme
+            </h2>
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+              <label className="block font-sans text-sm font-semibold">
+                Assigned theme
+                <select
+                  value={themeDraft}
+                  onChange={(event) => setThemeDraft(event.target.value)}
+                  className="mt-2 w-full border border-rule bg-paper px-3 py-2"
+                >
+                  <option value="">Choose a journal theme</option>
+                  {themes
+                    .filter(
+                      (theme) =>
+                        theme.status !== "archived" ||
+                        theme.id === capsule.journalTheme?.id,
+                    )
+                    .map((theme) => (
+                      <option key={theme.id} value={theme.id}>
+                        {theme.name} ({theme.slug})
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => void updateTheme()}
+                disabled={themeBusy || !themeDraft}
+                className="bg-oxblood px-4 py-2 font-sans text-sm font-bold text-paper disabled:opacity-50"
+              >
+                {themeBusy ? "Saving..." : "Save theme"}
+              </button>
+            </div>
+            {capsule.activationStatus === "active" ? (
+              <p className="border border-oxblood/30 bg-oxblood/5 p-3 font-sans text-sm leading-6 text-oxblood">
+                Changing the theme will update the customer-facing journal background.
+              </p>
+            ) : null}
+            {capsule.journalTheme ? (
+              <p className="font-sans text-sm text-ink-soft">
+                Current theme: {capsule.journalTheme.name} · {capsule.journalTheme.slug}
+              </p>
+            ) : (
+              <p className="font-sans text-sm text-ink-soft">
+                This existing journal has no assigned theme and will use the safe fallback until one is saved.
+              </p>
+            )}
+          </section>
+        ) : null}
 
         <section className="space-y-4 border-t border-rule pt-6">
           <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">

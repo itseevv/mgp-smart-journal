@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
   ChevronLeftIcon,
@@ -174,13 +175,15 @@ export function PhotoViewer({
       .finally(() => pendingPhotoIdsRef.current.delete(photo.id));
   }, [displayUrl, photo, resolvePhotoUrl]);
 
-  return (
+  const viewer = (
     <div
       ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={`Photo ${index + 1} of ${photos.length}`}
-      className="fixed inset-0 z-50 flex flex-col bg-[#181715] text-white"
+      className="photo-viewer-fullscreen fixed inset-0 flex flex-col bg-[#090908] text-white"
+      data-photo-viewer-overlay="fullscreen-viewport"
+      data-photo-viewer-portal="document-body"
     >
       <div className="flex items-center justify-between px-4 py-4 sm:px-6">
         <span className="font-sans text-xs tracking-[0.12em] text-white/75">
@@ -221,7 +224,8 @@ export function PhotoViewer({
             fill
             unoptimized
             sizes="100vw"
-            className="pointer-events-none object-contain p-4 sm:p-8"
+            className="pointer-events-none object-contain"
+            data-photo-viewer-image="original-display"
             priority
             onLoad={() => setLoadedPhotoId(photo.id)}
             onError={() => {
@@ -257,8 +261,11 @@ export function PhotoViewer({
         >
           <ChevronLeftIcon />
         </button>
-        <p className="max-w-[55vw] truncate font-sans text-xs text-white/65">
-          {photo.name}
+        <p
+          className="max-w-[55vw] truncate font-sans text-xs text-white/65"
+          data-photo-viewer-caption="simple-label"
+        >
+          Photograph {index + 1}
         </p>
         <button
           type="button"
@@ -272,4 +279,8 @@ export function PhotoViewer({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(viewer, document.body);
 }

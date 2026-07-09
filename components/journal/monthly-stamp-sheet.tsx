@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "@/components/memory/memory-icons";
+import { TextLinkButton } from "@/components/journal/editorial-primitives";
+import {
+  JournalShellIconButton,
+  JournalStageOverlay,
+} from "@/components/journal/journal-visual-primitives";
 import { MonthSheetGrid } from "@/components/journal/month-sheet-grid";
 import {
   monthTitle,
@@ -12,32 +21,23 @@ type MonthlyStampSheetProps = {
   thumbnailUrls: Record<string, string>;
   onOpen: (memory: JournalMemorySummary) => void;
   onSelectMonth: (monthKey: string) => void;
-  onSealToday: () => void;
-  sealBusy: boolean;
-  sealMessage?: string;
-  limitReached?: boolean;
 };
-
-function stampCountLabel(count: number) {
-  if (count <= 0) return "";
-  return `${count} ${count === 1 ? "day" : "days"} sealed`;
-}
 
 function emptyStateCopy(status: MonthlyStampArchive["selectedMonthStatus"]) {
   if (status === "past") {
     return {
-      title: "This month is still blank.",
-      body: "You can still seal a day from this month by choosing its date.",
+      title: "No sealed days here.",
+      body: "Choose a date to keep one.",
     };
   }
   if (status === "future") {
     return {
       title: "This sheet is waiting.",
-      body: "Come back to this sheet when the month arrives.",
+      body: "Come back when the month arrives.",
     };
   }
   return {
-    title: "No scraps sealed for this month yet.",
+    title: "No scraps yet.",
     body: "Find one little piece of today.",
   };
 }
@@ -47,117 +47,103 @@ export function MonthlyStampSheet({
   thumbnailUrls,
   onOpen,
   onSelectMonth,
-  onSealToday,
-  sealBusy,
-  sealMessage,
-  limitReached = false,
 }: MonthlyStampSheetProps) {
   const { selectedSheet: sheet } = archive;
-  const selectedTitle = monthTitle(archive.selectedMonthKey, {
-    uppercase: true,
-  });
+  const selectedTitle = monthTitle(archive.selectedMonthKey);
   const previousTitle = monthTitle(archive.previousMonthKey);
   const nextTitle = monthTitle(archive.nextMonthKey);
-  const countLabel = stampCountLabel(sheet.stamps.length);
   const emptyCopy = emptyStateCopy(archive.selectedMonthStatus);
 
   return (
-    <section
-      className="paper-surface bg-[var(--journal-paper)] px-3 py-4 shadow-[0_20px_50px_rgba(32,24,18,0.22)] sm:px-4"
+    <JournalStageOverlay
+      variant="month-sheet"
+      className="month-sheet-tactile-insert month-sheet-stable-stage"
       aria-labelledby="month-sheet-title"
       data-month-sheet={archive.selectedMonthKey}
+      data-month-sheet-mobile-width="wide-overlay"
+      data-month-sheet-stage="stable-editorial"
+      data-month-sheet-surface="direction-b-tactile-insert"
+      data-month-sheet-label="none"
+      data-phase-7r3-direction="direction-b"
     >
-      <div className="border-b border-[var(--journal-stamp-border)] pb-5">
-        <div className="flex items-start justify-between gap-3">
+      <div
+        className="month-sheet-approved-content flex flex-col p-2"
+        data-month-sheet-content="approved-playground-inner"
+      >
+        <div className="month-sheet-header-row flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-sans text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--journal-paper-muted-text)]">
-              Month Sheet
-            </p>
             <h2
               id="month-sheet-title"
-              className="mt-2 break-words font-serif text-[2rem] leading-none text-[var(--journal-paper-text)] sm:text-[2.25rem]"
+              className="month-sheet-title--home-variant-c break-words font-serif text-[var(--journal-home-month-title)]"
+              data-month-sheet-title-hierarchy="home-variant-c"
             >
               {selectedTitle}
             </h2>
-            {countLabel ? (
-              <p className="mt-2 font-sans text-xs text-[var(--journal-paper-muted-text)]">
-                {countLabel}
-              </p>
-            ) : null}
+            <div className="month-sheet-return-row mt-2 min-h-4">
+              {archive.selectedMonthStatus !== "current" ? (
+                <TextLinkButton
+                  type="button"
+                  onClick={() => onSelectMonth(archive.currentMonthKey)}
+                  className="month-sheet-return-link block self-start text-left font-sans text-xs font-medium"
+                >
+                  Back to this month
+                </TextLinkButton>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="invisible block font-sans text-xs font-medium"
+                >
+                  Back to this month
+                </span>
+              )}
+            </div>
           </div>
           <div
-            className="flex shrink-0 items-center gap-2"
+            className="month-sheet-nav-controls flex shrink-0 items-center gap-1"
             aria-label="Month navigation"
           >
-            <button
+            <JournalShellIconButton
               type="button"
               onClick={() => onSelectMonth(archive.previousMonthKey)}
-              className="grid size-11 place-items-center border border-[var(--journal-stamp-border)] bg-[var(--journal-paper-muted)] font-sans text-lg font-semibold text-[var(--journal-paper-text)]"
               aria-label={`View ${previousTitle}`}
               title={`View ${previousTitle}`}
+              className="month-sheet-nav-button"
             >
-              <span aria-hidden="true">&lt;</span>
-            </button>
-            <button
+              <ChevronLeftIcon className="h-4 w-4" />
+            </JournalShellIconButton>
+            <JournalShellIconButton
               type="button"
               onClick={() => onSelectMonth(archive.nextMonthKey)}
               disabled={!archive.canNavigateNext}
-              className="grid size-11 place-items-center border border-[var(--journal-stamp-border)] bg-[var(--journal-paper-muted)] font-sans text-lg font-semibold text-[var(--journal-paper-text)] disabled:cursor-not-allowed disabled:opacity-35"
               aria-label={`View ${nextTitle}`}
               title={`View ${nextTitle}`}
+              className="month-sheet-nav-button disabled:cursor-not-allowed disabled:opacity-35"
             >
-              <span aria-hidden="true">&gt;</span>
-            </button>
+              <ChevronRightIcon className="h-4 w-4" />
+            </JournalShellIconButton>
           </div>
         </div>
-        <div className="mt-4 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={onSealToday}
-            disabled={sealBusy || limitReached}
-            className="min-h-12 w-full bg-[var(--journal-paper-text)] px-5 py-3 font-sans text-sm font-semibold text-[var(--journal-paper)] shadow-[0_10px_22px_rgba(45,41,33,0.14)] disabled:cursor-not-allowed disabled:opacity-45"
-            aria-describedby={sealMessage ? "seal-today-message" : undefined}
+
+        {sheet.stamps.length > 0 ? (
+          <MonthSheetGrid
+            stamps={sheet.stamps}
+            thumbnailUrls={thumbnailUrls}
+            onOpen={onOpen}
+          />
+        ) : (
+          <div
+            className="month-sheet-empty-state py-12 text-center"
+            data-month-sheet-empty-state="brand-toned"
           >
-            {sealBusy ? "Opening…" : "Seal Today"}
-          </button>
-          {archive.selectedMonthStatus !== "current" ? (
-            <button
-              type="button"
-              onClick={() => onSelectMonth(archive.currentMonthKey)}
-              className="self-start font-sans text-xs font-semibold text-[var(--journal-paper-muted-text)] underline underline-offset-4"
-            >
-              Back to this month
-            </button>
-          ) : null}
-        </div>
+            <p className="month-sheet-empty-title font-serif text-[1.25rem] leading-tight">
+              {emptyCopy.title}
+            </p>
+            <p className="month-sheet-empty-body mx-auto mt-2 max-w-[24ch] font-sans text-[0.78rem] leading-relaxed">
+              {emptyCopy.body}
+            </p>
+          </div>
+        )}
       </div>
-
-      {sealMessage ? (
-        <p
-          id="seal-today-message"
-          className="mt-3 font-sans text-xs leading-relaxed text-[var(--journal-paper-muted-text)]"
-          role="status"
-        >
-          {sealMessage}
-        </p>
-      ) : null}
-
-      {sheet.stamps.length > 0 ? (
-        <MonthSheetGrid
-          stamps={sheet.stamps}
-          thumbnailUrls={thumbnailUrls}
-          onOpen={onOpen}
-        />
-      ) : (
-        <div className="py-10 text-center">
-          <p className="font-serif text-[1.45rem] leading-tight text-[var(--journal-paper-text)]">
-            {emptyCopy.title}
-          </p>
-          <p className="mx-auto mt-2 max-w-[28ch] font-sans text-sm leading-relaxed text-[var(--journal-paper-muted-text)]">
-            {emptyCopy.body}
-          </p>
-        </div>
-      )}
-    </section>
+    </JournalStageOverlay>
   );
 }

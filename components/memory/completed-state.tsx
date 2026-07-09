@@ -1,6 +1,7 @@
 "use client";
 
 import type { MemoryEntry } from "@/data/memory-demo";
+import type { JournalTheme } from "@/data/journal-themes";
 import { DailyMemoryStamp } from "@/components/stamp/daily-memory-stamp";
 import { PhotoCollection } from "@/components/memory/photo-collection";
 import { VoiceMemoCard } from "@/components/memory/voice-memo";
@@ -20,6 +21,9 @@ type CompletedStateProps = {
     forceRefresh?: boolean,
   ) => Promise<string>;
   journalMode?: boolean;
+  journalTitle?: string;
+  onLock?: () => void;
+  theme?: JournalTheme;
 };
 
 function formatCapturedAt(isoDate: string) {
@@ -37,6 +41,9 @@ export function CompletedState({
   resolveVoiceMemoUrl,
   resolvePhotoUrl,
   journalMode = false,
+  journalTitle,
+  onLock,
+  theme,
 }: CompletedStateProps) {
   const [activeMemoId, setActiveMemoId] = useState<string | null>(null);
 
@@ -46,7 +53,10 @@ export function CompletedState({
         memory={memory}
         onEdit={onEdit}
         onBackToMonthSheet={onBackToMonthSheet}
+        journalTitle={journalTitle}
+        onLock={onLock}
         resolvePhotoUrl={resolvePhotoUrl}
+        theme={theme}
       />
     );
   }

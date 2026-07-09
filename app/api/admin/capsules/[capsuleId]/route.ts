@@ -12,6 +12,24 @@ import {
 } from "@/lib/admin/capsules";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase";
 
+function addAdminCapsuleUrls(
+  request: Request,
+  detail: Awaited<ReturnType<typeof getAdminCapsuleDetail>>,
+) {
+  if (!detail.ok || !detail.capsule) return detail;
+  const appBaseUrl = resolveAdminAppBaseUrlFromRequest(request);
+  return {
+    ...detail,
+    capsule: {
+      ...detail.capsule,
+      capsulePath: capsulePath(detail.capsule.publicToken),
+      capsuleUrl: capsuleUrl(appBaseUrl.baseUrl, detail.capsule.publicToken),
+      appBaseUrlConfigured: appBaseUrl.configured,
+      appBaseUrlWarning: appBaseUrl.warning ?? null,
+    },
+  };
+}
+
 export async function GET(
   request: Request,
   context: { params: Promise<{ capsuleId: string }> },
@@ -32,17 +50,7 @@ export async function GET(
     if (!detail.ok || !detail.capsule) {
       return NextResponse.json(detail);
     }
-    const appBaseUrl = resolveAdminAppBaseUrlFromRequest(request);
-    return NextResponse.json({
-      ...detail,
-      capsule: {
-        ...detail.capsule,
-        capsulePath: capsulePath(detail.capsule.publicToken),
-        capsuleUrl: capsuleUrl(appBaseUrl.baseUrl, detail.capsule.publicToken),
-        appBaseUrlConfigured: appBaseUrl.configured,
-        appBaseUrlWarning: appBaseUrl.warning ?? null,
-      },
-    });
+    return NextResponse.json(addAdminCapsuleUrls(request, detail));
   } catch (error) {
     console.error(
       "admin capsule detail failed",
@@ -74,6 +82,7 @@ export async function PATCH(
     action?: unknown;
     reason?: unknown;
     confirmActivated?: unknown;
+    journalThemeId?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -93,6 +102,27 @@ export async function PATCH(
 
   try {
     const supabase = getAdminSupabaseClient();
+    if (body.action === "update_theme") {
+      const journalThemeId =
+        typeof body.journalThemeId === "string" ? body.journalThemeId : "";
+      if (!isUuid(journalThemeId)) {
+        return NextResponse.json(
+          { ok: false, code: "INVALID_REQUEST" },
+          { status: 400 },
+        );
+      }
+      const { data, error } = await supabase.rpc(
+        "admin_update_capsule_journal_theme",
+        {
+          requested_capsule_id: capsuleId,
+          requested_journal_theme_id: journalThemeId,
+          requested_actor: "internal-admin",
+        },
+      );
+      if (error) throw error;
+      return NextResponse.json(addAdminCapsuleUrls(request, data));
+    }
+
     const { data, error } = await supabase.rpc(
       "admin_update_capsule_fulfillment",
       {
@@ -104,7 +134,7 @@ export async function PATCH(
       },
     );
     if (error) throw error;
-    return NextResponse.json(data);
+    return NextResponse.json(addAdminCapsuleUrls(request, data));
   } catch (error) {
     console.error(
       "admin fulfillment update failed",

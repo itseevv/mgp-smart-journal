@@ -252,11 +252,12 @@ assert.match(croppedStampImageSource, /centerSquareCropMetadata/);
 assert.match(croppedStampImageSource, /data-stamp-cropped-image/);
 assert.doesNotMatch(stampGridSource, /object-contain|data-stamp-filler-count|StampFiller/);
 assert.match(journalPhotoPickerSource, /object-cover/);
-assert.match(journalPhotoPickerSource, /StampFrame/);
-assert.match(journalPhotoPickerSource, /variant="md"/);
-assert.match(journalPhotoPickerSource, /data-journal-cover-preview="stamp-frame"/);
+assert.match(journalPhotoPickerSource, /journal-cover-photo-preview/);
+assert.match(journalPhotoPickerSource, /data-journal-cover-preview="editorial-photo"/);
+assert.match(journalPhotoPickerSource, /data-journal-cover-treatment="borderless-editorial"/);
 assert.match(journalPhotoPickerSource, /data-journal-cover-crop/);
 assert.match(journalPhotoPickerSource, /onConfirmCrop/);
+assert.doesNotMatch(journalPhotoPickerSource, /StampFrame|data-stamp-edge|variant="md"/);
 assert.doesNotMatch(journalPhotoPickerSource, /object-contain|aspect-\[4\/5\]|preserveAspectRatio/);
 assert.match(stampFrameSource, /export type StampFrameVariant = "lg" \| "md" \| "sm"/);
 assert.match(stampFrameSource, /export const StampFrame/);
@@ -275,15 +276,14 @@ assert.match(globalCssSource, /\.stamp-frame--sm\s*\{[\s\S]*--stamp-edge-opacity
 assert.match(scrapTableSource, /data-scrap-table="true"/);
 assert.match(scrapTableSource, /data-scrap-table-mode="immersive"/);
 assert.match(scrapTableSource, /data-scrap-frame="square"/);
-assert.match(scrapTableSource, /data-scrap-layout="tight-mobile"/);
+assert.match(scrapTableSource, /data-scrap-layout="dedicated-mobile"/);
 assert.match(scrapTableSource, /data-scrap-controls="tight"/);
-assert.match(scrapTableSource, /data-finder-tool="physical-frame"/);
-assert.match(scrapTableSource, /data-scrap-aperture="stamp-window"/);
-assert.match(scrapTableSource, /StampFrame/);
-assert.match(scrapTableSource, /variant="lg"/);
+assert.match(scrapTableSource, /data-finder-tool="editorial-finder"/);
+assert.match(scrapTableSource, /data-scrap-aperture="finder-window"/);
 assert.match(scrapTableSource, /data-punch-feedback="enabled"/);
 assert.match(scrapTableSource, /data-scrap-photo-natural="true"/);
 assert.match(scrapTableSource, /Use this scrap/);
+assert.doesNotMatch(scrapTableSource, /StampFrame|data-stamp-edge|variant="lg"/);
 assert.doesNotMatch(scrapTableSource, />\s*Scrap Table\s*</);
 assert.doesNotMatch(scrapTableSource, /Crop image|Edit photo|Aspect ratio|Template|Collage/);
 assert.match(photoViewerSource, /object-contain/);
@@ -499,12 +499,11 @@ for (const phrase of cropStrings) {
 assert.match(journalCrop.html, /data-scrap-table="true"/);
 assert.match(journalCrop.html, /data-scrap-table-mode="immersive"/);
 assert.match(journalCrop.html, /data-scrap-frame="square"/);
-assert.match(journalCrop.html, /data-scrap-layout="tight-mobile"/);
+assert.match(journalCrop.html, /data-scrap-layout="dedicated-mobile"/);
 assert.match(journalCrop.html, /data-scrap-controls="tight"/);
-assert.match(journalCrop.html, /data-finder-tool="physical-frame"/);
-assert.match(journalCrop.html, /data-scrap-aperture="stamp-window"/);
-assert.match(journalCrop.html, /data-stamp-edge="perforated"/);
-assert.match(journalCrop.html, /data-stamp-frame="lg"/);
+assert.match(journalCrop.html, /data-finder-tool="editorial-finder"/);
+assert.match(journalCrop.html, /data-scrap-aperture="finder-window"/);
+assert.doesNotMatch(journalCrop.html, /data-stamp-edge="perforated"|data-stamp-frame="lg"/);
 assert.match(journalCrop.html, /data-punch-feedback="enabled"/);
 assert.match(journalCrop.html, /data-scrap-photo-natural="true"/);
 assert.doesNotMatch(visibleText(journalCrop.html), /SCRAP TABLE|Scrap Table/);
@@ -531,11 +530,11 @@ for (const phrase of sealingStrings) {
   );
 }
 assert.doesNotMatch(journalCreateWithCoverVisibleText, /1 of 9 moments/);
-assert.match(journalCreateWithCover.html, /data-journal-cover-preview="stamp-frame"/);
+assert.match(journalCreateWithCover.html, /data-journal-cover-preview="editorial-photo"/);
+assert.match(journalCreateWithCover.html, /data-journal-cover-treatment="borderless-editorial"/);
 assert.match(journalCreateWithCover.html, /data-journal-cover-crop="metadata"/);
-assert.match(journalCreateWithCover.html, /data-stamp-edge="perforated"/);
-assert.match(journalCreateWithCover.html, /data-stamp-frame="md"/);
-assert.match(journalCreateWithCover.html, /object-fit:fill/);
+assert.doesNotMatch(journalCreateWithCover.html, /data-stamp-edge="perforated"|data-stamp-frame="md"/);
+assert.match(journalCreateWithCover.html, /object-cover/);
 
 const journalCreateWithMoments = await fetchRoute(
   "/journal/demo?screen=create&photos=2",
@@ -545,10 +544,12 @@ const journalCreateWithMomentsText = normalizedContent(
 );
 assert.match(journalCreateWithMomentsText, /Up to 8 more moments\./);
 assert.doesNotMatch(visibleText(journalCreateWithMoments.html), /Press and drag to reorder/);
-assert.match(journalCreateWithMoments.html, /data-photo-preview-fit="stamp-cover"/);
-assert.match(journalCreateWithMoments.html, /data-stamp-edge="perforated"/);
-assert.match(journalCreateWithMoments.html, /data-stamp-frame="md"/);
-assert.match(journalCreateWithMoments.html, /data-stamp-frame="sm"/);
+assert.match(journalCreateWithMoments.html, /data-photo-preview-fit="editorial-square"/);
+assert.match(journalCreateWithMoments.html, /data-photo-preview-frame="borderless-editorial"/);
+assert.doesNotMatch(
+  journalCreateWithMoments.html,
+  /data-stamp-edge="perforated"|data-stamp-frame="md"|data-stamp-frame="sm"/,
+);
 assert.match(journalCreateWithMoments.html, /object-cover/);
 
 const journalDetail = await fetchRoute("/journal/demo?screen=detail&photos=1");
@@ -590,18 +591,18 @@ for (let photoCount = 1; photoCount <= 9; photoCount += 1) {
   );
   assert.match(
     detail.html,
-    /data-stamp-frame-fit="cover"/,
-    `detail photos=${photoCount} is missing stamp cover-frame markers`,
+    new RegExp(`data-stamp-grid-columns="${photoCount <= 1 ? 1 : photoCount <= 4 ? 2 : 3}"`),
+    `detail photos=${photoCount} rendered the wrong adaptive grid columns`,
   );
   assert.match(
     detail.html,
-    /data-stamp-edge="perforated"/,
-    `detail photos=${photoCount} is missing perforated stamp-edge markers`,
+    /data-daily-detail-photo-grid="borderless-adaptive"/,
+    `detail photos=${photoCount} is missing the borderless detail grid marker`,
   );
   assert.match(
     detail.html,
-    /data-stamp-frame="sm"/,
-    `detail photos=${photoCount} is missing small stamp-frame markers`,
+    /data-daily-detail-photo-tile="borderless-square"/,
+    `detail photos=${photoCount} is missing borderless photo tile markers`,
   );
   assert.match(
     detail.html,
@@ -612,6 +613,11 @@ for (let photoCount = 1; photoCount <= 9; photoCount += 1) {
     detail.html,
     /data-stamp-filler/,
     `detail photos=${photoCount} still rendered filler slot markers`,
+  );
+  assert.doesNotMatch(
+    detail.html,
+    /data-stamp-edge="perforated"|data-stamp-frame="sm"|data-stamp-frame-fit="cover"/,
+    `detail photos=${photoCount} still rendered old stamp frame markers`,
   );
 }
 
@@ -654,7 +660,7 @@ console.log(
         mobileShell: true,
         privateStampMonogram: false,
         stampFrameRatioMode: STAMP_FRAME_RATIO_MODE,
-        stampFrameFit: "cover",
+        detailPhotoFit: "cover",
         coverFirst: true,
         cropMetadata: true,
         semanticLocalDate: true,

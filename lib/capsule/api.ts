@@ -14,6 +14,7 @@ import {
   type JournalMemoryContext,
   type JournalMemorySummary,
 } from "@/data/journal";
+import type { JournalTheme } from "@/data/journal-themes";
 import { DAILY_MEMORY_STAMP_MAX_PHOTOS } from "@/data/journal-product";
 import {
   createMediaPipelineMetrics,
@@ -113,6 +114,7 @@ export type CapsuleInspection = {
   state: CapsuleGateState;
   capsuleId?: string;
   productType?: CapsuleProductType;
+  journalTheme?: Partial<JournalTheme> | null;
   memory?: PersistentMemoryEntry | null;
   memoryUnavailable?: boolean;
 };
@@ -369,6 +371,12 @@ function optionalNumber(value: unknown) {
   return Number.isFinite(number) && number > 0 ? number : undefined;
 }
 
+function optionalFiniteNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return undefined;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
 function mapJournalMemorySummary(
   memory: Record<string, unknown>,
 ): JournalMemorySummary {
@@ -389,6 +397,36 @@ function mapJournalMemorySummary(
     thumbnailWidth: optionalNumber(memory.thumbnailWidth),
     thumbnailHeight: optionalNumber(memory.thumbnailHeight),
     coverCropMetadata: parsePhotoCropMetadata(memory.coverCropMetadata),
+  };
+}
+
+function mapJournalTheme(theme: unknown): Partial<JournalTheme> | undefined {
+  if (!theme || typeof theme !== "object") return undefined;
+  const value = theme as Record<string, unknown>;
+  return {
+    id: optionalString(value.id),
+    slug: optionalString(value.slug) ?? "",
+    name: optionalString(value.name) ?? "",
+    status: optionalString(value.status),
+    textureUrl: optionalString(value.textureUrl),
+    texturePublicUrl: optionalString(value.texturePublicUrl),
+    textureStoragePath: optionalString(value.textureStoragePath),
+    textureWidth: optionalNumber(value.textureWidth),
+    textureHeight: optionalNumber(value.textureHeight),
+    textureMimeType: optionalString(value.textureMimeType),
+    focusX: optionalFiniteNumber(value.focusX),
+    focusY: optionalFiniteNumber(value.focusY),
+    zoom: optionalFiniteNumber(value.zoom),
+    overlayColor: optionalString(value.overlayColor),
+    overlayOpacity: optionalFiniteNumber(value.overlayOpacity),
+    fallbackBackgroundColor: optionalString(value.fallbackBackgroundColor) ?? "",
+    textPrimary: optionalString(value.textPrimary) ?? "",
+    textSecondary: optionalString(value.textSecondary) ?? "",
+    paperSurface: optionalString(value.paperSurface) ?? "",
+    paperSurfaceMuted: optionalString(value.paperSurfaceMuted) ?? "",
+    stampBorder: optionalString(value.stampBorder) ?? "",
+    accentColor: optionalString(value.accentColor) ?? "",
+    logoVariant: optionalString(value.logoVariant) ?? "",
   };
 }
 
@@ -429,6 +467,7 @@ export async function loadJournalHome(
     photoCount?: number;
     maxPhotos?: number;
     cleanupPendingCount?: number;
+    journalTheme?: Record<string, unknown> | null;
     memories?: Record<string, unknown>[];
   };
   if (!data.ok || !data.capsuleId) {
@@ -437,6 +476,7 @@ export async function loadJournalHome(
   return {
     capsuleId: data.capsuleId,
     title: data.title ?? "My Journal",
+    theme: mapJournalTheme(data.journalTheme),
     photoCount: Number(data.photoCount ?? 0),
     maxPhotos: Number(data.maxPhotos ?? journalConfig.maxPhotos),
     cleanupPendingCount: Number(data.cleanupPendingCount ?? 0),
@@ -455,6 +495,7 @@ export async function loadJournalMemoryContext(
   const existingMemoryPhotos =
     home.memories.find((memory) => memory.id === memoryId)?.photoCount ?? 0;
   return {
+    title: home.title,
     totalJournalPhotos: home.photoCount,
     existingMemoryPhotos,
     effectivePhotoLimit: Math.max(
@@ -464,6 +505,7 @@ export async function loadJournalMemoryContext(
         home.maxPhotos - home.photoCount + existingMemoryPhotos,
       ),
     ),
+    theme: home.theme,
     memories: home.memories,
   };
 }

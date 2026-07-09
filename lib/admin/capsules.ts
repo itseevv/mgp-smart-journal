@@ -6,6 +6,7 @@ import {
   verifyAdminSessionCookie,
 } from "@/lib/admin/session";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase";
+import type { AdminJournalTheme } from "@/lib/admin/journal-themes";
 
 export { capsuleListCsv, csvEscape, handoffCsv } from "@/lib/admin/capsule-csv";
 
@@ -44,6 +45,7 @@ export type AdminCapsuleSummary = {
   memoryCount: number;
   photoCount: number;
   voiceMemoCount: number;
+  journalTheme?: AdminJournalTheme | null;
 };
 
 export type AdminCapsuleDetail = AdminCapsuleSummary & {
