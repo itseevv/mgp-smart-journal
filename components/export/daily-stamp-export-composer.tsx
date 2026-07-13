@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   CloseIcon,
   DownloadIcon,
   ShareIcon,
 } from "@/components/memory/memory-icons";
-import type { JournalTheme } from "@/data/journal-themes";
+import {
+  resolveJournalTheme,
+  type JournalTheme,
+} from "@/data/journal-themes";
 import type { MemoryEntry, MemoryPhoto } from "@/data/memory-demo";
 import {
   dailyStampExportArtifactModel,
@@ -29,6 +38,7 @@ type DailyStampExportComposerProps = {
   ) => Promise<string>;
   theme?: JournalTheme;
   brandMark?: DailyStampExportBrandMark;
+  journalTitle?: string;
 };
 
 type ComposerState =
@@ -53,6 +63,100 @@ type ComposerState =
 
 const exportErrorMessage = "Couldn’t create the image. Please try again.";
 
+const brand = {
+  deepBurgundy: "#421819",
+  champagnePeach: "#E4B48F",
+  warmIvory: "#E8DBCC",
+  cocoaTaupe: "#62453A",
+};
+
+const displayFont = "var(--font-display)";
+const utilityFont = "var(--font-ui)";
+
+function rgbaFromHex(hex: string, alpha: number) {
+  const value = hex.replace("#", "");
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function isLightTheme(theme: JournalTheme) {
+  return theme.logoVariant === "dark";
+}
+
+function artifactShellStyle(theme: JournalTheme) {
+  const textureLayer = theme.textureUrl ? `, url("${theme.textureUrl}")` : "";
+
+  return {
+    backgroundColor: theme.journalBackground,
+    backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.14))${textureLayer}`,
+    backgroundPosition: "center",
+    backgroundSize: "cover",
+    color: theme.textOnJournal,
+  } satisfies CSSProperties;
+}
+
+function modalSurfaceStyle() {
+  return {
+    backgroundColor: rgbaFromHex(brand.warmIvory, 0.9),
+    backgroundImage: `linear-gradient(180deg, ${rgbaFromHex(
+      brand.champagnePeach,
+      0.12,
+    )}, ${rgbaFromHex(brand.cocoaTaupe, 0.06)})`,
+    border: `1px solid ${rgbaFromHex(brand.deepBurgundy, 0.12)}`,
+    boxShadow: `0 16px 38px ${rgbaFromHex(brand.deepBurgundy, 0.22)}`,
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    color: brand.deepBurgundy,
+  } satisfies CSSProperties;
+}
+
+function modalOverlayStyle() {
+  return {
+    height: "100dvh",
+    minHeight: "100svh",
+    overscrollBehavior: "contain",
+    paddingTop: "max(0.75rem, env(safe-area-inset-top))",
+    paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+  } satisfies CSSProperties;
+}
+
+function modalDialogStyle() {
+  return {
+    ...modalSurfaceStyle(),
+    maxHeight: "calc(100dvh - 1.5rem)",
+  } satisfies CSSProperties;
+}
+
+function loadingTextStyle(theme: JournalTheme) {
+  return {
+    color: isLightTheme(theme)
+      ? brand.deepBurgundy
+      : rgbaFromHex(brand.champagnePeach, 0.86),
+    fontFamily: displayFont,
+  } satisfies CSSProperties;
+}
+
+function modalPrimaryActionStyle(theme: JournalTheme) {
+  return {
+    backgroundColor: theme.journalBackground,
+    color: theme.textOnJournal,
+    fontFamily: utilityFont,
+  } satisfies CSSProperties;
+}
+
+function modalSecondaryActionStyle(theme: JournalTheme) {
+  return {
+    backgroundColor: isLightTheme(theme)
+      ? brand.deepBurgundy
+      : rgbaFromHex(brand.warmIvory, 0.9),
+    color: isLightTheme(theme) ? brand.warmIvory : brand.deepBurgundy,
+    fontFamily: utilityFont,
+  } satisfies CSSProperties;
+}
+
 export function DailyStampExportComposer({
   open,
   memory,
@@ -60,14 +164,16 @@ export function DailyStampExportComposer({
   resolvePhotoUrl,
   theme,
   brandMark,
+  journalTitle,
 }: DailyStampExportComposerProps) {
   const [composerState, setComposerState] = useState<ComposerState>({
     status: "idle",
   });
   const previewUrlRef = useRef<string | undefined>(undefined);
+  const resolvedTheme = useMemo(() => resolveJournalTheme(theme), [theme]);
   const titleId = "daily-stamp-export-title";
   const filename = dailyStampExportFilename(memory);
-  const model = dailyStampExportArtifactModel({ memory, brandMark });
+  const model = dailyStampExportArtifactModel({ memory, brandMark, journalTitle });
   const isBusy = composerState.status === "generating";
 
   const revokePreview = () => {
@@ -81,17 +187,41 @@ export function DailyStampExportComposer({
   useEffect(() => {
     if (!open) return;
 
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyOverscroll = body.style.overscrollBehavior;
+    const previousDocumentOverflow = documentElement.style.overflow;
+    const previousDocumentOverscroll =
+      documentElement.style.overscrollBehavior;
+
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "contain";
+    documentElement.style.overflow = "hidden";
+    documentElement.style.overscrollBehavior = "contain";
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscroll;
+      documentElement.style.overflow = previousDocumentOverflow;
+      documentElement.style.overscrollBehavior = previousDocumentOverscroll;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
     let active = true;
 
     const createPreview = async () => {
       revokePreview();
-      setComposerState({ status: "generating", message: "Creating image…" });
+      setComposerState({ status: "generating", message: "Creating image..." });
       try {
         const blob = await renderDailyMemoryStampExport({
           memory,
           resolvePhotoUrl,
-          theme,
+          theme: resolvedTheme,
           brandMark,
+          journalTitle,
         });
         if (!active) return;
         const previewUrl = URL.createObjectURL(blob);
@@ -100,7 +230,6 @@ export function DailyStampExportComposer({
           status: "ready",
           blob,
           previewUrl,
-          message: "Image ready.",
         });
       } catch (error) {
         if (!active) return;
@@ -118,7 +247,7 @@ export function DailyStampExportComposer({
     return () => {
       active = false;
     };
-  }, [brandMark, memory, open, resolvePhotoUrl, theme]);
+  }, [brandMark, journalTitle, memory, open, resolvePhotoUrl, resolvedTheme]);
 
   if (!open) return null;
 
@@ -130,13 +259,14 @@ export function DailyStampExportComposer({
 
   const ensureExportBlob = async () => {
     if (composerState.status === "ready") return composerState.blob;
-    setComposerState({ status: "generating", message: "Creating image…" });
+    setComposerState({ status: "generating", message: "Creating image..." });
     try {
       const blob = await renderDailyMemoryStampExport({
         memory,
         resolvePhotoUrl,
-        theme,
+        theme: resolvedTheme,
         brandMark,
+        journalTitle,
       });
       revokePreview();
       const previewUrl = URL.createObjectURL(blob);
@@ -145,7 +275,6 @@ export function DailyStampExportComposer({
         status: "ready",
         blob,
         previewUrl,
-        message: "Image ready.",
       });
       return blob;
     } catch (error) {
@@ -163,11 +292,6 @@ export function DailyStampExportComposer({
     const blob = await ensureExportBlob();
     if (!blob) return;
     saveDailyStampExportBlob(blob, filename);
-    setComposerState((current) =>
-      current.status === "ready"
-        ? { ...current, message: "Image ready." }
-        : current,
-    );
   };
 
   const shareImage = async () => {
@@ -215,83 +339,126 @@ export function DailyStampExportComposer({
     }
   };
 
+  const statusMessage =
+    composerState.message && composerState.status !== "generating"
+      ? composerState.message
+      : "";
+
   return (
     <div
-      className="fixed inset-0 z-50 flex min-h-dvh items-end justify-center bg-black/45 px-3 py-3 sm:items-center sm:px-4"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto overscroll-contain bg-black/30 px-3"
       role="presentation"
       data-daily-stamp-export-composer="true"
+      data-save-share-modal-chrome="utility-action-surface"
+      data-save-share-modal-position="fixed-viewport-centered"
+      data-save-share-modal-production-wiring="enabled"
+      data-save-share-modal-state={composerState.status}
+      style={modalOverlayStyle()}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[30rem] flex-col overflow-hidden bg-[var(--journal-paper)] shadow-[0_24px_70px_rgba(10,6,5,0.42)]"
+        className="w-full max-w-[19.125rem] overflow-y-auto overscroll-contain rounded-md p-3"
+        data-save-share-modal-surface="edit-stamp-beige-overlay"
+        style={modalDialogStyle()}
       >
-        <header className="flex items-center justify-between border-b border-[var(--journal-stamp-border)] px-4 py-3 text-[var(--journal-paper-text)]">
-          <h2 id={titleId} className="font-serif text-xl leading-tight">
+        <header className="flex items-center justify-between gap-3">
+          <h2
+            id={titleId}
+            className="text-[1.18rem] leading-tight"
+            data-save-share-modal-title="simple"
+            style={{ fontFamily: displayFont }}
+          >
             Save or share
           </h2>
           <button
             type="button"
             onClick={closeComposer}
-            className="grid min-h-10 min-w-10 place-items-center text-[var(--journal-paper-muted-text)] hover:text-[var(--journal-paper-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--journal-accent-metal)]"
-            aria-label="Close export composer"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: rgbaFromHex(brand.deepBurgundy, 0.08),
+            }}
+            aria-label="Close save and share preview"
           >
-            <CloseIcon className="h-5 w-5" />
+            <CloseIcon className="h-4 w-4" />
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <div className="mx-auto aspect-[9/16] max-h-[62dvh] w-full max-w-[min(68vw,18rem)] bg-[var(--journal-background)] shadow-[0_18px_48px_rgba(35,24,18,0.24)] sm:max-h-[65dvh]">
-            {composerState.status === "ready" ? (
-              // eslint-disable-next-line @next/next/no-img-element
+        <div
+          className="mx-auto mt-3 w-full max-w-[9.5rem]"
+          data-save-share-modal-preview="daily-export-artifact"
+        >
+          {composerState.status === "ready" ? (
+            <div
+              className="relative mx-auto aspect-[9/16] w-[9.5rem] max-w-full overflow-hidden"
+              data-save-share-modal-preview-scale="proportional-artifact"
+              data-save-share-modal-preview-scale-source="full-artifact"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={composerState.previewUrl}
                 alt="9:16 preview of the saved Daily Memory Stamp export"
                 className="h-full w-full object-contain"
                 data-daily-stamp-export-preview="ready"
               />
-            ) : (
-              <div
-                className="grid h-full place-items-center px-5 text-center font-sans text-sm text-[var(--journal-muted)]"
-                aria-busy={isBusy}
-                data-daily-stamp-export-preview={composerState.status}
+            </div>
+          ) : (
+            <div
+              className="grid aspect-[9/16] place-items-center p-4 text-center"
+              aria-busy={isBusy}
+              data-daily-stamp-export-preview={composerState.status}
+              data-export-artifact-loading-state="creating-image"
+              data-export-artifact-loading-treatment="quiet-leather-only"
+              style={artifactShellStyle(resolvedTheme)}
+            >
+              <p
+                className="max-w-full break-words text-[0.78rem] leading-snug"
+                style={loadingTextStyle(resolvedTheme)}
               >
                 {composerState.status === "error"
                   ? exportErrorMessage
-                  : "Creating image…"}
-              </div>
-            )}
-          </div>
-
-          <p
-            className="mt-3 min-h-5 text-center font-sans text-xs text-[var(--journal-paper-muted-text)]"
-            role={composerState.status === "error" ? "alert" : "status"}
-          >
-            {composerState.message ?? ""}
-          </p>
+                  : "Creating image..."}
+              </p>
+            </div>
+          )}
         </div>
 
-        <footer className="space-y-2 border-t border-[var(--journal-stamp-border)] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        {statusMessage ? (
+          <p
+            className="sr-only"
+            role={composerState.status === "error" ? "alert" : "status"}
+          >
+            {statusMessage}
+          </p>
+        ) : null}
+
+        <div className="mt-3 grid gap-2">
           <button
             type="button"
             onClick={() => void saveImage()}
             disabled={isBusy}
-            className="flex min-h-12 w-full items-center justify-center gap-2 bg-[var(--journal-background)] px-4 py-3 font-sans text-sm font-semibold text-[var(--journal-text)] disabled:cursor-wait disabled:opacity-55"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold disabled:cursor-wait"
+            data-save-share-modal-primary-color="journal-theme"
+            data-save-share-modal-primary-action="save-image"
+            style={modalPrimaryActionStyle(resolvedTheme)}
           >
-            <DownloadIcon className="h-4 w-4" />
-            <span>{isBusy ? "Preparing…" : "Save Image"}</span>
+            <DownloadIcon className="h-3.5 w-3.5" />
+            {composerState.status === "error" ? "Retry" : "Save Image"}
           </button>
           <button
             type="button"
             onClick={() => void shareImage()}
             disabled={isBusy}
-            className="flex min-h-12 w-full items-center justify-center gap-2 border border-[var(--journal-stamp-border)] px-4 py-3 font-sans text-sm font-semibold text-[var(--journal-paper-text)] disabled:cursor-wait disabled:opacity-55"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold disabled:cursor-wait"
+            data-save-share-modal-secondary-color="previous-primary-control"
+            data-save-share-modal-secondary-action="share"
+            style={modalSecondaryActionStyle(resolvedTheme)}
           >
-            <ShareIcon className="h-4 w-4" />
-            <span>Share</span>
+            <ShareIcon className="h-3.5 w-3.5" />
+            Share
           </button>
-        </footer>
+        </div>
       </section>
     </div>
   );

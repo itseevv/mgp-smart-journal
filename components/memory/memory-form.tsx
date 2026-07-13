@@ -5,7 +5,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { JournalPhotoPicker } from "@/components/memory/journal-photo-picker";
 import { PhotoPicker } from "@/components/memory/photo-picker";
 import { VoiceRecorder } from "@/components/memory/voice-recorder";
-import { CalendarIcon } from "@/components/memory/memory-icons";
+import {
+  CalendarIcon,
+  ChevronLeftIcon,
+} from "@/components/memory/memory-icons";
 import type { JournalMemorySummary } from "@/data/journal";
 import type { JournalTheme } from "@/data/journal-themes";
 import {
@@ -72,10 +75,6 @@ function toLocalDateTimeInput(isoDate: string) {
   return localValue.toISOString().slice(0, 16);
 }
 
-function toLocalDateInput(isoDate: string) {
-  return toLocalDateTimeInput(isoDate).slice(0, 10);
-}
-
 function formatLocalDateLabel(localDate: string, fallbackIsoDate: string) {
   const [year, month, day] = localDate.split("-").map(Number);
   const value =
@@ -122,13 +121,17 @@ export function MemoryForm({
 }: MemoryFormProps) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isRecording, setIsRecording] = useState(false);
+  const [isPreparingPhotos, setIsPreparingPhotos] = useState(false);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const dateTime = formatDateTimeParts(draft.capturedAt);
   const productRules = getMemoryFormProductRules(productMode);
   const { copy } = productRules;
   const isJournalProduct = productMode === "journal";
   const voiceMemosEnabled = productRules.voiceMemosEnabled;
-  const selectedLocalDate = draft.localDate ?? localDateKey(draft.capturedAt);
+  const selectedLocalDate =
+    isJournalProduct && draft.localDate === ""
+      ? ""
+      : draft.localDate ?? localDateKey(draft.capturedAt);
   const duplicateStamp =
     isJournalProduct && selectedLocalDate
       ? findDuplicateStampForLocalDate(
@@ -139,7 +142,8 @@ export function MemoryForm({
       : undefined;
   const journalSaveDisabled =
     isJournalProduct &&
-    (!draft.title.trim() ||
+    (!selectedLocalDate ||
+      !draft.title.trim() ||
       draft.photos.length === 0 ||
       Boolean(duplicateStamp));
   const isSaving =
@@ -164,7 +168,7 @@ export function MemoryForm({
     ? "journal-create-edit-form"
     : "memory-entry";
   const formHeaderClassName = isJournalProduct
-    ? "journal-create-edit-form__header flex items-center justify-between pb-4"
+    ? "journal-create-edit-form__header flex items-center gap-3 pb-4"
     : "flex items-center justify-between border-b border-rule pb-4";
   const formTitleLabelClassName = isJournalProduct
     ? "journal-form-label mb-2 block font-sans text-[0.65rem] font-semibold uppercase"
@@ -174,11 +178,13 @@ export function MemoryForm({
     : "w-full border-0 border-b border-rule bg-transparent px-0 pb-3 font-serif text-[2.15rem] leading-tight tracking-[-0.035em] text-ink outline-none placeholder:text-ink/38 focus:border-oxblood";
 
   useEffect(() => {
-    onBusyChange?.(isRecording || isSaving);
-  }, [isRecording, isSaving, onBusyChange]);
+    onBusyChange?.(isRecording || isSaving || isPreparingPhotos);
+  }, [isPreparingPhotos, isRecording, isSaving, onBusyChange]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isPreparingPhotos) return;
+    if (isJournalProduct && !selectedLocalDate) return;
     const nextErrors: FormErrors = {};
     if (!draft.title.trim()) {
       nextErrors.title = copy.titleRequiredError;
@@ -201,6 +207,18 @@ export function MemoryForm({
       }
     >
       <header className={formHeaderClassName}>
+        {isJournalProduct && onCancel ? (
+          <button
+            type="button"
+            aria-label="Back without saving"
+            data-journal-form-action="back"
+            onClick={onCancel}
+            disabled={isPreparingPhotos || isRecording || isSaving}
+            className="journal-create-edit-back-button editorial-icon-button shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+        ) : null}
         <p
           className={
             isJournalProduct
@@ -231,20 +249,20 @@ export function MemoryForm({
             </span>
             <label className="journal-form-date-row relative flex min-h-12 cursor-pointer items-center justify-between gap-3 pb-2 font-sans text-sm">
               <time
-                dateTime={selectedLocalDate || draft.capturedAt}
+                dateTime={selectedLocalDate || undefined}
                 data-journal-date-value="paper-text"
                 className="text-[var(--journal-paper-text)]"
               >
                 {selectedLocalDate
                   ? formatLocalDateLabel(selectedLocalDate, draft.capturedAt)
-                  : dateTime.date}
+                  : "Choose a date"}
               </time>
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--journal-photo-edge)] text-[var(--journal-paper-muted-text)]">
                 <CalendarIcon className="h-4 w-4" />
               </span>
               <input
                 type="date"
-                value={selectedLocalDate || toLocalDateInput(draft.capturedAt)}
+                value={selectedLocalDate}
                 onChange={(event) => {
                   if (!event.target.value) return;
                   const nextLocalDate = event.target.value;
@@ -387,6 +405,7 @@ export function MemoryForm({
                 }
               }}
               onRemovePhoto={onRemovePhoto}
+              onPreparingChange={setIsPreparingPhotos}
             />
           ) : (
             <PhotoPicker
@@ -429,7 +448,12 @@ export function MemoryForm({
           >
             <button
               type="submit"
-              disabled={journalSaveDisabled || isRecording || isSaving}
+              disabled={
+                journalSaveDisabled ||
+                isPreparingPhotos ||
+                isRecording ||
+                isSaving
+              }
               className="journal-create-edit-save-button min-h-13 px-5 py-4 font-sans text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saveButtonLabel}
@@ -438,7 +462,7 @@ export function MemoryForm({
               <button
                 type="button"
                 onClick={onCancel}
-                disabled={isRecording || isSaving}
+                disabled={isPreparingPhotos || isRecording || isSaving}
                 className="journal-create-edit-cancel-button py-2 font-sans text-xs font-semibold underline underline-offset-4 disabled:opacity-50"
               >
                 Cancel

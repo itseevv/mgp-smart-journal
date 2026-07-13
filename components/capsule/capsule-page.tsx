@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -16,9 +16,11 @@ import {
 } from "@/lib/capsule/opening";
 import {
   cacheAccessMemory,
+  cacheCapsuleAccess,
   callCapsuleAccess,
   clearCapsuleSessionCache,
   ensureAnonymousSession,
+  getCachedCapsuleAccess,
   type CapsuleInspection,
 } from "@/lib/capsule/api";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -58,6 +60,9 @@ function pageStateFromInitialGate(initialGate?: CapsuleInitialGate): PageState {
         "This memory capsule is unavailable. Please contact the maker if you believe this is a mistake.",
     };
   }
+  if (initialGate.type === "locked") {
+    return { type: "loading" };
+  }
   return { type: initialGate.type };
 }
 
@@ -79,7 +84,7 @@ export function CapsulePage({
 }: {
   publicToken: string;
   memoryId?: string;
-  createIntent?: "backfill";
+  createIntent?: "today" | "backfill";
   initialGate?: CapsuleInitialGate;
   initialMonth?: string;
 }) {
@@ -90,6 +95,41 @@ export function CapsulePage({
   const [gateError, setGateError] = useState("");
   const [gateBusy, setGateBusy] = useState(false);
   const [recovering, setRecovering] = useState(false);
+
+  const applyInspection = useCallback((
+    client: SupabaseClient,
+    inspection: CapsuleInspection,
+  ) => {
+    if (inspection.state === "notFound") setState({ type: "notFound" });
+    else if (inspection.state === "unavailable") {
+      setState({
+        type: "error",
+        message:
+          "This memory capsule is unavailable. Please contact the maker if you believe this is a mistake.",
+      });
+    } else if (inspection.state === "unactivated") {
+      setState({ type: "unactivated", client });
+    } else if (inspection.state === "locked") {
+      setState({ type: "locked", client });
+    } else if (inspection.capsuleId && inspection.productType) {
+      const access = cacheCapsuleAccess(publicToken, inspection);
+      setState({
+        type: "unlocked",
+        client,
+        capsuleId: access?.capsuleId ?? inspection.capsuleId,
+        productType: access?.productType ?? inspection.productType,
+        journalTheme: resolveJournalTheme(
+          access?.journalTheme ?? inspection.journalTheme,
+        ),
+        initialMemory: cacheAccessMemory(inspection.memory),
+      });
+    } else {
+      setState({
+        type: "error",
+        message: "The capsule could not be opened.",
+      });
+    }
+  }, [publicToken]);
 
   const bootstrap = async () => {
     setState({ type: "loading" });
@@ -124,38 +164,28 @@ export function CapsulePage({
     }
   };
 
-  const applyInspection = (
-    client: SupabaseClient,
-    inspection: CapsuleInspection,
-  ) => {
-    if (inspection.state === "notFound") setState({ type: "notFound" });
-    else if (inspection.state === "unavailable") {
-      setState({
-        type: "error",
-        message:
-          "This memory capsule is unavailable. Please contact the maker if you believe this is a mistake.",
-      });
-    }
-    else if (inspection.state === "unactivated") setState({ type: "unactivated", client });
-    else if (inspection.state === "locked") setState({ type: "locked", client });
-    else if (inspection.capsuleId && inspection.productType) {
-      setState({
-        type: "unlocked",
-        client,
-        capsuleId: inspection.capsuleId,
-        productType: inspection.productType,
-        journalTheme: resolveJournalTheme(inspection.journalTheme),
-        initialMemory: cacheAccessMemory(inspection.memory),
-      });
-    } else setState({ type: "error", message: "The capsule could not be opened." });
-  };
-
   useEffect(() => {
     let active = true;
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
           const client = getSupabaseBrowserClient();
+          const cachedAccess = getCachedCapsuleAccess(publicToken);
+          const initialGateAllowsCachedAccess =
+            !initialGate || initialGate.type === "locked";
+          const canUseCachedAccess =
+            initialGateAllowsCachedAccess &&
+            (!memoryId || Boolean(createIntent));
+          if (active && cachedAccess && canUseCachedAccess) {
+            setState({
+              type: "unlocked",
+              client,
+              capsuleId: cachedAccess.capsuleId,
+              productType: cachedAccess.productType,
+              journalTheme: resolveJournalTheme(cachedAccess.journalTheme),
+              initialMemory: undefined,
+            });
+          }
           await ensureAnonymousSession(client, CAPSULE_OPEN_TIMEOUT_MS);
           const inspection = await callCapsuleAccess(
             client,
@@ -191,7 +221,7 @@ export function CapsulePage({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [memoryId, publicToken]);
+  }, [applyInspection, createIntent, initialGate, memoryId, publicToken]);
 
   const submitPin = async (
     existingClient: SupabaseClient | undefined,
@@ -260,10 +290,18 @@ export function CapsulePage({
   }, [memoryId, publicToken, router, state]);
 
   if (state.type === "loading") {
-    return <main className="min-h-screen bg-leather p-8 text-center font-sans text-sm text-paper">Opening capsule…</main>;
+    return (
+      <main className="min-h-screen bg-leather p-8 text-center font-sans text-sm text-paper">
+        Opening capsule…
+      </main>
+    );
   }
   if (state.type === "notFound") {
-    return <main className="min-h-screen bg-leather p-8 text-center font-sans text-sm text-paper">This capsule could not be found.</main>;
+    return (
+      <main className="min-h-screen bg-leather p-8 text-center font-sans text-sm text-paper">
+        This capsule could not be found.
+      </main>
+    );
   }
   if (state.type === "error") {
     return (
@@ -297,7 +335,7 @@ export function CapsulePage({
           publicToken={publicToken}
           onCancel={() => setRecovering(false)}
           onComplete={async (capsuleId) => {
-            if (capsuleId) clearCapsuleSessionCache(capsuleId);
+            if (capsuleId) clearCapsuleSessionCache(capsuleId, publicToken);
             setRecovering(false);
             await bootstrap();
           }}
@@ -334,6 +372,7 @@ export function CapsulePage({
 
   const lock = async () => {
     await callCapsuleAccess(state.client, "lock", publicToken);
+    clearCapsuleSessionCache(state.capsuleId, publicToken);
     setState({ type: "locked", client: state.client });
   };
 
@@ -342,7 +381,10 @@ export function CapsulePage({
     return (
       <main
         className="journal-mobile-page"
-        style={{ background: theme.journalBackground, color: theme.textOnJournal }}
+        style={{
+          background: theme.journalBackground,
+          color: theme.textOnJournal,
+        }}
       >
         <JournalMobileShell
           className="journal-themed-background"

@@ -1,18 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { PlusIcon } from "@/components/memory/memory-icons";
 import { SortablePhotoGrid } from "@/components/memory/sortable-photo-grid";
 import { ScrapTable } from "@/components/scrap/scrap-table";
 import {
-  DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS,
   DAILY_MEMORY_STAMP_MAX_PHOTOS,
+  dailyStampAdditionalMomentCapacity,
 } from "@/data/journal-product";
 import type { JournalTheme } from "@/data/journal-themes";
 import type { MemoryMediaConfig, MemoryPhoto } from "@/data/memory-demo";
+import { createPhotoEditorPreview } from "@/lib/media/photo-optimisation";
 import { cropMetadataToImageStyle } from "@/lib/scrap/crop-math";
 
 type JournalPhotoPickerProps = {
@@ -21,6 +22,7 @@ type JournalPhotoPickerProps = {
   onChange: (photos: MemoryPhoto[]) => void;
   onRemovePhoto: (photo: MemoryPhoto) => void;
   registerObjectUrl: (url: string) => void;
+  onPreparingChange?: (preparing: boolean) => void;
   theme?: JournalTheme;
 };
 
@@ -53,8 +55,35 @@ function draftPhoto(file: File, registerObjectUrl: (url: string) => void) {
   };
 }
 
+function yieldToBrowser() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
+async function draftAdditionalPhoto(
+  file: File,
+  config: MemoryMediaConfig,
+  registerObjectUrl: (url: string) => void,
+) {
+  const preview = await createPhotoEditorPreview(file, config);
+  const previewUrl = URL.createObjectURL(preview.file);
+  registerObjectUrl(previewUrl);
+  return {
+    id: makePhotoId(),
+    name: file.name,
+    objectUrl: previewUrl,
+    thumbnailObjectUrl: previewUrl,
+    sizeBytes: file.size,
+    mimeType: file.type,
+    file,
+    originalSizeBytes: file.size,
+    status: "new" as const,
+  };
+}
+
 function photoPreviewUrl(photo?: MemoryPhoto) {
-  return photo?.thumbnailObjectUrl ?? photo?.objectUrl;
+  return photo?.objectUrl ?? photo?.thumbnailObjectUrl;
 }
 
 export function JournalPhotoPicker({
@@ -63,10 +92,12 @@ export function JournalPhotoPicker({
   onChange,
   onRemovePhoto,
   registerObjectUrl,
+  onPreparingChange,
   theme,
 }: JournalPhotoPickerProps) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const additionalInputRef = useRef<HTMLInputElement>(null);
+  const photosRef = useRef(photos);
   const cover = photos[0];
   const additionalPhotos = photos.slice(1, DAILY_MEMORY_STAMP_MAX_PHOTOS);
   const [additionalOpen, setAdditionalOpen] = useState(
@@ -75,7 +106,16 @@ export function JournalPhotoPicker({
   const [message, setMessage] = useState("");
   const [pendingCover, setPendingCover] = useState<MemoryPhoto | null>(null);
   const [adjustingCover, setAdjustingCover] = useState(false);
+  const [isPreparingAdditional, setIsPreparingAdditional] = useState(false);
   const coverCropStyle = cropMetadataToImageStyle(cover?.cropMetadata);
+  const additionalCapacity = dailyStampAdditionalMomentCapacity(
+    photos.length,
+    config.maxPhotosPerMemory,
+  );
+
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
 
   const firstUsableImage = (files: File[]) => {
     const imageFile = files.find(isImageSelection);
@@ -103,10 +143,10 @@ export function JournalPhotoPicker({
     setMessage("");
   };
 
-  const handleAdditional = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleAdditional = async (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (selectedFiles.length === 0 || !cover) return;
+    if (selectedFiles.length === 0 || !cover || isPreparingAdditional) return;
 
     const imageFiles = selectedFiles.filter(isImageSelection);
     const invalidTypeCount = selectedFiles.length - imageFiles.length;
@@ -114,23 +154,9 @@ export function JournalPhotoPicker({
       (file) => file.size <= config.maxPhotoFileSizeBytes,
     );
     const oversizedCount = imageFiles.length - allowedBySize.length;
-    const remainingAdditionalSlots = Math.max(
-      0,
-      Math.min(
-        DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS - additionalPhotos.length,
-        config.maxPhotosPerMemory - photos.length,
-      ),
-    );
+    const remainingAdditionalSlots = additionalCapacity.remaining;
     const acceptedFiles = allowedBySize.slice(0, remainingAdditionalSlots);
     const overLimitCount = allowedBySize.length - acceptedFiles.length;
-    const nextPhotos = acceptedFiles.map((file) =>
-      draftPhoto(file, registerObjectUrl),
-    );
-
-    if (nextPhotos.length > 0) {
-      onChange([cover, ...additionalPhotos, ...nextPhotos]);
-      setAdditionalOpen(true);
-    }
 
     const explanations: string[] = [];
     if (invalidTypeCount > 0) {
@@ -140,7 +166,49 @@ export function JournalPhotoPicker({
       explanations.push("Images larger than 25MB were not added.");
     }
     if (overLimitCount > 0) {
-      explanations.push("This stamp already has its optional moments.");
+      explanations.push(
+        additionalCapacity.limitedByJournalCapacity
+          ? "This journal has reached its photo limit."
+          : "This stamp already has its optional moments.",
+      );
+    }
+    const nextPhotos: MemoryPhoto[] = [];
+    setIsPreparingAdditional(true);
+    onPreparingChange?.(true);
+    try {
+      for (let index = 0; index < acceptedFiles.length; index += 1) {
+        setMessage(
+          `Preparing moment ${index + 1} of ${acceptedFiles.length}…`,
+        );
+        await yieldToBrowser();
+        try {
+          nextPhotos.push(
+            await draftAdditionalPhoto(
+              acceptedFiles[index],
+              config,
+              registerObjectUrl,
+            ),
+          );
+        } catch {
+          explanations.push(
+            `${acceptedFiles[index].name} could not be prepared.`,
+          );
+        }
+      }
+
+      const currentPhotos = photosRef.current;
+      const currentCover = currentPhotos[0];
+      const currentAdditional = currentPhotos.slice(
+        1,
+        DAILY_MEMORY_STAMP_MAX_PHOTOS,
+      );
+      if (currentCover?.id === cover.id && nextPhotos.length > 0) {
+        onChange([currentCover, ...currentAdditional, ...nextPhotos]);
+        setAdditionalOpen(true);
+      }
+    } finally {
+      setIsPreparingAdditional(false);
+      onPreparingChange?.(false);
     }
     setMessage(explanations.join(" "));
   };
@@ -160,11 +228,6 @@ export function JournalPhotoPicker({
     if (!cover) return;
     onChange([cover, ...nextAdditionalPhotos]);
   };
-
-  const remainingAdditional = Math.max(
-    0,
-    DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS - additionalPhotos.length,
-  );
 
   const confirmCoverCrop = (cropMetadata: MemoryPhoto["cropMetadata"]) => {
     if (pendingCover) {
@@ -276,6 +339,7 @@ export function JournalPhotoPicker({
             <button
               type="button"
               onClick={() => setAdjustingCover(true)}
+              disabled={isPreparingAdditional}
               className="font-semibold text-oxblood underline underline-offset-4"
             >
               Adjust scrap
@@ -283,6 +347,7 @@ export function JournalPhotoPicker({
             <button
               type="button"
               onClick={() => coverInputRef.current?.click()}
+              disabled={isPreparingAdditional}
               className="font-semibold text-oxblood underline underline-offset-4"
             >
               Replace
@@ -290,6 +355,7 @@ export function JournalPhotoPicker({
             <button
               type="button"
               onClick={removeCover}
+              disabled={isPreparingAdditional}
               className="text-ink-soft underline underline-offset-4"
             >
               Remove
@@ -320,6 +386,7 @@ export function JournalPhotoPicker({
           <button
             type="button"
             onClick={() => setAdditionalOpen((current) => !current)}
+            disabled={isPreparingAdditional}
             className="flex w-full items-center justify-between gap-3 font-sans text-sm font-semibold text-ink"
             aria-expanded={additionalOpen}
             aria-controls="additional-moments-panel"
@@ -337,26 +404,41 @@ export function JournalPhotoPicker({
           {additionalOpen ? (
             <div id="additional-moments-panel" className="mt-3">
               <p className="font-sans text-[0.68rem] leading-relaxed text-ink-soft">
-                Up to 8 more moments.
+                {additionalCapacity.remaining > 0 ? (
+                  <>
+                    Add up to {additionalCapacity.remaining} more{" "}
+                    {additionalCapacity.remaining === 1 ? "moment" : "moments"}.
+                  </>
+                ) : additionalCapacity.limitedByJournalCapacity ? (
+                  "This journal has reached its photo limit."
+                ) : (
+                  "This stamp already has all 8 optional moments."
+                )}
               </p>
               <input
                 ref={additionalInputRef}
                 type="file"
                 accept="image/*"
                 multiple
-                disabled={remainingAdditional === 0}
-                onChange={handleAdditional}
+                disabled={
+                  additionalCapacity.remaining === 0 || isPreparingAdditional
+                }
+                onChange={(event) => void handleAdditional(event)}
                 className="sr-only"
                 aria-label="Add more moments"
               />
               <button
                 type="button"
-                disabled={remainingAdditional === 0}
+                disabled={
+                  additionalCapacity.remaining === 0 || isPreparingAdditional
+                }
                 onClick={() => additionalInputRef.current?.click()}
                 className="journal-add-moments-button mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-sm px-3 font-sans text-sm font-semibold disabled:cursor-not-allowed"
               >
                 <PlusIcon className="h-4 w-4" />
-                Add moments
+                {isPreparingAdditional
+                  ? "Preparing moments…"
+                  : "Add moments"}
               </button>
 
               {additionalPhotos.length > 0 ? (
@@ -365,6 +447,7 @@ export function JournalPhotoPicker({
                     photos={additionalPhotos}
                     onChange={reorderAdditional}
                     onRemove={removeAdditional}
+                    disabled={isPreparingAdditional}
                     coverLabel=""
                     itemLabel="Moment"
                     stampFramePreview

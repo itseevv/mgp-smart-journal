@@ -227,11 +227,16 @@ function transparentMix(color: string, amount: number) {
   return `color-mix(in srgb, ${color} ${amount}%, transparent)`;
 }
 
+export function journalTitleUsesDarkInk(theme: JournalTheme) {
+  return theme.logoVariant === "dark" || theme.slug === "blush";
+}
+
 export function journalThemeStyle(theme: JournalTheme) {
   const textureUrl = theme.textureUrl ? `url("${theme.textureUrl}")` : "none";
   const overlayOpacity = theme.overlayColor ? theme.overlayOpacity : 0;
   const usesDarkText = theme.logoVariant === "dark";
-  const homeTitle = usesDarkText
+  const usesDarkHomeTitle = journalTitleUsesDarkInk(theme);
+  const homeTitle = usesDarkHomeTitle
     ? modernGoddessPatina.deepBurgundy
     : transparentMix(modernGoddessPatina.champagnePeach, 78);
   const monthTitle = usesDarkText
@@ -251,17 +256,17 @@ export function journalThemeStyle(theme: JournalTheme) {
     ? modernGoddessPatina.warmIvory
     : modernGoddessPatina.deepBurgundy;
   const homeCtaTrayBackground = usesDarkText
-    ? transparentMix(modernGoddessPatina.warmIvory, 70)
-    : transparentMix(modernGoddessPatina.deepBurgundy, 42);
+    ? transparentMix(theme.paperSurface, 70)
+    : transparentMix(theme.journalBackground, 64);
   const homeCtaTrayShadow = usesDarkText
-    ? `0 12px 28px ${transparentMix(modernGoddessPatina.cocoaTaupe, 15)}`
-    : "0 14px 34px rgba(17, 6, 8, 0.2)";
+    ? `0 12px 28px ${transparentMix(theme.textOnPaper, 14)}`
+    : `0 14px 34px ${transparentMix(theme.journalBackground, 38)}`;
   const homeControlBackground = usesDarkText
-    ? transparentMix(modernGoddessPatina.deepBurgundy, 8)
-    : transparentMix(modernGoddessPatina.warmIvory, 13);
+    ? transparentMix(theme.textOnPaper, 8)
+    : transparentMix(theme.paperSurface, 16);
   const homeControlText = usesDarkText
-    ? modernGoddessPatina.deepBurgundy
-    : modernGoddessPatina.warmIvory;
+    ? theme.textOnPaper
+    : theme.textOnJournal;
   const monthReturnLink = usesDarkText
     ? transparentMix(modernGoddessPatina.cocoaTaupe, 72)
     : transparentMix(modernGoddessPatina.champagnePeach, 72);

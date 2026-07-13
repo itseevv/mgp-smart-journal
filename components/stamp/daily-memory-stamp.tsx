@@ -180,6 +180,7 @@ export function DailyMemoryStamp({
           onClose={() => setExportOpen(false)}
           resolvePhotoUrl={resolvePhotoUrl}
           theme={theme}
+          journalTitle={journalTitle}
         />
       ) : null}
     </article>

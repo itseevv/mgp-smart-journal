@@ -1,8 +1,10 @@
 import type { JournalTheme } from "../../data/journal-themes.ts";
 import {
   defaultJournalTheme,
+  journalTitleUsesDarkInk,
   resolveJournalTheme,
 } from "../../data/journal-themes.ts";
+import { journalConfig } from "../../data/journal.ts";
 import {
   localDateKeyFromValue,
   normalizeLocalDateKey,
@@ -12,7 +14,6 @@ import type {
   MemoryPhoto,
   PhotoCropMetadata,
 } from "../../data/memory-demo.ts";
-import { buildStampFrameRows } from "../../data/stamp-layouts.ts";
 import {
   centerSquareCropMetadata,
   isPhotoCropMetadata,
@@ -24,7 +25,80 @@ export const DAILY_STAMP_EXPORT_HEIGHT = 1920;
 export const DAILY_STAMP_EXPORT_ASPECT_RATIO =
   DAILY_STAMP_EXPORT_WIDTH / DAILY_STAMP_EXPORT_HEIGHT;
 export const DAILY_STAMP_EXPORT_MIME_TYPE = "image/png";
-export const DAILY_STAMP_EXPORT_LOGO_SRC = "/brand/logo-square-mgp.jpeg";
+export const DAILY_STAMP_EXPORT_LOGO_SRC =
+  "/brand/mgp-full-logo-transparent.png";
+
+const DEFAULT_DAILY_STAMP_EXPORT_JOURNAL_TITLE = "My Journal";
+
+const brand = {
+  deepBurgundy: "#421819",
+  champagnePeach: "#E4B48F",
+  vintageBlush: "#B28C7B",
+  warmIvory: "#E8DBCC",
+  cocoaTaupe: "#62453A",
+};
+
+const displayFontVariable = "--font-brand-display";
+const utilityFontVariable = "--font-brand-interface";
+const displayFontFallback = '"Cormorant Garamond", Georgia, serif';
+const utilityFontFallback = "Inter, system-ui, sans-serif";
+
+const dailyStampExportLayout = {
+  journalTitleCenterY: 202,
+  journalTitleFontSize: 62,
+  journalTitleLineHeight: 68,
+  journalTitleMaxWidth: 540,
+  overlayCenterY: DAILY_STAMP_EXPORT_HEIGHT / 2,
+  overlayMinTop: 300,
+  overlayX: 27,
+  overlayWidth: 1026,
+  overlayRadius: 18,
+  overlayPadding: 23,
+  dateBaselineOffset: 63,
+  dateFontSize: 22,
+  dateLetterSpacing: 3.5,
+  titleBaselineOffset: 148,
+  titleFontSize: 53,
+  gridTopOffset: 175,
+  gridGap: 18,
+  singlePhotoMaxWidth: 981,
+  logoBoxSize: 190,
+  logoBottom: 170,
+};
+
+function resolvedBrandFont(variable: string, fallback: string) {
+  const family = getComputedStyle(document.documentElement)
+    .getPropertyValue(variable)
+    .trim();
+  return family || fallback;
+}
+
+async function loadDailyStampExportFonts() {
+  const displayFont = resolvedBrandFont(
+    displayFontVariable,
+    displayFontFallback,
+  );
+  const utilityFont = resolvedBrandFont(
+    utilityFontVariable,
+    utilityFontFallback,
+  );
+
+  if (document.fonts) {
+    await Promise.all([
+      document.fonts.load(
+        `600 ${dailyStampExportLayout.journalTitleFontSize}px ${displayFont}`,
+      ),
+      document.fonts.load(
+        `500 ${dailyStampExportLayout.titleFontSize}px ${displayFont}`,
+      ),
+      document.fonts.load(
+        `600 ${dailyStampExportLayout.dateFontSize}px ${utilityFont}`,
+      ),
+    ]);
+  }
+
+  return { displayFont, utilityFont };
+}
 
 export type DailyStampExportBrandMark =
   | {
@@ -54,6 +128,7 @@ export type DailyStampExportArtifactModel = {
   height: number;
   aspectRatio: number;
   mimeType: typeof DAILY_STAMP_EXPORT_MIME_TYPE;
+  journalTitle: string;
   dateLabel: string;
   localDate: string;
   title: string;
@@ -70,6 +145,7 @@ export type DailyStampExportRenderInput = {
   ) => Promise<string>;
   theme?: JournalTheme;
   brandMark?: DailyStampExportBrandMark;
+  journalTitle?: string;
 };
 
 type LoadedCanvasImage = {
@@ -114,6 +190,13 @@ function normalizeTitle(value: string) {
   return value.replace(/\s+/g, " ").trim() || "Untitled stamp";
 }
 
+function normalizeJournalTitle(value: string) {
+  const title =
+    value.replace(/\s+/g, " ").trim() ||
+    DEFAULT_DAILY_STAMP_EXPORT_JOURNAL_TITLE;
+  return title.slice(0, journalConfig.maxTitleLength);
+}
+
 function safeFilenamePart(value: string) {
   return value
     .toLowerCase()
@@ -126,6 +209,35 @@ function finitePositive(value?: number) {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? value
     : undefined;
+}
+
+function rgbaFromHex(hex: string, alpha: number) {
+  const value = hex.replace("#", "");
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function isLightTheme(theme: JournalTheme) {
+  return theme.logoVariant === "dark";
+}
+
+function exportTitleColor(theme: JournalTheme) {
+  return isLightTheme(theme) ? brand.deepBurgundy : brand.warmIvory;
+}
+
+function exportUtilityColor(theme: JournalTheme) {
+  return isLightTheme(theme)
+    ? rgbaFromHex(brand.cocoaTaupe, 0.76)
+    : rgbaFromHex(brand.champagnePeach, 0.78);
+}
+
+function exportJournalHeaderColor(theme: JournalTheme) {
+  return journalTitleUsesDarkInk(theme)
+    ? brand.deepBurgundy
+    : rgbaFromHex(brand.champagnePeach, 0.86);
 }
 
 function photoDimensions(photo: MemoryPhoto) {
@@ -189,12 +301,17 @@ export function dailyStampExportPhotoItems(
 export function dailyStampExportArtifactModel({
   memory,
   brandMark = defaultDailyStampExportBrandMark,
-}: Pick<DailyStampExportRenderInput, "memory" | "brandMark">): DailyStampExportArtifactModel {
+  journalTitle = DEFAULT_DAILY_STAMP_EXPORT_JOURNAL_TITLE,
+}: Pick<
+  DailyStampExportRenderInput,
+  "memory" | "brandMark" | "journalTitle"
+>): DailyStampExportArtifactModel {
   return {
     width: DAILY_STAMP_EXPORT_WIDTH,
     height: DAILY_STAMP_EXPORT_HEIGHT,
     aspectRatio: DAILY_STAMP_EXPORT_ASPECT_RATIO,
     mimeType: DAILY_STAMP_EXPORT_MIME_TYPE,
+    journalTitle: normalizeJournalTitle(journalTitle),
     dateLabel: dailyStampExportDateLabel(memory),
     localDate: dailyStampExportLocalDate(memory),
     title: normalizeTitle(memory.title),
@@ -255,6 +372,17 @@ function drawLeatherBackground(
     );
   }
 
+  const artifactGradient = context.createLinearGradient(
+    0,
+    0,
+    0,
+    DAILY_STAMP_EXPORT_HEIGHT,
+  );
+  artifactGradient.addColorStop(0, "rgba(255,255,255,0.08)");
+  artifactGradient.addColorStop(1, "rgba(0,0,0,0.14)");
+  context.fillStyle = artifactGradient;
+  context.fillRect(0, 0, DAILY_STAMP_EXPORT_WIDTH, DAILY_STAMP_EXPORT_HEIGHT);
+
   if (!texture) {
     const sheen = context.createLinearGradient(
       0,
@@ -290,162 +418,204 @@ function drawLeatherBackground(
   }
 }
 
-function drawPaperRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  theme: JournalTheme,
-) {
-  context.save();
-  context.shadowColor = "rgba(18,11,10,0.28)";
-  context.shadowBlur = 42;
-  context.shadowOffsetY = 20;
-  context.fillStyle = theme.paperSurface;
-  context.fillRect(x, y, width, height);
-  context.restore();
-
-  context.save();
-  context.globalAlpha = 0.26;
-  context.fillStyle = theme.mutedTextOnPaper;
-  for (let index = 0; index < 90; index += 1) {
-    const dotX = x + ((index * 43) % Math.max(1, width));
-    const dotY = y + ((index * 71) % Math.max(1, height));
-    context.fillRect(dotX, dotY, 1, 1);
-  }
-  context.restore();
-}
-
-function drawWrappedText({
+function drawSingleLineText({
   context,
   text,
   x,
   y,
   maxWidth,
-  maxLines,
-  lineHeight,
 }: {
   context: CanvasRenderingContext2D;
   text: string;
   x: number;
   y: number;
   maxWidth: number;
-  maxLines: number;
-  lineHeight: number;
 }) {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let current = "";
+  let line = text.replace(/\s+/g, " ").trim();
 
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (context.measureText(next).width <= maxWidth || !current) {
-      current = next;
-      continue;
-    }
-    lines.push(current);
-    current = word;
-    if (lines.length === maxLines) break;
-  }
-
-  if (current && lines.length < maxLines) lines.push(current);
-  if (lines.length === maxLines && words.join(" ") !== lines.join(" ")) {
-    let finalLine = lines[maxLines - 1];
+  if (context.measureText(line).width > maxWidth) {
     while (
-      finalLine.length > 1 &&
-      context.measureText(`${finalLine}...`).width > maxWidth
+      line.length > 1 &&
+      context.measureText(`${line.trimEnd()}...`).width > maxWidth
     ) {
-      finalLine = finalLine.slice(0, -1).trimEnd();
+      line = line.slice(0, -1);
     }
-    lines[maxLines - 1] = `${finalLine}...`;
+    line = `${line.trimEnd()}...`;
   }
 
-  lines.forEach((line, index) => {
-    context.fillText(line, x, y + index * lineHeight);
-  });
+  context.fillText(line, x, y, maxWidth);
 
   return {
-    lines,
-    bottom: y + Math.max(0, lines.length - 1) * lineHeight,
+    line,
+    bottom: y,
   };
 }
 
-function sheetSizeForRows(rowSizes: number[], maxWidth: number, maxHeight: number) {
-  const gap = 18;
-  const heightForWidth = (width: number) =>
-    rowSizes.reduce((total, rowSize, index) => {
-      const cell = (width - gap * (rowSize - 1)) / rowSize;
-      return total + cell + (index > 0 ? gap : 0);
-    }, 0);
-  const fullHeight = heightForWidth(maxWidth);
-  if (fullHeight <= maxHeight) {
-    return { width: maxWidth, height: fullHeight, gap };
-  }
-  const scale = maxHeight / fullHeight;
-  const width = maxWidth * scale;
-  return { width, height: heightForWidth(width), gap };
-}
-
-function drawStampEdge(
+function wrapUnbrokenText(
   context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
-  theme: JournalTheme,
+  text: string,
+  maxWidth: number,
 ) {
-  const rim = Math.max(8, size * 0.045);
-  context.fillStyle = "rgba(246,238,218,0.97)";
-  context.fillRect(x, y, size, size);
-  context.strokeStyle = theme.stampBorder;
-  context.lineWidth = Math.max(2, size * 0.008);
-  context.strokeRect(x + rim * 0.5, y + rim * 0.5, size - rim, size - rim);
+  const lines: string[] = [];
+  let line = "";
 
-  context.save();
-  context.fillStyle = "rgba(82,43,42,0.48)";
-  const dotRadius = Math.max(1.6, size * 0.007);
-  const step = Math.max(12, size * 0.08);
-  for (let dx = step * 0.5; dx < size; dx += step) {
-    context.beginPath();
-    context.arc(x + dx, y + dotRadius, dotRadius, 0, Math.PI * 2);
-    context.arc(x + dx, y + size - dotRadius, dotRadius, 0, Math.PI * 2);
-    context.fill();
-  }
-  for (let dy = step * 0.5; dy < size; dy += step) {
-    context.beginPath();
-    context.arc(x + dotRadius, y + dy, dotRadius, 0, Math.PI * 2);
-    context.arc(x + size - dotRadius, y + dy, dotRadius, 0, Math.PI * 2);
-    context.fill();
-  }
-  context.restore();
+  for (const character of Array.from(text)) {
+    const candidate = `${line}${character}`;
+    if (!line || context.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      continue;
+    }
 
-  return rim;
+    lines.push(line);
+    line = character;
+  }
+
+  if (line) lines.push(line);
+  return lines;
 }
 
-function drawPhotoFrame({
+function wrapText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (context.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      return;
+    }
+
+    if (line) {
+      lines.push(line);
+      line = "";
+    }
+
+    if (context.measureText(word).width <= maxWidth) {
+      line = word;
+      return;
+    }
+
+    const wrappedWord = wrapUnbrokenText(context, word, maxWidth);
+    lines.push(...wrappedWord.slice(0, -1));
+    line = wrappedWord[wrappedWord.length - 1] ?? "";
+  });
+
+  if (line) lines.push(line);
+  return lines;
+}
+
+function clampWrappedLines(
+  context: CanvasRenderingContext2D,
+  lines: string[],
+  maxLines: number,
+  maxWidth: number,
+) {
+  if (lines.length <= maxLines) return lines;
+
+  const nextLines = lines.slice(0, maxLines);
+  let lastLine = `${nextLines[nextLines.length - 1] ?? ""}...`;
+
+  while (
+    lastLine.length > 3 &&
+    context.measureText(lastLine).width > maxWidth
+  ) {
+    lastLine = `${lastLine.slice(0, -4).trimEnd()}...`;
+  }
+
+  nextLines[nextLines.length - 1] = lastLine;
+  return nextLines;
+}
+
+function drawCenteredWrappedText({
+  context,
+  text,
+  x,
+  centerY,
+  maxWidth,
+  lineHeight,
+  maxLines,
+}: {
+  context: CanvasRenderingContext2D;
+  text: string;
+  x: number;
+  centerY: number;
+  maxWidth: number;
+  lineHeight: number;
+  maxLines: number;
+}) {
+  const wrappedLines = clampWrappedLines(
+    context,
+    wrapText(context, text, maxWidth),
+    maxLines,
+    maxWidth,
+  );
+  const firstLineY = centerY - ((wrappedLines.length - 1) * lineHeight) / 2;
+
+  wrappedLines.forEach((line, index) => {
+    context.fillText(line, x, firstLineY + index * lineHeight, maxWidth);
+  });
+
+  return {
+    lines: wrappedLines,
+    bottom:
+      firstLineY +
+      (wrappedLines.length - 1) * lineHeight +
+      lineHeight / 2,
+  };
+}
+
+function drawTrackedText({
+  context,
+  text,
+  x,
+  y,
+  letterSpacing,
+}: {
+  context: CanvasRenderingContext2D;
+  text: string;
+  x: number;
+  y: number;
+  letterSpacing: number;
+}) {
+  let cursorX = x;
+
+  for (const character of text) {
+    context.fillText(character, cursorX, y);
+    cursorX += context.measureText(character).width + letterSpacing;
+  }
+}
+
+function photoGridColumns(photoCount: number) {
+  if (photoCount <= 1) return 1;
+  if (photoCount <= 4) return 2;
+  return 3;
+}
+
+function drawPhotoTile({
   context,
   photo,
   x,
   y,
   size,
-  theme,
 }: {
   context: CanvasRenderingContext2D;
   photo: DrawnPhoto;
   x: number;
   y: number;
   size: number;
-  theme: JournalTheme;
 }) {
-  const rim = drawStampEdge(context, x, y, size, theme);
-  const innerX = x + rim;
-  const innerY = y + rim;
-  const innerSize = size - rim * 2;
   const source = sourceRectForCrop(photo.source, photo.cropMetadata);
 
+  context.fillStyle = "#d8cec0";
+  context.fillRect(x, y, size, size);
   context.save();
   context.beginPath();
-  context.rect(innerX, innerY, innerSize, innerSize);
+  context.rect(x, y, size, size);
   context.clip();
   context.drawImage(
     photo.source.image,
@@ -453,12 +623,118 @@ function drawPhotoFrame({
     source.sy,
     source.sw,
     source.sh,
-    innerX,
-    innerY,
-    innerSize,
-    innerSize,
+    x,
+    y,
+    size,
+    size,
   );
   context.restore();
+}
+
+function drawExportOverlay({
+  context,
+  theme,
+  x,
+  y,
+  width,
+  height,
+}: {
+  context: CanvasRenderingContext2D;
+  theme: JournalTheme;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  context.save();
+  context.beginPath();
+  context.roundRect(x, y, width, height, dailyStampExportLayout.overlayRadius);
+  context.clip();
+
+  context.fillStyle = isLightTheme(theme)
+    ? "rgba(255, 251, 240, 0.42)"
+    : rgbaFromHex(brand.vintageBlush, 0.16);
+  context.fillRect(x, y, width, height);
+
+  const gradient = context.createLinearGradient(x, y, x, y + height);
+  if (isLightTheme(theme)) {
+    gradient.addColorStop(0, "rgba(255, 251, 240, 0.26)");
+    gradient.addColorStop(1, rgbaFromHex(brand.cocoaTaupe, 0.08));
+  } else {
+    gradient.addColorStop(0, rgbaFromHex(brand.warmIvory, 0.1));
+    gradient.addColorStop(1, rgbaFromHex(brand.champagnePeach, 0.07));
+  }
+  context.fillStyle = gradient;
+  context.fillRect(x, y, width, height);
+  context.restore();
+}
+
+async function drawPhotoGrid({
+  context,
+  photos,
+  resolvePhotoUrl,
+  x,
+  y,
+  width,
+  gap,
+  singlePhotoMaxWidth,
+}: {
+  context: CanvasRenderingContext2D;
+  photos: DailyStampExportPhotoItem[];
+  resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"];
+  x: number;
+  y: number;
+  width: number;
+  gap: number;
+  singlePhotoMaxWidth: number;
+}) {
+  const columns = photoGridColumns(photos.length);
+  const cellSize =
+    columns === 1
+      ? Math.min(width, singlePhotoMaxWidth)
+      : (width - gap * (columns - 1)) / columns;
+  const gridWidth = cellSize * columns + gap * (columns - 1);
+  const gridX = x + (width - gridWidth) / 2;
+
+  for (const [index, item] of photos.entries()) {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    let source: LoadedCanvasImage | undefined;
+
+    try {
+      source = await loadPhotoForExport(item.photo, resolvePhotoUrl);
+      drawPhotoTile({
+        context,
+        photo: { ...item, source },
+        x: gridX + column * (cellSize + gap),
+        y: y + row * (cellSize + gap),
+        size: cellSize,
+      });
+    } finally {
+      source?.close();
+    }
+  }
+
+  return {
+    bottom:
+      y +
+      Math.ceil(photos.length / columns) * cellSize +
+      Math.max(0, Math.ceil(photos.length / columns) - 1) * gap,
+  };
+}
+
+async function loadPhotoForExport(
+  photo: MemoryPhoto,
+  resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
+) {
+  try {
+    const url = await photoUrlForExport(photo, resolvePhotoUrl);
+    return await imageFromUrl(url);
+  } catch (error) {
+    if (!resolvePhotoUrl) throw error;
+    const refreshedUrl = await resolvePhotoUrl(photo, "display", true);
+    return imageFromUrl(refreshedUrl);
+  }
 }
 
 async function canvasToBlob(
@@ -501,19 +777,24 @@ async function imageFromUrl(url: string): Promise<LoadedCanvasImage> {
     }
   }
 
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const element = new Image();
-    element.onload = () => resolve(element);
-    element.onerror = () => reject(new Error("Image could not be decoded."));
-    element.src = objectUrl;
-  });
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Image could not be decoded."));
+      element.src = objectUrl;
+    });
 
-  return {
-    image,
-    width: image.naturalWidth || image.width,
-    height: image.naturalHeight || image.height,
-    close: () => URL.revokeObjectURL(objectUrl),
-  };
+    return {
+      image,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+      close: () => URL.revokeObjectURL(objectUrl),
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
 }
 
 async function photoUrlForExport(
@@ -524,26 +805,6 @@ async function photoUrlForExport(
   if (photo.objectUrl) return photo.objectUrl;
   if (photo.thumbnailObjectUrl) return photo.thumbnailObjectUrl;
   throw new Error("This photograph is not available for export.");
-}
-
-async function loadDrawnPhotos(
-  model: DailyStampExportArtifactModel,
-  resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
-) {
-  const loaded: DrawnPhoto[] = [];
-  try {
-    for (const item of model.photos) {
-      const url = await photoUrlForExport(item.photo, resolvePhotoUrl);
-      loaded.push({
-        ...item,
-        source: await imageFromUrl(url),
-      });
-    }
-    return loaded;
-  } catch (error) {
-    loaded.forEach((item) => item.source.close());
-    throw error;
-  }
 }
 
 async function loadBrandLogo(brandMark: DailyStampExportBrandMark) {
@@ -563,28 +824,54 @@ async function loadThemeTexture(theme: JournalTheme) {
 function drawBrandMark({
   context,
   brandLogo,
+  theme,
 }: {
   context: CanvasRenderingContext2D;
   brandLogo?: LoadedCanvasImage;
+  theme: JournalTheme;
 }) {
   if (!brandLogo) return;
 
-  const size = 136;
-  const x = DAILY_STAMP_EXPORT_WIDTH - 96 - size;
-  const y = DAILY_STAMP_EXPORT_HEIGHT - 108 - size;
+  const size = dailyStampExportLayout.logoBoxSize;
+  const x = (DAILY_STAMP_EXPORT_WIDTH - size) / 2;
+  const y = DAILY_STAMP_EXPORT_HEIGHT - dailyStampExportLayout.logoBottom - size;
   const ratio = Math.min(size / brandLogo.width, size / brandLogo.height);
   const width = brandLogo.width * ratio;
   const height = brandLogo.height * ratio;
+  const drawX = x + (size - width) / 2;
+  const drawY = y + (size - height) / 2;
+
+  if (isLightTheme(theme)) {
+    const tintCanvas = document.createElement("canvas");
+    tintCanvas.width = Math.max(1, Math.round(width));
+    tintCanvas.height = Math.max(1, Math.round(height));
+    const tintContext = tintCanvas.getContext("2d");
+
+    if (tintContext) {
+      tintContext.imageSmoothingEnabled = true;
+      tintContext.imageSmoothingQuality = "high";
+      tintContext.drawImage(
+        brandLogo.image,
+        0,
+        0,
+        tintCanvas.width,
+        tintCanvas.height,
+      );
+      tintContext.globalCompositeOperation = "source-in";
+      tintContext.fillStyle = brand.deepBurgundy;
+      tintContext.fillRect(0, 0, tintCanvas.width, tintCanvas.height);
+
+      context.save();
+      context.globalAlpha = 0.72;
+      context.drawImage(tintCanvas, drawX, drawY, width, height);
+      context.restore();
+      return;
+    }
+  }
 
   context.save();
-  context.globalAlpha = 0.92;
-  context.drawImage(
-    brandLogo.image,
-    x + (size - width) / 2,
-    y + (size - height) / 2,
-    width,
-    height,
-  );
+  context.globalAlpha = 0.78;
+  context.drawImage(brandLogo.image, drawX, drawY, width, height);
   context.restore();
 }
 
@@ -593,87 +880,116 @@ export async function renderDailyMemoryStampExport({
   resolvePhotoUrl,
   theme = defaultJournalTheme,
   brandMark = defaultDailyStampExportBrandMark,
+  journalTitle,
 }: DailyStampExportRenderInput): Promise<Blob> {
   const resolvedTheme = resolveJournalTheme(theme);
-  const model = dailyStampExportArtifactModel({ memory, brandMark });
-  const loadedPhotos = await loadDrawnPhotos(model, resolvePhotoUrl);
-  const brandLogo = await loadBrandLogo(model.brandMark);
+  const model = dailyStampExportArtifactModel({ memory, brandMark, journalTitle });
+  const { displayFont, utilityFont } = await loadDailyStampExportFonts();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = DAILY_STAMP_EXPORT_WIDTH;
+  canvas.height = DAILY_STAMP_EXPORT_HEIGHT;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) throw new Error("Canvas is not available.");
+
   const themeTexture = await loadThemeTexture(resolvedTheme);
-
   try {
-    const canvas = document.createElement("canvas");
-    canvas.width = DAILY_STAMP_EXPORT_WIDTH;
-    canvas.height = DAILY_STAMP_EXPORT_HEIGHT;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) throw new Error("Canvas is not available.");
-
     drawLeatherBackground(context, resolvedTheme, themeTexture);
-
-    context.fillStyle = resolvedTheme.mutedTextOnJournal;
-    context.font = "600 30px Avenir Next, Helvetica Neue, Arial, sans-serif";
-    context.fillText(model.dateLabel, 96, 230);
-
-    context.fillStyle = resolvedTheme.textOnJournal;
-    context.font =
-      "700 84px Iowan Old Style, Palatino Linotype, Palatino, Georgia, serif";
-    const title = drawWrappedText({
-      context,
-      text: model.title,
-      x: 96,
-      y: 328,
-      maxWidth: DAILY_STAMP_EXPORT_WIDTH - 192,
-      maxLines: 3,
-      lineHeight: 88,
-    });
-
-    const rowSizes = buildStampFrameRows(model.photos).map(
-      (row) => row.items.length,
-    );
-    const maxSheetTop = Math.max(520, title.bottom + 92);
-    const availableHeight = 1510 - maxSheetTop;
-    const sheet = sheetSizeForRows(rowSizes, 828, availableHeight);
-    const paperPadding = 34;
-    const paperWidth = sheet.width + paperPadding * 2;
-    const paperHeight = sheet.height + paperPadding * 2;
-    const paperX = (DAILY_STAMP_EXPORT_WIDTH - paperWidth) / 2;
-    const paperY = maxSheetTop;
-    drawPaperRect(context, paperX, paperY, paperWidth, paperHeight, resolvedTheme);
-
-    context.fillStyle = resolvedTheme.paperSurfaceMuted;
-    context.fillRect(
-      paperX + paperPadding,
-      paperY + paperPadding,
-      sheet.width,
-      sheet.height,
-    );
-
-    let cursorY = paperY + paperPadding;
-    const rows = buildStampFrameRows(loadedPhotos);
-    rows.forEach((row, rowIndex) => {
-      const rowSize = row.items.length;
-      const cellSize = (sheet.width - sheet.gap * (rowSize - 1)) / rowSize;
-      const rowX = paperX + paperPadding + (sheet.width - (cellSize * rowSize + sheet.gap * (rowSize - 1))) / 2;
-      row.items.forEach((photo, index) => {
-        drawPhotoFrame({
-          context,
-          photo,
-          x: rowX + index * (cellSize + sheet.gap),
-          y: cursorY,
-          size: cellSize,
-          theme: resolvedTheme,
-        });
-      });
-      cursorY += cellSize + (rowIndex < rows.length - 1 ? sheet.gap : 0);
-    });
-
-    drawBrandMark({ context, brandLogo });
-
-    return canvasToBlob(canvas, DAILY_STAMP_EXPORT_MIME_TYPE);
   } finally {
-    loadedPhotos.forEach((item) => item.source.close());
-    brandLogo?.close();
     themeTexture?.close();
   }
+
+  const layout = dailyStampExportLayout;
+  const overlayX = layout.overlayX;
+  const overlayWidth = layout.overlayWidth;
+  const overlayPadding = layout.overlayPadding;
+  const overlayInnerX = overlayX + overlayPadding;
+  const overlayInnerWidth = overlayWidth - overlayPadding * 2;
+
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = exportJournalHeaderColor(resolvedTheme);
+  context.font = `600 ${layout.journalTitleFontSize}px ${displayFont}`;
+  drawCenteredWrappedText({
+    context,
+    text: model.journalTitle,
+    x: DAILY_STAMP_EXPORT_WIDTH / 2,
+    centerY: layout.journalTitleCenterY,
+    maxWidth: layout.journalTitleMaxWidth,
+    lineHeight: layout.journalTitleLineHeight,
+    maxLines: 2,
+  });
+
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  const gridColumns = photoGridColumns(model.photos.length);
+  const gridGap = layout.gridGap;
+  const gridCell =
+    gridColumns === 1
+      ? Math.min(overlayInnerWidth, layout.singlePhotoMaxWidth)
+      : (overlayInnerWidth - gridGap * (gridColumns - 1)) / gridColumns;
+  const gridRows = Math.ceil(model.photos.length / gridColumns);
+  const gridHeight =
+    model.photos.length > 0
+      ? gridRows * gridCell + Math.max(0, gridRows - 1) * gridGap
+      : 0;
+  const overlayHeight = layout.gridTopOffset + gridHeight + overlayPadding;
+  const overlayTop = Math.max(
+    layout.overlayMinTop,
+    Math.round(layout.overlayCenterY - overlayHeight / 2),
+  );
+  const dateBaseline = overlayTop + layout.dateBaselineOffset;
+  const titleBaseline = overlayTop + layout.titleBaselineOffset;
+  const gridTop = overlayTop + layout.gridTopOffset;
+
+  drawExportOverlay({
+    context,
+    theme: resolvedTheme,
+    x: overlayX,
+    y: overlayTop,
+    width: overlayWidth,
+    height: overlayHeight,
+  });
+
+  context.fillStyle = exportUtilityColor(resolvedTheme);
+  context.font = `600 ${layout.dateFontSize}px ${utilityFont}`;
+  drawTrackedText({
+    context,
+    text: model.dateLabel,
+    x: overlayInnerX,
+    y: dateBaseline,
+    letterSpacing: layout.dateLetterSpacing,
+  });
+
+  context.fillStyle = exportTitleColor(resolvedTheme);
+  context.font = `500 ${layout.titleFontSize}px ${displayFont}`;
+  drawSingleLineText({
+    context,
+    text: model.title,
+    x: overlayInnerX,
+    y: titleBaseline,
+    maxWidth: overlayInnerWidth,
+  });
+
+  await drawPhotoGrid({
+    context,
+    photos: model.photos,
+    resolvePhotoUrl,
+    x: overlayInnerX,
+    y: gridTop,
+    width: overlayInnerWidth,
+    gap: layout.gridGap,
+    singlePhotoMaxWidth: layout.singlePhotoMaxWidth,
+  });
+
+  const brandLogo = await loadBrandLogo(model.brandMark);
+  try {
+    drawBrandMark({ context, brandLogo, theme: resolvedTheme });
+  } finally {
+    brandLogo?.close();
+  }
+
+  return canvasToBlob(canvas, DAILY_STAMP_EXPORT_MIME_TYPE);
 }
 
 export function createDailyStampExportFile(blob: Blob, filename: string) {

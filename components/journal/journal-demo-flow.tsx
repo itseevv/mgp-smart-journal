@@ -281,8 +281,8 @@ function createDemoDraft(
 
 function createDemoBackfillDraft() {
   return {
-    ...createEmptyMemory("2026-04-12T16:00:00.000Z"),
-    localDate: "2026-04-12",
+    ...createEmptyMemory(DEMO_NOW_ISO),
+    localDate: "",
     localTimezone: "Europe/London",
   };
 }

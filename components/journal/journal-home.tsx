@@ -9,7 +9,7 @@ import { JournalIdentityHeader } from "@/components/journal/journal-identity-hea
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
 import { useMonthQueryState } from "@/components/journal/use-month-query-state";
 import { memoryMediaConfig } from "@/data/memory-demo";
-import type { JournalHomeData } from "@/data/journal";
+import { journalConfig, type JournalHomeData } from "@/data/journal";
 import {
   findStampForLocalDate,
   monthlyStampArchive,
@@ -32,6 +32,10 @@ type JournalHomeProps = {
 
 function coverStoragePath(memory: JournalHomeData["memories"][number]) {
   return memory.firstThumbnailStoragePath ?? memory.firstPhotoStoragePath;
+}
+
+function clampJournalTitle(value: string) {
+  return value.slice(0, journalConfig.maxTitleLength);
 }
 
 export function JournalHome({
@@ -120,7 +124,7 @@ export function JournalHome({
 
     setNavigationBusy(true);
     const memoryId = crypto.randomUUID();
-    router.push(`/c/${publicToken}/m/${memoryId}`);
+    router.push(`/c/${publicToken}/m/${memoryId}?create=today`);
   };
 
   const sealAnotherDay = () => {
@@ -135,12 +139,22 @@ export function JournalHome({
 
   const saveTitle = async () => {
     if (!journal || titleBusy) return;
+    if (titleDraft.length > journalConfig.maxTitleLength) {
+      setTitleError(
+        `Shorten this title to ${journalConfig.maxTitleLength} characters before saving.`,
+      );
+      return;
+    }
     setTitleBusy(true);
     setTitleError("");
     try {
-      const title = await updateJournalTitle(client, capsuleId, titleDraft);
+      const title = await updateJournalTitle(
+        client,
+        capsuleId,
+        clampJournalTitle(titleDraft),
+      );
       setJournal({ ...journal, title });
-      setTitleDraft(title);
+      setTitleDraft(clampJournalTitle(title));
       setIsEditingTitle(false);
     } catch {
       setTitleError("The journal title could not be saved. Please retry.");
@@ -220,6 +234,7 @@ export function JournalHome({
           }}
           onBeginRename={() => {
             setTitleError("");
+            setTitleDraft(journal.title);
             setIsEditingTitle(true);
           }}
           onLock={lock}

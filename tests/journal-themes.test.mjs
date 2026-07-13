@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   defaultJournalTheme,
+  journalTitleUsesDarkInk,
   journalThemeStyle,
   resolveJournalTheme,
 } from "../data/journal-themes.ts";
@@ -84,6 +85,66 @@ test("journal theme style uses uploaded texture at full opacity", () => {
   assert.equal(style["--journal-mobile-background-position"], "50% 50%");
   assert.equal(style["--journal-overlay-color"], "transparent");
   assert.equal(style["--journal-overlay-opacity"], 0);
+});
+
+test("journal theme style derives Seal the Day tray colors from the active theme", () => {
+  const blackTheme = resolveJournalTheme({
+    slug: "black",
+    name: "Black leather",
+    fallbackBackgroundColor: "#181614",
+    textPrimary: "#f4ecdf",
+    textSecondary: "#cfc4b5",
+    paperSurface: "#efe4d1",
+    paperSurfaceMuted: "#dccbb0",
+    stampBorder: "#3a332d",
+    accentColor: "#b89860",
+    logoVariant: "light",
+  });
+  const style = journalThemeStyle(blackTheme);
+
+  assert.match(String(style["--journal-home-cta-tray-bg"]), /#181614/);
+  assert.match(String(style["--journal-home-cta-tray-shadow"]), /#181614/);
+  assert.match(String(style["--journal-home-control-bg"]), /#efe4d1/);
+  assert.equal(style["--journal-home-control-text"], "#f4ecdf");
+  assert.doesNotMatch(String(style["--journal-home-cta-tray-bg"]), /#421819/i);
+});
+
+test("blush journal titles use the same dark title color as cream without changing blush controls", () => {
+  const blushStyle = journalThemeStyle(
+    resolveJournalTheme({
+      slug: "blush",
+      name: "Pink",
+      fallbackBackgroundColor: "#b97878",
+      textPrimary: "#fff8ed",
+      logoVariant: "light",
+    }),
+  );
+  const creamStyle = journalThemeStyle(
+    resolveJournalTheme({
+      slug: "cream",
+      name: "White",
+      logoVariant: "dark",
+    }),
+  );
+
+  assert.equal(
+    blushStyle["--journal-home-title"],
+    creamStyle["--journal-home-title"],
+  );
+  assert.notEqual(
+    blushStyle["--journal-home-cta-bg"],
+    creamStyle["--journal-home-cta-bg"],
+  );
+  assert.equal(
+    journalTitleUsesDarkInk(resolveJournalTheme({ slug: "blush" })),
+    true,
+  );
+  assert.equal(
+    journalTitleUsesDarkInk(
+      resolveJournalTheme({ slug: "black", logoVariant: "light" }),
+    ),
+    false,
+  );
 });
 
 test("journal theme resolver clamps unsafe numeric rendering values", () => {

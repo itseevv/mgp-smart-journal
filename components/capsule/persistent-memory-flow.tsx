@@ -44,7 +44,7 @@ type PersistentMemoryFlowProps = {
   capsuleId: string;
   publicToken: string;
   memoryId?: string;
-  createIntent?: "backfill";
+  createIntent?: "today" | "backfill";
   initialMemory?: PersistentMemoryEntry;
   maxPhotos?: number;
   productMode?: MemoryFormProductMode;
@@ -81,14 +81,9 @@ function withoutPersistenceFields(memory: PersistentMemoryEntry): MemoryDraft {
   };
 }
 
-function createDraftForIntent(createIntent?: "backfill") {
-  if (createIntent !== "backfill") {
-    return createEmptyMemory(new Date().toISOString());
-  }
-
-  const backfillDate = new Date();
-  backfillDate.setDate(backfillDate.getDate() - 1);
-  return createEmptyMemory(backfillDate.toISOString());
+function createDraftForIntent(createIntent?: "today" | "backfill") {
+  const draft = createEmptyMemory(new Date().toISOString());
+  return createIntent === "backfill" ? { ...draft, localDate: "" } : draft;
 }
 
 export function PersistentMemoryFlow({
@@ -392,20 +387,8 @@ export function PersistentMemoryFlow({
       data-journal-memory-flow={isJournalMode ? "themed-leather" : undefined}
       style={isJournalMode && theme ? journalThemeStyle(theme) : undefined}
     >
-      {isJournalMode && mode === "view" ? null : (
-        <div className="mb-3 flex items-center justify-between">
-          {isJournalMode && onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              disabled={formBusy}
-              className="font-sans text-[0.68rem] font-semibold text-paper/80 underline underline-offset-4 disabled:opacity-40"
-            >
-              Back to journal
-            </button>
-          ) : (
-            <span />
-          )}
+      {!isJournalMode ? (
+        <div className="mb-3 flex justify-end">
           <button
             type="button"
             onClick={() => {
@@ -418,7 +401,7 @@ export function PersistentMemoryFlow({
             Lock journal
           </button>
         </div>
-      )}
+      ) : null}
       {mode === "view" && saved ? (
         <CompletedState
           memory={saved}
