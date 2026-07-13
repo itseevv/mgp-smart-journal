@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+
+import sharp from "sharp";
+
+import {
+  POST as postDailyStampExport,
+  prepareStoredPhotoInput,
+  renderServerDailyStampPng,
+} from "../app/api/export/daily-stamp/route.ts";
+import { defaultJournalTheme } from "../data/journal-themes.ts";
 
 import {
   DAILY_STAMP_EXPORT_ASPECT_RATIO,
@@ -320,4 +330,292 @@ test("daily stamp export canvas uses dedicated 9:16 scale tokens", () => {
   assert.match(exportSource, /drawTrackedText/);
   assert.doesNotMatch(exportSource, /overlayTop: 153/);
   assert.doesNotMatch(exportSource, /strokeRect|perforated|postage/i);
+});
+
+test("persisted daily stamp export is authenticated and rendered on the server", async () => {
+  const routeSource = readSource("app/api/export/daily-stamp/route.ts");
+  const composerSource = readSource(
+    "components/export/daily-stamp-export-composer.tsx",
+  );
+
+  assert.match(routeSource, /runtime = "nodejs"/);
+  assert.match(routeSource, /Authorization: `Bearer \$\{token\}`/);
+  assert.match(routeSource, /\.from\("memories"\)[\s\S]*\.select\("id"\)/);
+  assert.match(routeSource, /getAdminSupabaseClient/);
+  assert.match(routeSource, /thumbnail_storage_path/);
+  assert.match(routeSource, /slice\(0, MAX_EXPORTED_PHOTOS\)/);
+  assert.match(routeSource, /Cache-Control": "private, no-store"/);
+  assert.match(routeSource, /MAX_PNG_RESPONSE_BYTES = 4 \* 1024 \* 1024/);
+  assert.match(routeSource, /MAX_TOTAL_SOURCE_BYTES/);
+  assert.doesNotMatch(routeSource, /photos\.map[\s\S]*Promise\.all/);
+  assert.doesNotMatch(routeSource, /fetch\(theme\.texture/i);
+
+  assert.match(composerSource, /fetch\("\/api\/export\/daily-stamp"/);
+  assert.match(composerSource, /persistentMemoryId\(memory\)/);
+  assert.match(composerSource, /const renderExportBlob = useCallback/);
+  assert.match(composerSource, /controller\.abort\(\)/);
+
+  const invalid = await postDailyStampExport(
+    new Request("https://journal-chip.test/api/export/daily-stamp", {
+      method: "POST",
+      body: JSON.stringify({ memoryId: "not-a-uuid" }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(await invalid.json(), { ok: false, code: "INVALID_REQUEST" });
+
+  const unauthenticated = await postDailyStampExport(
+    new Request("https://journal-chip.test/api/export/daily-stamp", {
+      method: "POST",
+      body: JSON.stringify({
+        memoryId: "123e4567-e89b-42d3-a456-426614174000",
+      }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  assert.equal(unauthenticated.status, 401);
+  assert.deepEqual(await unauthenticated.json(), {
+    ok: false,
+    code: "AUTH_REQUIRED",
+  });
+
+  const oversized = await postDailyStampExport(
+    new Request("https://journal-chip.test/api/export/daily-stamp", {
+      method: "POST",
+      body: JSON.stringify({ memoryId: "x".repeat(2_000) }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  assert.equal(oversized.status, 413);
+  assert.deepEqual(await oversized.json(), {
+    ok: false,
+    code: "REQUEST_TOO_LARGE",
+  });
+});
+
+test("server daily stamp renderer handles 9 photos and applies normalized cover crop", async () => {
+  const leftHalf = await sharp({
+    create: {
+      width: 100,
+      height: 100,
+      channels: 3,
+      background: "#ff0000",
+    },
+  })
+    .png()
+    .toBuffer();
+  const rightHalf = await sharp({
+    create: {
+      width: 100,
+      height: 100,
+      channels: 3,
+      background: "#0000ff",
+    },
+  })
+    .png()
+    .toBuffer();
+  const cover = await sharp({
+    create: {
+      width: 200,
+      height: 100,
+      channels: 3,
+      background: "#ff0000",
+    },
+  })
+    .composite([
+      { input: leftHalf, left: 0, top: 0 },
+      { input: rightHalf, left: 100, top: 0 },
+    ])
+    .png()
+    .toBuffer();
+  const remaining = await Promise.all(
+    Array.from({ length: 8 }, (_, index) =>
+      sharp({
+        create: {
+          width: 64,
+          height: 64,
+          channels: 3,
+          background: index % 2 ? "#efe7d6" : "#124f4d",
+        },
+      })
+        .png()
+        .toBuffer(),
+    ),
+  );
+  const ninePhotoMemory = {
+    ...memory,
+    photos: Array.from({ length: 9 }, (_, index) =>
+      photo({
+        id: `photo-${index}`,
+        width: index === 0 ? 200 : 64,
+        height: index === 0 ? 100 : 64,
+        cropMetadata:
+          index === 0
+            ? {
+                ...cropMetadata,
+                x: 0.5,
+                y: 0,
+                width: 0.5,
+                height: 1,
+                imageWidth: 200,
+                imageHeight: 100,
+              }
+            : undefined,
+      }),
+    ),
+  };
+
+  const png = await renderServerDailyStampPng({
+    memory: ninePhotoMemory,
+    journalTitle: "My own lil space💛",
+    theme: {
+      ...defaultJournalTheme,
+      slug: "teal",
+      key: "teal",
+      journalBackground: "#124f4d",
+      fallbackBackgroundColor: "#124f4d",
+      textPrimary: "#f4efe1",
+      textOnJournal: "#f4efe1",
+      textSecondary: "#c9d8cd",
+      mutedTextOnJournal: "#c9d8cd",
+    },
+    photos: [
+      { input: cover, cropMetadata: ninePhotoMemory.photos[0].cropMetadata },
+      ...remaining.map((input) => ({ input })),
+    ],
+  });
+  const result = sharp(png);
+  const metadata = await result.metadata();
+  assert.equal(metadata.format, "png");
+  assert.equal(metadata.width, DAILY_STAMP_EXPORT_WIDTH);
+  assert.equal(metadata.height, DAILY_STAMP_EXPORT_HEIGHT);
+  assert.ok(png.byteLength > 0);
+  assert.ok(png.byteLength <= 4 * 1024 * 1024);
+
+  const sampled = await result
+    .extract({ left: 207, top: 703, width: 1, height: 1 })
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+  assert.ok(sampled[2] > 200, `expected blue crop, got ${sampled.join(",")}`);
+  assert.ok(sampled[0] < 50, `expected blue crop, got ${sampled.join(",")}`);
+});
+
+test("server export falls back from a corrupt thumbnail to the display photo", async () => {
+  const display = await sharp({
+    create: {
+      width: 320,
+      height: 240,
+      channels: 3,
+      background: "#124f4d",
+    },
+  })
+    .png()
+    .toBuffer();
+  const requested = [];
+  const prepared = await prepareStoredPhotoInput({
+    sources: [
+      { storagePath: "thumb.webp", maxBytes: 100, maxInputPixels: 1_000_000 },
+      { storagePath: "display.webp", maxBytes: 1_000_000, maxInputPixels: 5_000_000 },
+    ],
+    size: 327,
+    download: async (storagePath) => {
+      requested.push(storagePath);
+      return storagePath === "thumb.webp" ? Buffer.from("not-an-image") : display;
+    },
+  });
+  assert.deepEqual(requested, ["thumb.webp", "display.webp"]);
+  assert.equal(prepared.prepared, true);
+  const metadata = await sharp(prepared.input).metadata();
+  assert.equal(metadata.width, 327);
+  assert.equal(metadata.height, 327);
+});
+
+test("server export sanitizes XML controls and survives a corrupt texture", async () => {
+  const png = await renderServerDailyStampPng({
+    memory: {
+      ...memory,
+      title: "Control\u0001 & <tag> 👩🏽‍💻 café 你好",
+      photos: [],
+    },
+    journalTitle: "Family 👨‍👩‍👧‍👦 & friends\u000B",
+    photos: [],
+    texture: Buffer.from("corrupt-theme-texture"),
+  });
+  const metadata = await sharp(png).metadata();
+  assert.equal(metadata.format, "png");
+  assert.equal(metadata.width, DAILY_STAMP_EXPORT_WIDTH);
+  assert.equal(metadata.height, DAILY_STAMP_EXPORT_HEIGHT);
+});
+
+test("server export enforces photo-count boundaries", async () => {
+  const one = await sharp({
+    create: {
+      width: 64,
+      height: 64,
+      channels: 3,
+      background: "#efe7d6",
+    },
+  })
+    .png()
+    .toBuffer();
+  const onePhotoMemory = { ...memory, photos: [photo({ id: "one" })] };
+  const png = await renderServerDailyStampPng({
+    memory: onePhotoMemory,
+    journalTitle: "One",
+    photos: [{ input: one }],
+  });
+  assert.equal((await sharp(png).metadata()).format, "png");
+
+  await assert.rejects(
+    renderServerDailyStampPng({
+      memory: { ...memory, photos: Array.from({ length: 10 }, (_, i) => photo({ id: `${i}` })) },
+      journalTitle: "Too many",
+      photos: Array.from({ length: 10 }, () => ({ input: one })),
+    }),
+    /at most 9/,
+  );
+  await assert.rejects(
+    renderServerDailyStampPng({
+      memory: onePhotoMemory,
+      journalTitle: "Mismatch",
+      photos: [],
+    }),
+    /do not match/,
+  );
+});
+
+test("high-entropy nine-photo export stays below Vercel's buffered response limit", async () => {
+  const inputs = await Promise.all(
+    Array.from({ length: 9 }, () =>
+      sharp(randomBytes(420 * 420 * 3), {
+        raw: { width: 420, height: 420, channels: 3 },
+      })
+        .png()
+        .toBuffer(),
+    ),
+  );
+  const texture = await sharp(randomBytes(540 * 960 * 3), {
+    raw: { width: 540, height: 960, channels: 3 },
+  })
+    .png()
+    .toBuffer();
+  const noisyMemory = {
+    ...memory,
+    photos: Array.from({ length: 9 }, (_, index) =>
+      photo({ id: `noise-${index}`, width: 420, height: 420 }),
+    ),
+  };
+  const png = await renderServerDailyStampPng({
+    memory: noisyMemory,
+    journalTitle: "Nine noisy moments",
+    photos: inputs.map((input) => ({ input })),
+    texture,
+  });
+  assert.ok(
+    png.byteLength <= 4 * 1024 * 1024,
+    `expected <= 4 MiB, got ${png.byteLength}`,
+  );
+  assert.equal((await sharp(png).metadata()).format, "png");
 });
