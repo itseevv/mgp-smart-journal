@@ -28,6 +28,9 @@ export const DAILY_STAMP_EXPORT_MIME_TYPE = "image/png";
 export const DAILY_STAMP_EXPORT_LOGO_SRC =
   "/brand/mgp-full-logo-transparent.png";
 
+const DAILY_STAMP_EXPORT_THUMBNAIL_PHOTO_COUNT = 5;
+const DAILY_STAMP_EXPORT_MAX_TEXTURE_PIXELS = 2_500_000;
+
 const DEFAULT_DAILY_STAMP_EXPORT_JOURNAL_TITLE = "My Journal";
 
 const brand = {
@@ -209,6 +212,39 @@ function finitePositive(value?: number) {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? value
     : undefined;
+}
+
+export type DailyStampExportImageStrategy = {
+  photoVariant: "display" | "thumbnail";
+  useThemeTexture: boolean;
+};
+
+export function dailyStampExportImageStrategy({
+  photoCount,
+  textureUrl,
+  textureWidth,
+  textureHeight,
+}: {
+  photoCount: number;
+  textureUrl?: string;
+  textureWidth?: number;
+  textureHeight?: number;
+}): DailyStampExportImageStrategy {
+  const width = finitePositive(textureWidth);
+  const height = finitePositive(textureHeight);
+  const texturePixels = width && height ? width * height : undefined;
+
+  return {
+    photoVariant:
+      photoCount >= DAILY_STAMP_EXPORT_THUMBNAIL_PHOTO_COUNT
+        ? "thumbnail"
+        : "display",
+    useThemeTexture: Boolean(
+      textureUrl &&
+        texturePixels &&
+        texturePixels <= DAILY_STAMP_EXPORT_MAX_TEXTURE_PIXELS,
+    ),
+  };
 }
 
 function rgbaFromHex(hex: string, alpha: number) {
@@ -673,6 +709,7 @@ async function drawPhotoGrid({
   context,
   photos,
   resolvePhotoUrl,
+  photoVariant,
   x,
   y,
   width,
@@ -682,6 +719,7 @@ async function drawPhotoGrid({
   context: CanvasRenderingContext2D;
   photos: DailyStampExportPhotoItem[];
   resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"];
+  photoVariant: DailyStampExportImageStrategy["photoVariant"];
   x: number;
   y: number;
   width: number;
@@ -702,7 +740,11 @@ async function drawPhotoGrid({
     let source: LoadedCanvasImage | undefined;
 
     try {
-      source = await loadPhotoForExport(item.photo, resolvePhotoUrl);
+      source = await loadPhotoForExport(
+        item.photo,
+        resolvePhotoUrl,
+        photoVariant,
+      );
       drawPhotoTile({
         context,
         photo: { ...item, source },
@@ -726,14 +768,26 @@ async function drawPhotoGrid({
 async function loadPhotoForExport(
   photo: MemoryPhoto,
   resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
+  photoVariant: DailyStampExportImageStrategy["photoVariant"] = "display",
 ) {
   try {
-    const url = await photoUrlForExport(photo, resolvePhotoUrl);
+    const url = await photoUrlForExport(
+      photo,
+      resolvePhotoUrl,
+      photoVariant,
+    );
     return await imageFromUrl(url);
-  } catch (error) {
-    if (!resolvePhotoUrl) throw error;
-    const refreshedUrl = await resolvePhotoUrl(photo, "display", true);
-    return imageFromUrl(refreshedUrl);
+  } catch (firstError) {
+    if (!resolvePhotoUrl) throw firstError;
+
+    try {
+      const refreshedUrl = await resolvePhotoUrl(photo, photoVariant, true);
+      return await imageFromUrl(refreshedUrl);
+    } catch (refreshError) {
+      if (photoVariant === "display") throw refreshError;
+      const displayUrl = await resolvePhotoUrl(photo, "display", true);
+      return imageFromUrl(displayUrl);
+    }
   }
 }
 
@@ -800,10 +854,16 @@ async function imageFromUrl(url: string): Promise<LoadedCanvasImage> {
 async function photoUrlForExport(
   photo: MemoryPhoto,
   resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
+  photoVariant: DailyStampExportImageStrategy["photoVariant"] = "display",
 ) {
-  if (resolvePhotoUrl) return resolvePhotoUrl(photo, "display");
-  if (photo.objectUrl) return photo.objectUrl;
-  if (photo.thumbnailObjectUrl) return photo.thumbnailObjectUrl;
+  if (resolvePhotoUrl) return resolvePhotoUrl(photo, photoVariant);
+  if (photoVariant === "thumbnail") {
+    if (photo.thumbnailObjectUrl) return photo.thumbnailObjectUrl;
+    if (photo.objectUrl) return photo.objectUrl;
+  } else {
+    if (photo.objectUrl) return photo.objectUrl;
+    if (photo.thumbnailObjectUrl) return photo.thumbnailObjectUrl;
+  }
   throw new Error("This photograph is not available for export.");
 }
 
@@ -812,8 +872,8 @@ async function loadBrandLogo(brandMark: DailyStampExportBrandMark) {
   return imageFromUrl(brandMark.src);
 }
 
-async function loadThemeTexture(theme: JournalTheme) {
-  if (!theme.textureUrl) return undefined;
+async function loadThemeTexture(theme: JournalTheme, useThemeTexture: boolean) {
+  if (!theme.textureUrl || !useThemeTexture) return undefined;
   try {
     return await imageFromUrl(theme.textureUrl);
   } catch {
@@ -884,6 +944,12 @@ export async function renderDailyMemoryStampExport({
 }: DailyStampExportRenderInput): Promise<Blob> {
   const resolvedTheme = resolveJournalTheme(theme);
   const model = dailyStampExportArtifactModel({ memory, brandMark, journalTitle });
+  const imageStrategy = dailyStampExportImageStrategy({
+    photoCount: model.photos.length,
+    textureUrl: resolvedTheme.textureUrl,
+    textureWidth: resolvedTheme.textureWidth,
+    textureHeight: resolvedTheme.textureHeight,
+  });
   const { displayFont, utilityFont } = await loadDailyStampExportFonts();
 
   const canvas = document.createElement("canvas");
@@ -892,7 +958,10 @@ export async function renderDailyMemoryStampExport({
   const context = canvas.getContext("2d", { alpha: false });
   if (!context) throw new Error("Canvas is not available.");
 
-  const themeTexture = await loadThemeTexture(resolvedTheme);
+  const themeTexture = await loadThemeTexture(
+    resolvedTheme,
+    imageStrategy.useThemeTexture,
+  );
   try {
     drawLeatherBackground(context, resolvedTheme, themeTexture);
   } finally {
@@ -975,6 +1044,7 @@ export async function renderDailyMemoryStampExport({
     context,
     photos: model.photos,
     resolvePhotoUrl,
+    photoVariant: imageStrategy.photoVariant,
     x: overlayInnerX,
     y: gridTop,
     width: overlayInnerWidth,

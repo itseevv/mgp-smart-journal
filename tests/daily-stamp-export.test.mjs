@@ -11,6 +11,7 @@ import {
   canShareDailyStampExport,
   dailyStampExportArtifactModel,
   dailyStampExportFilename,
+  dailyStampExportImageStrategy,
   dailyStampExportPhotoItems,
   defaultDailyStampExportBrandMark,
 } from "../lib/export/daily-memory-stamp-export.ts";
@@ -140,11 +141,38 @@ test("daily stamp export filename is safe and token-free", () => {
   assert.doesNotMatch(filename, /https?:|token|signed|capsules\//i);
 });
 
-test("daily stamp export draws the high-resolution journal theme background", () => {
+test("daily stamp export keeps image decoding within a mobile-safe budget", () => {
+  assert.deepEqual(
+    dailyStampExportImageStrategy({
+      photoCount: 9,
+      textureUrl: "https://assets.example/forest-leather.png",
+      textureWidth: 2160,
+      textureHeight: 3840,
+    }),
+    { photoVariant: "thumbnail", useThemeTexture: false },
+  );
+  assert.deepEqual(
+    dailyStampExportImageStrategy({
+      photoCount: 4,
+      textureUrl: "https://assets.example/safe-leather.png",
+      textureWidth: 1080,
+      textureHeight: 1920,
+    }),
+    { photoVariant: "display", useThemeTexture: true },
+  );
+  assert.deepEqual(
+    dailyStampExportImageStrategy({
+      photoCount: 4,
+      textureUrl: "https://assets.example/unknown-leather.png",
+    }),
+    { photoVariant: "display", useThemeTexture: false },
+  );
+
   const exportSource = readSource("lib/export/daily-memory-stamp-export.ts");
 
   assert.match(exportSource, /loadThemeTexture/);
   assert.match(exportSource, /theme\.textureUrl/);
+  assert.match(exportSource, /DAILY_STAMP_EXPORT_MAX_TEXTURE_PIXELS/);
   assert.match(exportSource, /computePreparedPortraitFullFrameRect/);
   assert.doesNotMatch(exportSource, /focusX:\s*theme\.focusX/);
   assert.doesNotMatch(exportSource, /zoom:\s*theme\.zoom/);
@@ -170,8 +198,9 @@ test("daily stamp export releases decoded images as soon as each layer is drawn"
   assert.match(exportSource, /async function drawPhotoGrid/);
   assert.match(
     exportSource,
-    /for \(const \[index, item\] of photos\.entries\(\)\)[\s\S]*source = await loadPhotoForExport\(item\.photo, resolvePhotoUrl\)[\s\S]*finally \{[\s\S]*source\?\.close\(\)/,
+    /for \(const \[index, item\] of photos\.entries\(\)\)[\s\S]*source = await loadPhotoForExport\([\s\S]*item\.photo,[\s\S]*resolvePhotoUrl,[\s\S]*photoVariant,[\s\S]*finally \{[\s\S]*source\?\.close\(\)/,
   );
+  assert.match(exportSource, /resolvePhotoUrl\(photo, photoVariant, true\)/);
   assert.match(exportSource, /resolvePhotoUrl\(photo, "display", true\)/);
   assert.match(
     exportSource,
@@ -179,7 +208,7 @@ test("daily stamp export releases decoded images as soon as each layer is drawn"
   );
   assert.match(
     exportSource,
-    /const themeTexture = await loadThemeTexture\(resolvedTheme\)[\s\S]*try \{[\s\S]*drawLeatherBackground\(context, resolvedTheme, themeTexture\)[\s\S]*finally \{[\s\S]*themeTexture\?\.close\(\)/,
+    /const themeTexture = await loadThemeTexture\([\s\S]*resolvedTheme,[\s\S]*imageStrategy\.useThemeTexture,[\s\S]*try \{[\s\S]*drawLeatherBackground\(context, resolvedTheme, themeTexture\)[\s\S]*finally \{[\s\S]*themeTexture\?\.close\(\)/,
   );
   assert.match(exportSource, /await drawPhotoGrid\(/);
 });
