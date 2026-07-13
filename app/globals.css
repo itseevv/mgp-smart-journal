@@ -9,8 +9,8 @@
   --color-oxblood: var(--oxblood);
   --color-olive: var(--olive);
   --color-rule: var(--rule);
-  --font-serif: var(--font-editorial);
-  --font-sans: var(--font-interface);
+  --font-serif: var(--font-display);
+  --font-sans: var(--font-ui);
 }
 
 :root {
@@ -19,9 +19,11 @@
   --mgp-vintage-blush: #b28c7b;
   --mgp-warm-ivory: #e8dbcc;
   --mgp-cocoa-taupe: #62453a;
-  --mgp-display-font: "Cormorant Garamond", "Bodoni Moda",
-    "DM Serif Display", Georgia, serif;
-  --mgp-utility-font: Inter, Aptos, "Source Sans 3", system-ui, sans-serif;
+  --font-display: var(--font-brand-display), Georgia, serif;
+  --font-body: var(--font-brand-interface), system-ui, sans-serif;
+  --font-ui: var(--font-brand-interface), system-ui, sans-serif;
+  --mgp-display-font: var(--font-display);
+  --mgp-utility-font: var(--font-ui);
   --paper: #eee7d8;
   --paper-deep: #ded3bd;
   --leather: #42362f;
@@ -30,9 +32,6 @@
   --oxblood: #6f2f32;
   --olive: #66705a;
   --rule: rgba(62, 55, 44, 0.22);
-  --font-editorial: "Iowan Old Style", "Palatino Linotype", Palatino,
-    "Book Antiqua", Georgia, serif;
-  --font-interface: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
 }
 
 * {
@@ -47,7 +46,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-editorial);
+  font-family: var(--font-body);
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
 }
@@ -123,7 +122,9 @@ a:focus-visible {
   background-image: var(--journal-home-overlay-gradient);
   backdrop-filter: blur(1.5px);
   border: 0;
+  border-radius: 0.5rem;
   box-shadow: none;
+  overflow: hidden;
 }
 
 .journal-stage-overlay::before {
@@ -278,18 +279,25 @@ a:focus-visible {
 }
 
 .journal-identity-header__title {
+  display: -webkit-box;
   font-size: var(--journal-shell-title-size, 1.14rem);
-  font-weight: var(--journal-shell-title-weight, 500);
+  font-weight: var(--journal-shell-title-weight, 600);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   justify-self: center;
-  line-height: var(--journal-shell-title-line-height, 1.05);
-  max-width: min(15.5rem, 100%);
+  line-height: var(--journal-shell-title-line-height, 1.08);
+  max-width: min(13.75rem, 100%);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  padding-block: 0.05em 0.18em;
+  text-wrap: balance;
 }
 
 .journal-identity-header--home-variant-c .journal-identity-header__title {
-  --journal-shell-title-size: 1.42rem;
-  --journal-shell-title-line-height: 1;
-  --journal-shell-title-weight: 500;
-  max-width: min(15.25rem, 100%);
+  --journal-shell-title-size: 1.52rem;
+  --journal-shell-title-line-height: 1.12;
+  --journal-shell-title-weight: 600;
+  max-width: min(13.25rem, 100%);
 }
 
 .journal-identity-header__left-control {
@@ -401,7 +409,8 @@ a:focus-visible {
 }
 
 .journal-home-surface .journal-stage-overlay--month-sheet {
-  max-height: calc(100% - 8.75rem);
+  flex: 1 1 auto;
+  max-height: none;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -479,7 +488,7 @@ a:focus-visible {
   border-radius: 999px;
   color: var(--journal-home-control-text);
   display: inline-flex;
-  font-family: var(--font-interface);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   font-weight: 700;
   justify-content: center;
@@ -496,7 +505,7 @@ a:focus-visible {
   border-radius: 999px;
   color: var(--journal-home-control-text);
   display: inline-flex;
-  font-family: var(--font-interface);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   font-weight: 700;
   justify-content: center;
@@ -553,7 +562,7 @@ a:focus-visible {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
-  font-family: var(--font-interface);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
   font-weight: 700;
   justify-content: center;
@@ -617,7 +626,7 @@ a:focus-visible {
   background: transparent;
   border: 0;
   color: inherit;
-  font-family: var(--font-interface);
+  font-family: var(--font-ui);
   padding: 0;
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
@@ -1176,10 +1185,11 @@ a:focus-visible {
     var(--journal-form-overlay);
   backdrop-filter: blur(2px);
   border: 0;
+  border-radius: 0.5rem;
   box-shadow: none;
   color: var(--journal-paper-text, var(--ink));
   isolation: isolate;
-  overflow: visible;
+  overflow: hidden;
   padding: 1.25rem;
   position: relative;
 }
@@ -1205,6 +1215,20 @@ a:focus-visible {
 
 .journal-create-edit-form__header {
   border-bottom: 1px solid var(--journal-photo-edge);
+}
+
+.journal-create-edit-back-button {
+  background: color-mix(
+    in srgb,
+    var(--journal-paper-muted) 72%,
+    transparent
+  );
+  border: 0;
+  border-radius: 999px;
+  color: var(--journal-paper-text);
+  height: 2.75rem;
+  min-width: 2.75rem;
+  width: 2.75rem;
 }
 
 .journal-create-edit-form__eyebrow,

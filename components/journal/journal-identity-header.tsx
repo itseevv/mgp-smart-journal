@@ -41,6 +41,10 @@ export function JournalIdentityHeader({
   onLock,
 }: JournalIdentityHeaderProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const titleInputHintId = "journal-title-input-hint";
+  const displayTitle = title;
+  const editableTitle = titleDraft ?? displayTitle;
+  const titleLength = editableTitle.length;
   const canRename =
     showSettings &&
     Boolean(onBeginRename) &&
@@ -85,12 +89,23 @@ export function JournalIdentityHeader({
           </label>
           <input
             id="journal-title-input"
-            value={titleDraft ?? title}
+            value={editableTitle}
             maxLength={journalConfig.maxTitleLength}
+            aria-describedby={titleInputHintId}
             onChange={(event) => onTitleDraftChange?.(event.target.value)}
+            placeholder={`Up to ${journalConfig.maxTitleLength} characters`}
             className="w-full border-0 border-b border-[var(--journal-muted)] bg-transparent pb-1.5 font-serif text-[1.15rem] leading-tight text-[var(--journal-home-title)] outline-none placeholder:text-[var(--journal-muted)] focus:border-[var(--journal-accent-metal)]"
             autoFocus
           />
+          <p
+            id={titleInputHintId}
+            className="mt-1 flex items-center justify-between gap-3 font-sans text-[0.62rem] font-medium text-[var(--journal-muted)]"
+          >
+            <span>Up to {journalConfig.maxTitleLength} characters</span>
+            <span>
+              {titleLength}/{journalConfig.maxTitleLength}
+            </span>
+          </p>
           <div className="mt-2 flex justify-center gap-4 font-sans text-[0.68rem]">
             <TextLinkButton
               type="button"
@@ -125,11 +140,12 @@ export function JournalIdentityHeader({
           </span>
           <h1
             id="journal-title"
-            className="journal-identity-header__title truncate text-center font-serif leading-tight text-[var(--journal-home-title)]"
+            className="journal-identity-header__title text-center font-serif leading-tight text-[var(--journal-home-title)]"
             data-journal-title-align="centerline"
+            data-journal-title-lines="2"
             title={title}
           >
-            {title}
+            {displayTitle}
           </h1>
           {showSettings ? (
             <div className="journal-identity-header__settings relative">

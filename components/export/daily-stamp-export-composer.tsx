@@ -70,9 +70,8 @@ const brand = {
   cocoaTaupe: "#62453A",
 };
 
-const displayFont =
-  '"Cormorant Garamond", "Bodoni Moda", "DM Serif Display", Georgia, serif';
-const utilityFont = 'Inter, Aptos, "Source Sans 3", system-ui, sans-serif';
+const displayFont = "var(--font-display)";
+const utilityFont = "var(--font-ui)";
 
 function rgbaFromHex(hex: string, alpha: number) {
   const value = hex.replace("#", "");
@@ -406,7 +405,7 @@ export function DailyStampExportComposer({
             </div>
           ) : (
             <div
-              className="grid aspect-[9/16] place-items-center overflow-hidden p-4 text-center"
+              className="grid aspect-[9/16] place-items-center p-4 text-center"
               aria-busy={isBusy}
               data-daily-stamp-export-preview={composerState.status}
               data-export-artifact-loading-state="creating-image"
@@ -414,7 +413,7 @@ export function DailyStampExportComposer({
               style={artifactShellStyle(resolvedTheme)}
             >
               <p
-                className="whitespace-nowrap text-[0.78rem] leading-none"
+                className="max-w-full break-words text-[0.78rem] leading-snug"
                 style={loadingTextStyle(resolvedTheme)}
               >
                 {composerState.status === "error"
@@ -445,7 +444,7 @@ export function DailyStampExportComposer({
             style={modalPrimaryActionStyle(resolvedTheme)}
           >
             <DownloadIcon className="h-3.5 w-3.5" />
-            Save Image
+            {composerState.status === "error" ? "Retry" : "Save Image"}
           </button>
           <button
             type="button"

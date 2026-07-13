@@ -26,7 +26,7 @@ type JournalMemoryPageProps = {
   capsuleId: string;
   publicToken: string;
   memoryId: string;
-  createIntent?: "backfill";
+  createIntent?: "today" | "backfill";
   theme?: JournalTheme;
   initialMemory?: PersistentMemoryEntry;
   onLock: () => Promise<void>;
@@ -98,8 +98,7 @@ export function JournalMemoryPage({
     );
   }
 
-  const isBackfillCreate = createIntent === "backfill" && !initialMemory;
-  const existingToday = !initialMemory && !isBackfillCreate
+  const existingToday = createIntent === "today" && !initialMemory
     ? findStampForLocalDateKey(
         context.memories,
         toLocalDateKeyFromDate(new Date()),

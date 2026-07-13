@@ -153,6 +153,37 @@ test("daily stamp export draws the high-resolution journal theme background", ()
   assert.doesNotMatch(exportSource, /theme\.thumbnail/i);
 });
 
+test("daily stamp export tints light-theme brand marks without clearing the artifact", () => {
+  const exportSource = readSource("lib/export/daily-memory-stamp-export.ts");
+
+  assert.match(exportSource, /const tintCanvas = document\.createElement\("canvas"\)/);
+  assert.match(exportSource, /const tintContext = tintCanvas\.getContext\("2d"\)/);
+  assert.match(exportSource, /tintContext\.globalCompositeOperation = "source-in"/);
+  assert.match(exportSource, /context\.drawImage\(tintCanvas, drawX, drawY, width, height\)/);
+  assert.doesNotMatch(exportSource, /context\.globalCompositeOperation = "source-in"/);
+});
+
+test("daily stamp export releases decoded images as soon as each layer is drawn", () => {
+  const exportSource = readSource("lib/export/daily-memory-stamp-export.ts");
+
+  assert.doesNotMatch(exportSource, /loadDrawnPhotos/);
+  assert.match(exportSource, /async function drawPhotoGrid/);
+  assert.match(
+    exportSource,
+    /for \(const \[index, item\] of photos\.entries\(\)\)[\s\S]*source = await loadPhotoForExport\(item\.photo, resolvePhotoUrl\)[\s\S]*finally \{[\s\S]*source\?\.close\(\)/,
+  );
+  assert.match(exportSource, /resolvePhotoUrl\(photo, "display", true\)/);
+  assert.match(
+    exportSource,
+    /catch \(error\) \{[\s\S]*URL\.revokeObjectURL\(objectUrl\);[\s\S]*throw error/,
+  );
+  assert.match(
+    exportSource,
+    /const themeTexture = await loadThemeTexture\(resolvedTheme\)[\s\S]*try \{[\s\S]*drawLeatherBackground\(context, resolvedTheme, themeTexture\)[\s\S]*finally \{[\s\S]*themeTexture\?\.close\(\)/,
+  );
+  assert.match(exportSource, /await drawPhotoGrid\(/);
+});
+
 test("daily stamp share helper falls back cleanly when file sharing is unsupported", () => {
   const fakeFile = { name: "scrap-the-day-2026-07-04.png" };
 
@@ -225,22 +256,39 @@ test("daily stamp export modal is fixed, centered, and scroll contained", () => 
 test("daily stamp export canvas uses dedicated 9:16 scale tokens", () => {
   const exportSource = readSource("lib/export/daily-memory-stamp-export.ts");
 
+  assert.match(exportSource, /journalTitleUsesDarkInk/);
+  assert.match(exportSource, /journalTitleUsesDarkInk\(theme\)/);
   assert.match(exportSource, /const dailyStampExportLayout = \{/);
   assert.match(exportSource, /"Cormorant Garamond"/);
-  assert.match(exportSource, /"Avenir Next"/);
-  assert.match(exportSource, /"Helvetica Neue"/);
-  assert.match(exportSource, /journalTitleCenterY: 77/);
+  assert.match(exportSource, /Inter/);
+  assert.match(exportSource, /document\.fonts\.load/);
+  assert.match(exportSource, /await loadDailyStampExportFonts/);
+  assert.doesNotMatch(exportSource, /"Avenir Next"|"Helvetica Neue"/);
+  assert.match(exportSource, /journalTitleCenterY: 202/);
+  assert.match(exportSource, /journalTitleFontSize: 62/);
+  assert.match(exportSource, /journalTitleLineHeight: 68/);
+  assert.match(exportSource, /journalTitleMaxWidth: 540/);
+  assert.match(exportSource, /overlayCenterY: DAILY_STAMP_EXPORT_HEIGHT \/ 2/);
+  assert.match(exportSource, /overlayMinTop: 300/);
   assert.match(exportSource, /overlayX: 27/);
-  assert.match(exportSource, /overlayTop: 153/);
   assert.match(exportSource, /overlayWidth: 1026/);
+  assert.match(exportSource, /overlayRadius: 18/);
+  assert.match(exportSource, /dateBaselineOffset: 63/);
   assert.match(exportSource, /dateFontSize: 22/);
   assert.match(exportSource, /titleFontSize: 53/);
-  assert.match(exportSource, /gridTop: 328/);
+  assert.match(exportSource, /gridTopOffset: 175/);
   assert.match(exportSource, /gridGap: 18/);
   assert.match(exportSource, /singlePhotoMaxWidth: 981/);
-  assert.match(exportSource, /logoBoxSize: 220/);
+  assert.match(exportSource, /logoBoxSize: 190/);
+  assert.match(exportSource, /logoBottom: 170/);
+  assert.match(exportSource, /Math\.round\(layout\.overlayCenterY - overlayHeight \/ 2\)/);
+  assert.match(exportSource, /const dateBaseline = overlayTop \+ layout\.dateBaselineOffset/);
   assert.match(exportSource, /drawSingleLineText/);
+  assert.match(exportSource, /drawCenteredWrappedText/);
+  assert.match(exportSource, /maxLines: 2/);
+  assert.match(exportSource, /journalConfig\.maxTitleLength/);
+  assert.match(exportSource, /context\.roundRect\(x, y, width, height, dailyStampExportLayout\.overlayRadius\)/);
   assert.match(exportSource, /drawTrackedText/);
-  assert.doesNotMatch(exportSource, /maxLines:\s*2/);
+  assert.doesNotMatch(exportSource, /overlayTop: 153/);
   assert.doesNotMatch(exportSource, /strokeRect|perforated|postage/i);
 });

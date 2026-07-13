@@ -28,6 +28,7 @@ type SortablePhotoGridProps = {
   coverLabel?: string;
   itemLabel?: string;
   stampFramePreview?: boolean;
+  disabled?: boolean;
 };
 
 type SortablePhotoTileProps = {
@@ -38,6 +39,7 @@ type SortablePhotoTileProps = {
   coverLabel: string;
   itemLabel: string;
   stampFramePreview: boolean;
+  disabled: boolean;
 };
 
 const pointerSensors = [
@@ -132,6 +134,7 @@ function SortablePhotoTile({
   coverLabel,
   itemLabel,
   stampFramePreview,
+  disabled,
 }: SortablePhotoTileProps) {
   const { ref, handleRef, isDragging } = useSortable({
     id: photo.id,
@@ -148,7 +151,8 @@ function SortablePhotoTile({
       <div
         ref={handleRef}
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
         data-photo-name={photo.name}
         aria-label={`${itemLabel} ${index + 1} of ${total}. Press to pick up and move.`}
         aria-roledescription="sortable photo"
@@ -165,6 +169,7 @@ function SortablePhotoTile({
       </div>
       <button
         type="button"
+        disabled={disabled}
         data-no-drag
         onClick={() => onRemove(photo)}
         aria-label={`Remove ${photo.name}`}
@@ -183,6 +188,7 @@ export function SortablePhotoGrid({
   coverLabel = "First photo",
   itemLabel = "Photo",
   stampFramePreview = false,
+  disabled = false,
 }: SortablePhotoGridProps) {
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -224,7 +230,10 @@ export function SortablePhotoGrid({
           );
         }}
       >
-        <div className="grid grid-cols-3 gap-2" role="list">
+        <div
+          className={`grid grid-cols-3 gap-2 ${disabled ? "pointer-events-none opacity-60" : ""}`}
+          role="list"
+        >
           {photos.map((photo, index) => (
             <SortablePhotoTile
               key={photo.id}
@@ -235,6 +244,7 @@ export function SortablePhotoGrid({
               coverLabel={coverLabel}
               itemLabel={itemLabel}
               stampFramePreview={stampFramePreview}
+              disabled={disabled}
             />
           ))}
         </div>

@@ -208,3 +208,25 @@ export async function optimisePhotoForUpload(
     decoded.dispose();
   }
 }
+
+export async function createPhotoEditorPreview(
+  file: File,
+  config: MemoryMediaConfig,
+): Promise<PhotoVariant> {
+  const decoded = await decodePhoto(file);
+  try {
+    const preferredType = (await canEncodeWebp())
+      ? "image/webp"
+      : "image/jpeg";
+    return createVariant(
+      decoded,
+      file.name,
+      "thumb",
+      config.maxThumbnailPhotoEdgePixels,
+      config.thumbnailPhotoQuality,
+      preferredType,
+    );
+  } finally {
+    decoded.dispose();
+  }
+}

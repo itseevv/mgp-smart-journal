@@ -1,10 +1,10 @@
-import { JOURNAL_YEAR_PHOTO_CAPACITY } from "./journal-product";
-import type { JournalTheme } from "./journal-themes";
-import type { PhotoCropMetadata } from "./memory-demo";
+import { JOURNAL_YEAR_PHOTO_CAPACITY } from "./journal-product.ts";
+import type { JournalTheme } from "./journal-themes.ts";
+import type { PhotoCropMetadata } from "./memory-demo.ts";
 
 export const journalConfig = {
   defaultTitle: "My Journal",
-  maxTitleLength: 100,
+  maxTitleLength: 20,
   maxPhotos: JOURNAL_YEAR_PHOTO_CAPACITY,
 } as const;
 

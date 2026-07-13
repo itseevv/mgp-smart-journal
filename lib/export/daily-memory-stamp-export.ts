@@ -1,8 +1,10 @@
 import type { JournalTheme } from "../../data/journal-themes.ts";
 import {
   defaultJournalTheme,
+  journalTitleUsesDarkInk,
   resolveJournalTheme,
 } from "../../data/journal-themes.ts";
+import { journalConfig } from "../../data/journal.ts";
 import {
   localDateKeyFromValue,
   normalizeLocalDateKey,
@@ -36,28 +38,67 @@ const brand = {
   cocoaTaupe: "#62453A",
 };
 
-const displayFont =
-  '"Cormorant Garamond", "Bodoni Moda", "DM Serif Display", Georgia, serif';
-const utilityFont = '"Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif';
+const displayFontVariable = "--font-brand-display";
+const utilityFontVariable = "--font-brand-interface";
+const displayFontFallback = '"Cormorant Garamond", Georgia, serif';
+const utilityFontFallback = "Inter, system-ui, sans-serif";
 
 const dailyStampExportLayout = {
-  journalTitleCenterY: 77,
-  journalTitleFontSize: 51,
+  journalTitleCenterY: 202,
+  journalTitleFontSize: 62,
+  journalTitleLineHeight: 68,
+  journalTitleMaxWidth: 540,
+  overlayCenterY: DAILY_STAMP_EXPORT_HEIGHT / 2,
+  overlayMinTop: 300,
   overlayX: 27,
-  overlayTop: 153,
   overlayWidth: 1026,
+  overlayRadius: 18,
   overlayPadding: 23,
-  dateBaseline: 216,
+  dateBaselineOffset: 63,
   dateFontSize: 22,
   dateLetterSpacing: 3.5,
-  titleBaseline: 301,
+  titleBaselineOffset: 148,
   titleFontSize: 53,
-  gridTop: 328,
+  gridTopOffset: 175,
   gridGap: 18,
   singlePhotoMaxWidth: 981,
-  logoBoxSize: 220,
-  logoBottom: 150,
+  logoBoxSize: 190,
+  logoBottom: 170,
 };
+
+function resolvedBrandFont(variable: string, fallback: string) {
+  const family = getComputedStyle(document.documentElement)
+    .getPropertyValue(variable)
+    .trim();
+  return family || fallback;
+}
+
+async function loadDailyStampExportFonts() {
+  const displayFont = resolvedBrandFont(
+    displayFontVariable,
+    displayFontFallback,
+  );
+  const utilityFont = resolvedBrandFont(
+    utilityFontVariable,
+    utilityFontFallback,
+  );
+
+  if (document.fonts) {
+    await Promise.all([
+      document.fonts.load(
+        `600 ${dailyStampExportLayout.journalTitleFontSize}px ${displayFont}`,
+      ),
+      document.fonts.load(
+        `500 ${dailyStampExportLayout.titleFontSize}px ${displayFont}`,
+      ),
+      document.fonts.load(
+        `600 ${dailyStampExportLayout.dateFontSize}px ${utilityFont}`,
+      ),
+    ]);
+  }
+
+  return { displayFont, utilityFont };
+}
 
 export type DailyStampExportBrandMark =
   | {
@@ -149,6 +190,13 @@ function normalizeTitle(value: string) {
   return value.replace(/\s+/g, " ").trim() || "Untitled stamp";
 }
 
+function normalizeJournalTitle(value: string) {
+  const title =
+    value.replace(/\s+/g, " ").trim() ||
+    DEFAULT_DAILY_STAMP_EXPORT_JOURNAL_TITLE;
+  return title.slice(0, journalConfig.maxTitleLength);
+}
+
 function safeFilenamePart(value: string) {
   return value
     .toLowerCase()
@@ -187,7 +235,7 @@ function exportUtilityColor(theme: JournalTheme) {
 }
 
 function exportJournalHeaderColor(theme: JournalTheme) {
-  return isLightTheme(theme)
+  return journalTitleUsesDarkInk(theme)
     ? brand.deepBurgundy
     : rgbaFromHex(brand.champagnePeach, 0.86);
 }
@@ -263,7 +311,7 @@ export function dailyStampExportArtifactModel({
     height: DAILY_STAMP_EXPORT_HEIGHT,
     aspectRatio: DAILY_STAMP_EXPORT_ASPECT_RATIO,
     mimeType: DAILY_STAMP_EXPORT_MIME_TYPE,
-    journalTitle: normalizeTitle(journalTitle),
+    journalTitle: normalizeJournalTitle(journalTitle),
     dateLabel: dailyStampExportDateLabel(memory),
     localDate: dailyStampExportLocalDate(memory),
     title: normalizeTitle(memory.title),
@@ -403,6 +451,124 @@ function drawSingleLineText({
   };
 }
 
+function wrapUnbrokenText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  const lines: string[] = [];
+  let line = "";
+
+  for (const character of Array.from(text)) {
+    const candidate = `${line}${character}`;
+    if (!line || context.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+
+    lines.push(line);
+    line = character;
+  }
+
+  if (line) lines.push(line);
+  return lines;
+}
+
+function wrapText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (context.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      return;
+    }
+
+    if (line) {
+      lines.push(line);
+      line = "";
+    }
+
+    if (context.measureText(word).width <= maxWidth) {
+      line = word;
+      return;
+    }
+
+    const wrappedWord = wrapUnbrokenText(context, word, maxWidth);
+    lines.push(...wrappedWord.slice(0, -1));
+    line = wrappedWord[wrappedWord.length - 1] ?? "";
+  });
+
+  if (line) lines.push(line);
+  return lines;
+}
+
+function clampWrappedLines(
+  context: CanvasRenderingContext2D,
+  lines: string[],
+  maxLines: number,
+  maxWidth: number,
+) {
+  if (lines.length <= maxLines) return lines;
+
+  const nextLines = lines.slice(0, maxLines);
+  let lastLine = `${nextLines[nextLines.length - 1] ?? ""}...`;
+
+  while (
+    lastLine.length > 3 &&
+    context.measureText(lastLine).width > maxWidth
+  ) {
+    lastLine = `${lastLine.slice(0, -4).trimEnd()}...`;
+  }
+
+  nextLines[nextLines.length - 1] = lastLine;
+  return nextLines;
+}
+
+function drawCenteredWrappedText({
+  context,
+  text,
+  x,
+  centerY,
+  maxWidth,
+  lineHeight,
+  maxLines,
+}: {
+  context: CanvasRenderingContext2D;
+  text: string;
+  x: number;
+  centerY: number;
+  maxWidth: number;
+  lineHeight: number;
+  maxLines: number;
+}) {
+  const wrappedLines = clampWrappedLines(
+    context,
+    wrapText(context, text, maxWidth),
+    maxLines,
+    maxWidth,
+  );
+  const firstLineY = centerY - ((wrappedLines.length - 1) * lineHeight) / 2;
+
+  wrappedLines.forEach((line, index) => {
+    context.fillText(line, x, firstLineY + index * lineHeight, maxWidth);
+  });
+
+  return {
+    lines: wrappedLines,
+    bottom:
+      firstLineY +
+      (wrappedLines.length - 1) * lineHeight +
+      lineHeight / 2,
+  };
+}
+
 function drawTrackedText({
   context,
   text,
@@ -480,6 +646,11 @@ function drawExportOverlay({
   width: number;
   height: number;
 }) {
+  context.save();
+  context.beginPath();
+  context.roundRect(x, y, width, height, dailyStampExportLayout.overlayRadius);
+  context.clip();
+
   context.fillStyle = isLightTheme(theme)
     ? "rgba(255, 251, 240, 0.42)"
     : rgbaFromHex(brand.vintageBlush, 0.16);
@@ -495,11 +666,13 @@ function drawExportOverlay({
   }
   context.fillStyle = gradient;
   context.fillRect(x, y, width, height);
+  context.restore();
 }
 
-function drawPhotoGrid({
+async function drawPhotoGrid({
   context,
   photos,
+  resolvePhotoUrl,
   x,
   y,
   width,
@@ -507,7 +680,8 @@ function drawPhotoGrid({
   singlePhotoMaxWidth,
 }: {
   context: CanvasRenderingContext2D;
-  photos: DrawnPhoto[];
+  photos: DailyStampExportPhotoItem[];
+  resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"];
   x: number;
   y: number;
   width: number;
@@ -522,17 +696,24 @@ function drawPhotoGrid({
   const gridWidth = cellSize * columns + gap * (columns - 1);
   const gridX = x + (width - gridWidth) / 2;
 
-  photos.forEach((photo, index) => {
+  for (const [index, item] of photos.entries()) {
     const column = index % columns;
     const row = Math.floor(index / columns);
-    drawPhotoTile({
-      context,
-      photo,
-      x: gridX + column * (cellSize + gap),
-      y: y + row * (cellSize + gap),
-      size: cellSize,
-    });
-  });
+    let source: LoadedCanvasImage | undefined;
+
+    try {
+      source = await loadPhotoForExport(item.photo, resolvePhotoUrl);
+      drawPhotoTile({
+        context,
+        photo: { ...item, source },
+        x: gridX + column * (cellSize + gap),
+        y: y + row * (cellSize + gap),
+        size: cellSize,
+      });
+    } finally {
+      source?.close();
+    }
+  }
 
   return {
     bottom:
@@ -540,6 +721,20 @@ function drawPhotoGrid({
       Math.ceil(photos.length / columns) * cellSize +
       Math.max(0, Math.ceil(photos.length / columns) - 1) * gap,
   };
+}
+
+async function loadPhotoForExport(
+  photo: MemoryPhoto,
+  resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
+) {
+  try {
+    const url = await photoUrlForExport(photo, resolvePhotoUrl);
+    return await imageFromUrl(url);
+  } catch (error) {
+    if (!resolvePhotoUrl) throw error;
+    const refreshedUrl = await resolvePhotoUrl(photo, "display", true);
+    return imageFromUrl(refreshedUrl);
+  }
 }
 
 async function canvasToBlob(
@@ -582,19 +777,24 @@ async function imageFromUrl(url: string): Promise<LoadedCanvasImage> {
     }
   }
 
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const element = new Image();
-    element.onload = () => resolve(element);
-    element.onerror = () => reject(new Error("Image could not be decoded."));
-    element.src = objectUrl;
-  });
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Image could not be decoded."));
+      element.src = objectUrl;
+    });
 
-  return {
-    image,
-    width: image.naturalWidth || image.width,
-    height: image.naturalHeight || image.height,
-    close: () => URL.revokeObjectURL(objectUrl),
-  };
+    return {
+      image,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+      close: () => URL.revokeObjectURL(objectUrl),
+    };
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
 }
 
 async function photoUrlForExport(
@@ -605,26 +805,6 @@ async function photoUrlForExport(
   if (photo.objectUrl) return photo.objectUrl;
   if (photo.thumbnailObjectUrl) return photo.thumbnailObjectUrl;
   throw new Error("This photograph is not available for export.");
-}
-
-async function loadDrawnPhotos(
-  model: DailyStampExportArtifactModel,
-  resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
-) {
-  const loaded: DrawnPhoto[] = [];
-  try {
-    for (const item of model.photos) {
-      const url = await photoUrlForExport(item.photo, resolvePhotoUrl);
-      loaded.push({
-        ...item,
-        source: await imageFromUrl(url),
-      });
-    }
-    return loaded;
-  } catch (error) {
-    loaded.forEach((item) => item.source.close());
-    throw error;
-  }
 }
 
 async function loadBrandLogo(brandMark: DailyStampExportBrandMark) {
@@ -661,14 +841,37 @@ function drawBrandMark({
   const drawX = x + (size - width) / 2;
   const drawY = y + (size - height) / 2;
 
-  context.save();
-  context.globalAlpha = isLightTheme(theme) ? 0.72 : 0.78;
-  context.drawImage(brandLogo.image, drawX, drawY, width, height);
   if (isLightTheme(theme)) {
-    context.globalCompositeOperation = "source-in";
-    context.fillStyle = brand.deepBurgundy;
-    context.fillRect(drawX, drawY, width, height);
+    const tintCanvas = document.createElement("canvas");
+    tintCanvas.width = Math.max(1, Math.round(width));
+    tintCanvas.height = Math.max(1, Math.round(height));
+    const tintContext = tintCanvas.getContext("2d");
+
+    if (tintContext) {
+      tintContext.imageSmoothingEnabled = true;
+      tintContext.imageSmoothingQuality = "high";
+      tintContext.drawImage(
+        brandLogo.image,
+        0,
+        0,
+        tintCanvas.width,
+        tintCanvas.height,
+      );
+      tintContext.globalCompositeOperation = "source-in";
+      tintContext.fillStyle = brand.deepBurgundy;
+      tintContext.fillRect(0, 0, tintCanvas.width, tintCanvas.height);
+
+      context.save();
+      context.globalAlpha = 0.72;
+      context.drawImage(tintCanvas, drawX, drawY, width, height);
+      context.restore();
+      return;
+    }
   }
+
+  context.save();
+  context.globalAlpha = 0.78;
+  context.drawImage(brandLogo.image, drawX, drawY, width, height);
   context.restore();
 }
 
@@ -681,103 +884,112 @@ export async function renderDailyMemoryStampExport({
 }: DailyStampExportRenderInput): Promise<Blob> {
   const resolvedTheme = resolveJournalTheme(theme);
   const model = dailyStampExportArtifactModel({ memory, brandMark, journalTitle });
-  const loadedPhotos = await loadDrawnPhotos(model, resolvePhotoUrl);
-  const brandLogo = await loadBrandLogo(model.brandMark);
+  const { displayFont, utilityFont } = await loadDailyStampExportFonts();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = DAILY_STAMP_EXPORT_WIDTH;
+  canvas.height = DAILY_STAMP_EXPORT_HEIGHT;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) throw new Error("Canvas is not available.");
+
   const themeTexture = await loadThemeTexture(resolvedTheme);
-
   try {
-    const canvas = document.createElement("canvas");
-    canvas.width = DAILY_STAMP_EXPORT_WIDTH;
-    canvas.height = DAILY_STAMP_EXPORT_HEIGHT;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) throw new Error("Canvas is not available.");
-
     drawLeatherBackground(context, resolvedTheme, themeTexture);
-
-    const layout = dailyStampExportLayout;
-    const overlayTop = layout.overlayTop;
-    const overlayX = layout.overlayX;
-    const overlayWidth = layout.overlayWidth;
-    const overlayPadding = layout.overlayPadding;
-    const overlayInnerX = overlayX + overlayPadding;
-    const overlayInnerWidth = overlayWidth - overlayPadding * 2;
-
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillStyle = exportJournalHeaderColor(resolvedTheme);
-    context.font = `500 ${layout.journalTitleFontSize}px ${displayFont}`;
-    context.fillText(
-      model.journalTitle,
-      DAILY_STAMP_EXPORT_WIDTH / 2,
-      layout.journalTitleCenterY,
-      overlayInnerWidth,
-    );
-
-    context.textAlign = "left";
-    context.textBaseline = "alphabetic";
-    const dateBaseline = layout.dateBaseline;
-    const titleBaseline = layout.titleBaseline;
-    const gridTop = layout.gridTop;
-    const gridColumns = photoGridColumns(model.photos.length);
-    const gridGap = layout.gridGap;
-    const gridCell =
-      gridColumns === 1
-        ? Math.min(overlayInnerWidth, layout.singlePhotoMaxWidth)
-        : (overlayInnerWidth - gridGap * (gridColumns - 1)) / gridColumns;
-    const gridRows = Math.ceil(model.photos.length / gridColumns);
-    const gridHeight =
-      model.photos.length > 0
-        ? gridRows * gridCell + Math.max(0, gridRows - 1) * gridGap
-        : 0;
-    const overlayHeight = gridTop + gridHeight + overlayPadding - overlayTop;
-
-    drawExportOverlay({
-      context,
-      theme: resolvedTheme,
-      x: overlayX,
-      y: overlayTop,
-      width: overlayWidth,
-      height: overlayHeight,
-    });
-
-    context.fillStyle = exportUtilityColor(resolvedTheme);
-    context.font = `600 ${layout.dateFontSize}px ${utilityFont}`;
-    drawTrackedText({
-      context,
-      text: model.dateLabel,
-      x: overlayInnerX,
-      y: dateBaseline,
-      letterSpacing: layout.dateLetterSpacing,
-    });
-
-    context.fillStyle = exportTitleColor(resolvedTheme);
-    context.font = `500 ${layout.titleFontSize}px ${displayFont}`;
-    drawSingleLineText({
-      context,
-      text: model.title,
-      x: overlayInnerX,
-      y: titleBaseline,
-      maxWidth: overlayInnerWidth,
-    });
-
-    drawPhotoGrid({
-      context,
-      photos: loadedPhotos,
-      x: overlayInnerX,
-      y: gridTop,
-      width: overlayInnerWidth,
-      gap: layout.gridGap,
-      singlePhotoMaxWidth: layout.singlePhotoMaxWidth,
-    });
-
-    drawBrandMark({ context, brandLogo, theme: resolvedTheme });
-
-    return canvasToBlob(canvas, DAILY_STAMP_EXPORT_MIME_TYPE);
   } finally {
-    loadedPhotos.forEach((item) => item.source.close());
-    brandLogo?.close();
     themeTexture?.close();
   }
+
+  const layout = dailyStampExportLayout;
+  const overlayX = layout.overlayX;
+  const overlayWidth = layout.overlayWidth;
+  const overlayPadding = layout.overlayPadding;
+  const overlayInnerX = overlayX + overlayPadding;
+  const overlayInnerWidth = overlayWidth - overlayPadding * 2;
+
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = exportJournalHeaderColor(resolvedTheme);
+  context.font = `600 ${layout.journalTitleFontSize}px ${displayFont}`;
+  drawCenteredWrappedText({
+    context,
+    text: model.journalTitle,
+    x: DAILY_STAMP_EXPORT_WIDTH / 2,
+    centerY: layout.journalTitleCenterY,
+    maxWidth: layout.journalTitleMaxWidth,
+    lineHeight: layout.journalTitleLineHeight,
+    maxLines: 2,
+  });
+
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  const gridColumns = photoGridColumns(model.photos.length);
+  const gridGap = layout.gridGap;
+  const gridCell =
+    gridColumns === 1
+      ? Math.min(overlayInnerWidth, layout.singlePhotoMaxWidth)
+      : (overlayInnerWidth - gridGap * (gridColumns - 1)) / gridColumns;
+  const gridRows = Math.ceil(model.photos.length / gridColumns);
+  const gridHeight =
+    model.photos.length > 0
+      ? gridRows * gridCell + Math.max(0, gridRows - 1) * gridGap
+      : 0;
+  const overlayHeight = layout.gridTopOffset + gridHeight + overlayPadding;
+  const overlayTop = Math.max(
+    layout.overlayMinTop,
+    Math.round(layout.overlayCenterY - overlayHeight / 2),
+  );
+  const dateBaseline = overlayTop + layout.dateBaselineOffset;
+  const titleBaseline = overlayTop + layout.titleBaselineOffset;
+  const gridTop = overlayTop + layout.gridTopOffset;
+
+  drawExportOverlay({
+    context,
+    theme: resolvedTheme,
+    x: overlayX,
+    y: overlayTop,
+    width: overlayWidth,
+    height: overlayHeight,
+  });
+
+  context.fillStyle = exportUtilityColor(resolvedTheme);
+  context.font = `600 ${layout.dateFontSize}px ${utilityFont}`;
+  drawTrackedText({
+    context,
+    text: model.dateLabel,
+    x: overlayInnerX,
+    y: dateBaseline,
+    letterSpacing: layout.dateLetterSpacing,
+  });
+
+  context.fillStyle = exportTitleColor(resolvedTheme);
+  context.font = `500 ${layout.titleFontSize}px ${displayFont}`;
+  drawSingleLineText({
+    context,
+    text: model.title,
+    x: overlayInnerX,
+    y: titleBaseline,
+    maxWidth: overlayInnerWidth,
+  });
+
+  await drawPhotoGrid({
+    context,
+    photos: model.photos,
+    resolvePhotoUrl,
+    x: overlayInnerX,
+    y: gridTop,
+    width: overlayInnerWidth,
+    gap: layout.gridGap,
+    singlePhotoMaxWidth: layout.singlePhotoMaxWidth,
+  });
+
+  const brandLogo = await loadBrandLogo(model.brandMark);
+  try {
+    drawBrandMark({ context, brandLogo, theme: resolvedTheme });
+  } finally {
+    brandLogo?.close();
+  }
+
+  return canvasToBlob(canvas, DAILY_STAMP_EXPORT_MIME_TYPE);
 }
 
 export function createDailyStampExportFile(blob: Blob, filename: string) {

@@ -95,7 +95,7 @@ export function StampGrid({ photos, resolvePhotoUrl }: StampGridProps) {
               {index === 0 ? (
                 <CroppedPrivateStampImage
                   photo={photo}
-                  variant="display"
+                  variant="thumbnail"
                   priority
                   sizes={imageSizes}
                   resolvePhotoUrl={resolvePhotoUrl}
@@ -103,7 +103,7 @@ export function StampGrid({ photos, resolvePhotoUrl }: StampGridProps) {
               ) : (
                 <PrivatePhoto
                   photo={photo}
-                  variant="display"
+                  variant="thumbnail"
                   sizes={imageSizes}
                   className="object-cover"
                   resolvePhotoUrl={resolvePhotoUrl}
