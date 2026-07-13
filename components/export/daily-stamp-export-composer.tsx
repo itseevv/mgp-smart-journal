@@ -2,6 +2,7 @@
 
 import {
   type CSSProperties,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -17,7 +18,11 @@ import {
   resolveJournalTheme,
   type JournalTheme,
 } from "@/data/journal-themes";
-import type { MemoryEntry, MemoryPhoto } from "@/data/memory-demo";
+import type {
+  MemoryEntry,
+  MemoryPhoto,
+  PersistentMemoryEntry,
+} from "@/data/memory-demo";
 import {
   dailyStampExportArtifactModel,
   dailyStampExportFilename,
@@ -26,6 +31,7 @@ import {
   shareDailyStampExportBlob,
   type DailyStampExportBrandMark,
 } from "@/lib/export/daily-memory-stamp-export";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type DailyStampExportComposerProps = {
   open: boolean;
@@ -62,6 +68,8 @@ type ComposerState =
     };
 
 const exportErrorMessage = "Couldn’t create the image. Please try again.";
+const persistentMemoryIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const brand = {
   deepBurgundy: "#421819",
@@ -157,6 +165,53 @@ function modalSecondaryActionStyle(theme: JournalTheme) {
   } satisfies CSSProperties;
 }
 
+function persistentMemoryId(memory: MemoryEntry) {
+  const id = (memory as Partial<PersistentMemoryEntry>).id;
+  return typeof id === "string" && persistentMemoryIdPattern.test(id)
+    ? id
+    : undefined;
+}
+
+async function renderPersistedDailyStampExport(
+  memoryId: string,
+  signal?: AbortSignal,
+) {
+  const client = getSupabaseBrowserClient();
+  const sessionResult = await client.auth.getSession();
+  const accessToken = sessionResult.data.session?.access_token;
+  if (sessionResult.error || !accessToken) {
+    throw new Error("Daily stamp export requires an active journal session.");
+  }
+
+  const response = await fetch("/api/export/daily-stamp", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ memoryId }),
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => undefined)) as
+      | { code?: unknown }
+      | undefined;
+    const code =
+      typeof detail?.code === "string" ? detail.code : `HTTP_${response.status}`;
+    throw new Error(`Daily stamp server export failed: ${code}`);
+  }
+  if (response.headers.get("content-type")?.split(";")[0] !== "image/png") {
+    throw new Error("Daily stamp server export returned an invalid image.");
+  }
+
+  const blob = await response.blob();
+  if (!blob.size) {
+    throw new Error("Daily stamp server export returned an empty image.");
+  }
+  return blob;
+}
+
 export function DailyStampExportComposer({
   open,
   memory,
@@ -170,11 +225,46 @@ export function DailyStampExportComposer({
     status: "idle",
   });
   const previewUrlRef = useRef<string | undefined>(undefined);
+  const inFlightExportRef = useRef<
+    | {
+        key: string;
+        controller: AbortController;
+        promise: Promise<Blob>;
+      }
+    | undefined
+  >(undefined);
   const resolvedTheme = useMemo(() => resolveJournalTheme(theme), [theme]);
   const titleId = "daily-stamp-export-title";
   const filename = dailyStampExportFilename(memory);
   const model = dailyStampExportArtifactModel({ memory, brandMark, journalTitle });
   const isBusy = composerState.status === "generating";
+
+  const renderExportBlob = useCallback(() => {
+    const memoryId = persistentMemoryId(memory);
+    const key = memoryId ?? `draft:${memory.capturedAt}:${memory.title}`;
+    const existing = inFlightExportRef.current;
+    if (existing?.key === key) return existing.promise;
+    existing?.controller.abort();
+
+    const controller = new AbortController();
+    const promise = memoryId
+      ? renderPersistedDailyStampExport(memoryId, controller.signal)
+      : renderDailyMemoryStampExport({
+          memory,
+          resolvePhotoUrl,
+          theme: resolvedTheme,
+          brandMark,
+          journalTitle,
+        });
+    inFlightExportRef.current = { key, controller, promise };
+    const clearInFlight = () => {
+      if (inFlightExportRef.current?.promise === promise) {
+        inFlightExportRef.current = undefined;
+      }
+    };
+    void promise.then(clearInFlight, clearInFlight);
+    return promise;
+  }, [brandMark, journalTitle, memory, resolvePhotoUrl, resolvedTheme]);
 
   const revokePreview = () => {
     if (!previewUrlRef.current) return;
@@ -182,7 +272,13 @@ export function DailyStampExportComposer({
     previewUrlRef.current = undefined;
   };
 
-  useEffect(() => () => revokePreview(), []);
+  useEffect(
+    () => () => {
+      inFlightExportRef.current?.controller.abort();
+      revokePreview();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -216,13 +312,7 @@ export function DailyStampExportComposer({
       revokePreview();
       setComposerState({ status: "generating", message: "Creating image..." });
       try {
-        const blob = await renderDailyMemoryStampExport({
-          memory,
-          resolvePhotoUrl,
-          theme: resolvedTheme,
-          brandMark,
-          journalTitle,
-        });
+        const blob = await renderExportBlob();
         if (!active) return;
         const previewUrl = URL.createObjectURL(blob);
         previewUrlRef.current = previewUrl;
@@ -246,12 +336,14 @@ export function DailyStampExportComposer({
 
     return () => {
       active = false;
+      inFlightExportRef.current?.controller.abort();
     };
-  }, [brandMark, journalTitle, memory, open, resolvePhotoUrl, resolvedTheme]);
+  }, [open, renderExportBlob]);
 
   if (!open) return null;
 
   const closeComposer = () => {
+    inFlightExportRef.current?.controller.abort();
     revokePreview();
     setComposerState({ status: "idle" });
     onClose();
@@ -261,13 +353,7 @@ export function DailyStampExportComposer({
     if (composerState.status === "ready") return composerState.blob;
     setComposerState({ status: "generating", message: "Creating image..." });
     try {
-      const blob = await renderDailyMemoryStampExport({
-        memory,
-        resolvePhotoUrl,
-        theme: resolvedTheme,
-        brandMark,
-        journalTitle,
-      });
+      const blob = await renderExportBlob();
       revokePreview();
       const previewUrl = URL.createObjectURL(blob);
       previewUrlRef.current = previewUrl;
