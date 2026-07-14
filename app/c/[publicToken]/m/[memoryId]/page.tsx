@@ -1,5 +1,7 @@
 import { CapsulePage } from "@/components/capsule/capsule-page";
+import { capsuleScanUrlFromHeaders } from "@/lib/capsule/scan-url";
 import { getCapsuleInitialGate } from "@/lib/capsule/server-gate";
+import { headers } from "next/headers";
 
 export default async function JournalMemoryRoute({
   params,
@@ -10,12 +12,19 @@ export default async function JournalMemoryRoute({
 }) {
   const { publicToken, memoryId } = await params;
   const { create } = await searchParams;
-  const initialGate = await getCapsuleInitialGate(publicToken);
+  const scanUrl = capsuleScanUrlFromHeaders(
+    await headers(),
+    `/c/${publicToken}/m/${memoryId}`,
+    { create },
+  );
+  const initialGate = await getCapsuleInitialGate(publicToken, { scanUrl });
+  const createIntent =
+    create === "today" || create === "backfill" ? create : undefined;
   return (
     <CapsulePage
       publicToken={publicToken}
       memoryId={memoryId}
-      createIntent={create === "backfill" ? "backfill" : undefined}
+      createIntent={createIntent}
       initialGate={initialGate}
     />
   );

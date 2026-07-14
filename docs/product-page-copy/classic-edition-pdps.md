@@ -1,0 +1,1076 @@
+# Classic Edition — Nine Standalone PDPs
+
+Each section below is a complete PDP copy set for one product. Bracketed fields must be completed before publishing.
+
+---
+
+# Amber Journal
+
+## SEO
+
+**SEO title:** Amber Leather Journal | Classic Edition
+
+**Meta description:** A warm, handmade leather Journal with a vintage floral folio, three refillable inserts, gift-ready packaging, and free name embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Amber Journal
+
+**One-line hook**
+
+Warm, storied, and made to travel with you.
+
+**Short description**
+
+Amber pairs warm tan leather with an earthy floral folio in rust, muted rose, blue-gray, and green. It feels gently nostalgic from the very first page—the kind of Journal that belongs beside train windows, coffee cups, pressed leaves, and the ordinary details that become part of your story.
+
+**Immediate benefit points**
+
+- Cut, assembled, and finished by hand
+- Includes three replaceable 30-page paper inserts
+- Interior pocket and zippered pouch for paper keepsakes
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD AMBER TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### A beautiful place for a life in progress.
+
+Amber was made for the woman who notices what other people pass by: the light on an unfamiliar street, the receipt from a favorite afternoon, the sentence she does not want to forget.
+
+Use it as a travel diary, an everyday record, or a place to follow your growth one page at a time. The tactile fabric folio keeps loose notes, tickets, stickers, and photographs close, while three refillable inserts give different kinds of thoughts their own space.
+
+There is no perfect way to fill it. Write a little. Add the paper fragment. Keep the day.
+
+## What’s included
+
+- One handmade Amber leather Journal cover
+- Amber’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Amber design, as pictured
+
+Prefer a fuller Journal? Leave a note with your order and we will include extra elastic bands at no additional cost.
+
+## Handmade character
+
+Each Amber Journal begins as a full piece of leather, then is individually cut, assembled, and finished by hand. The fabric folio is stitched as part of the making process. Natural variations in leather grain, tone, and finish mean that no two Journals will be perfectly identical.
+
+## Complimentary personalization
+
+Add the name exactly as you would like it embossed in the order note at checkout, including capitalization. Choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is free and does not add to the standard making time.
+
+## Gifting
+
+Amber is especially suited to birthdays, graduation, travel, a move, or the beginning of a new chapter. It arrives gift-ready and can be embossed with the recipient’s name—or your own—at no additional cost.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**What paper is included?**  
+Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages.
+
+**Can I use my own refills?**  
+Yes. Amber is compatible with standard refills in the same size as the Journal.
+
+**Can you personalize it?**  
+Yes. Complimentary name embossing is available in gold, silver, or blind embossing. Add the details to your order note at checkout.
+
+**Will mine look exactly like the photographs?**  
+The leather color, fabric, hardware, and decorative charms will match the design shown. Small variations in natural leather and hand-finishing make each Journal unique.
+
+**What is the difference between Classic and Momento Edition?**  
+Classic Edition is the complete physical Journal. Momento Edition adds a built-in NFC entry point, a private PIN-protected digital memory space, and a QR/recovery card.
+
+---
+
+# Royale Journal
+
+## SEO
+
+**SEO title:** Royale Leather Journal | Classic Edition
+
+**Meta description:** A quietly opulent handmade leather Journal with a luminous floral folio, refillable paper, gift-ready packaging, and free embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Royale Journal
+
+**One-line hook**
+
+Quietly opulent, without being too precious to use.
+
+**Short description**
+
+Royale brings deep brown leather together with a softly luminous ivory-and-gold floral folio. Rich in texture and restrained in color, it has the presence of an heirloom—and the practicality of a Journal designed to be opened every day.
+
+**Immediate benefit points**
+
+- Individually cut, assembled, and finished by hand
+- Three replaceable 30-page paper inserts included
+- Fabric folio with interior pocket and zippered pouch
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD ROYALE TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### An everyday object with heirloom presence.
+
+Royale turns the private ritual of journaling into something quietly ceremonial. Open it for morning pages, plans, travel notes, or the words that only arrive at the end of the day. Slip the loose pieces into the folio. Let the paper fill, replace it, and keep carrying the same beautiful cover forward.
+
+It is polished enough to feel special, yet personal enough to become unmistakably yours.
+
+## What’s included
+
+- One handmade Royale leather Journal cover
+- Royale’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Royale design, as pictured
+
+Prefer a fuller Journal? Leave a note with your order and we will include extra elastic bands at no additional cost.
+
+## Handmade character
+
+Royale begins as a full piece of leather and is individually cut, assembled, and finished by hand. Its fabric folio is stitched as part of the making process. Slight differences in grain, tone, and finish are natural signatures of the material and the hand behind it.
+
+## Complimentary personalization
+
+Enter the name exactly as you would like it embossed in the order note at checkout and choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is complimentary and does not extend the standard making time.
+
+## Gifting
+
+Royale makes a considered gift for an anniversary, wedding, graduation, Mother’s Day, or a significant birthday. It arrives gift-ready, with complimentary name embossing to make the piece personal from the beginning.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**What paper is included?**  
+Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages.
+
+**Can I use standard refills?**  
+Yes. Choose standard refills that match Royale’s Journal size.
+
+**Is personalization included?**  
+Yes. Add the name and your choice of gold, silver, or blind embossing to the order note at checkout.
+
+**Will each Journal be identical?**  
+The design elements arrive as pictured, while natural leather grain and hand-finishing create subtle differences from piece to piece.
+
+**Classic or Momento?**  
+Choose Classic for the physical Journal alone. Choose Momento for the same handmade Journal experience plus its built-in NFC entry point, private digital memory space, and QR/recovery card.
+
+---
+
+# Bloom Journal
+
+## SEO
+
+**SEO title:** Bloom Pink Leather Journal | Classic Edition
+
+**Meta description:** A vivid handmade pink leather Journal with a colorful floral folio, three refillable inserts, free embossing, and gift-ready packaging.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Bloom Journal
+
+**One-line hook**
+
+For a life recorded in full color.
+
+**Short description**
+
+Bloom pairs saturated pink leather with an exuberant garden of coral, blush, green, and blue. Expressive, joyful, and unapologetically feminine, it turns everyday journaling into something you look forward to carrying, opening, and making your own.
+
+**Immediate benefit points**
+
+- Handmade from the first cut of leather
+- Includes three replaceable 30-page inserts
+- Interior pocket and zippered pouch for life’s little pieces
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD BLOOM TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### Journaling does not have to be serious to be meaningful.
+
+Bloom is an invitation to collect a life that feels vivid: quick thoughts, favorite quotes, train tickets, weekend photographs, plans, stickers, and the tiny signs that you are becoming someone new.
+
+Its fabric folio keeps loose pieces from disappearing, while three refillable inserts make it easy to separate notes, memories, and ideas—or mix everything together. There are no rules. The point is to make returning to your life feel irresistible.
+
+## What’s included
+
+- One handmade Bloom leather Journal cover
+- Bloom’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Bloom design, as pictured
+
+Prefer a fuller Journal? Request extra elastic bands in your order note and we will include them at no additional cost.
+
+## Handmade character
+
+Every Bloom Journal is individually cut, assembled, and finished by hand, with a fabric folio stitched for the design. Natural variations in the leather and small signs of hand-finishing make each one subtly different.
+
+## Complimentary personalization
+
+In the order note at checkout, enter the name exactly as you would like it embossed and choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is free and does not add to the standard making time.
+
+## Gifting
+
+Bloom is made for birthdays, friendship gifts, graduation, travel, a new home, or a well-deserved self-gift. It arrives gift-ready and can be embossed with a name at no additional cost.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**What comes inside the Journal?**  
+Three replaceable 30-page inserts, three elastic bands, and a fabric folio with an interior pocket and zippered pouch.
+
+**Are the charms included?**  
+Yes. All decorative charms shown with Bloom are included.
+
+**Can I personalize the cover?**  
+Yes. Complimentary name embossing is available in gold, silver, or blind embossing. Add your request to the order note at checkout.
+
+**Can I replace the paper?**  
+Yes. Bloom accepts standard refills in the same size as the Journal.
+
+**How is Momento Edition different?**  
+Momento includes the same physical Journal plus a built-in NFC entry point, private PIN-protected digital memory space, and QR/recovery card.
+
+---
+
+# Porcelain Journal
+
+## SEO
+
+**SEO title:** Porcelain Ivory Leather Journal | Classic Edition
+
+**Meta description:** A handmade ivory leather Journal with dark romantic florals, refillable inserts, gift-ready packaging, and complimentary name embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Porcelain Journal
+
+**One-line hook**
+
+Soft light, dark florals, timeless romance.
+
+**Short description**
+
+Porcelain surrounds a deep botanical folio with ivory leather, balancing cream, burgundy, rose, and soft green. Delicate without feeling fragile, it carries the romance of a vintage pattern reimagined as something deeply personal.
+
+**Immediate benefit points**
+
+- Individually handmade
+- Three replaceable 30-page paper inserts included
+- Fabric folio with interior pocket and zippered pouch
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD PORCELAIN TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### For the chapters that deserve to be kept beautifully.
+
+Porcelain was designed for thoughtful pages: everyday reflections, family stories, a wedding season, the first months with a new baby, or the slow record of becoming yourself.
+
+Use the three inserts for words, plans, and visual journaling. Keep loose photographs, notes, and paper fragments inside the fabric folio. Over time, the Journal becomes less like stationery and more like a personal archive—one you will actually want to open again.
+
+## What’s included
+
+- One handmade Porcelain leather Journal cover
+- Porcelain’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Porcelain design, as pictured
+
+Prefer a fuller setup? Leave a note with your order and we will add extra elastic bands at no additional cost.
+
+## Handmade character
+
+Each Porcelain Journal is cut, assembled, and finished by hand from a full piece of leather. The fabric folio is individually stitched. Variations in leather grain, tone, and finish are natural and ensure that every piece has its own character.
+
+## Complimentary personalization
+
+Enter the name exactly as you would like it embossed in the order note at checkout. Select **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is complimentary and does not extend the standard making time.
+
+## Gifting
+
+Porcelain makes a particularly meaningful wedding, anniversary, Mother’s Day, new baby, or milestone gift. It arrives gift-ready and can be personalized with the recipient’s name for no additional charge.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**Is the paper replaceable?**  
+Yes. The supplied inserts can be replaced with standard refills in Porcelain’s size.
+
+**What layouts are included?**  
+The three 30-page inserts arrive in a curated mix of dotted, grid, lined, and blank pages.
+
+**Are the pictured decorations included?**  
+Yes. Porcelain includes the decorative charms shown in its product photographs.
+
+**Can you emboss a name?**  
+Yes. Complimentary embossing is available in gold, silver, or blind finish. Add the exact name and finish to the order note.
+
+**What does Momento Edition add?**  
+Momento adds a built-in NFC entry point, private PIN-protected digital memory space, and QR/recovery card to the physical Journal.
+
+---
+
+# Blush Journal
+
+## SEO
+
+**SEO title:** Blush Pink Leather Journal | Classic Edition
+
+**Meta description:** A feminine handmade leather Journal with a bow-and-floral folio, refillable inserts, gift-ready packaging, and free name embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Blush Journal
+
+**One-line hook**
+
+Sweetness, with a little structure.
+
+**Short description**
+
+Blush pairs dusty rose leather with delicate monochrome blossoms and a dramatic black bow. Feminine, polished, and playfully distinctive, it feels as much like a fashion accessory as the private Journal you reach for every day.
+
+**Immediate benefit points**
+
+- Cut, assembled, and finished by hand
+- Three replaceable 30-page inserts included
+- Interior pocket and zippered pouch for keepsakes
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD BLUSH TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### Romanticize your life—then remember it.
+
+Blush is for morning lists, late-night thoughts, weekend plans, outfit sketches, tiny photographs, and the feelings that deserve more than a note in your phone.
+
+The stitched fabric folio keeps loose pieces close. Three refillable inserts give you room to write, plan, and journal visually without waiting for a perfect blank page. Make it neat, make it layered, make it yours.
+
+## What’s included
+
+- One handmade Blush leather Journal cover
+- Blush’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Blush design, as pictured
+
+Want a chunkier Journal? Request additional elastic bands in the order note and we will include them free of charge.
+
+## Handmade character
+
+Every Blush Journal is made one at a time, from cutting the leather to assembling the cover and stitching the fabric folio. Small differences in natural grain, tone, and finish are part of what makes the finished piece unique.
+
+## Complimentary personalization
+
+Add the name exactly as you would like it embossed to the order note at checkout, then choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is free and does not add to the standard making time.
+
+## Gifting
+
+Blush is a natural choice for birthdays, friendship, graduation, Mother’s Day, a bridal moment, or a self-gift that marks a new beginning. It arrives gift-ready, with complimentary name embossing included.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**What is included?**  
+The complete Journal shown, including its fabric folio, pictured charms, three inserts, three elastic bands, pouch, care guide, and gift-ready packaging.
+
+**Can I replace the inserts?**  
+Yes. Blush is compatible with standard refills in the same size.
+
+**How do I request embossing?**  
+Enter the name and choose gold, silver, or blind embossing in the order note at checkout.
+
+**Will personalization delay my order?**  
+No. Complimentary name embossing does not add to the standard making time.
+
+**Is this the NFC version?**  
+No. This is Classic Edition. Momento Edition adds the built-in NFC entry point and private digital memory space.
+
+---
+
+# Flame Journal
+
+## SEO
+
+**SEO title:** Flame Red Leather Journal | Classic Edition
+
+**Meta description:** A rich red handmade leather Journal with painterly florals, three refillable inserts, gift-ready packaging, and free name embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Flame Journal
+
+**One-line hook**
+
+A study in romance, rendered in red.
+
+**Short description**
+
+Flame sets scarlet leather around a painterly garden of ruby, coral, cream, and deep green. Rich, expressive, and impossible to overlook, it brings a sense of occasion to the simplest daily ritual.
+
+**Immediate benefit points**
+
+- Handmade one at a time
+- Three replaceable 30-page paper inserts included
+- Fabric folio with interior pocket and zippered pouch
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD FLAME TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### Some chapters should not be entered quietly.
+
+Flame is made for decisive beginnings: a new city, a wedding year, a creative project, a long-awaited trip, or the private promise to pay closer attention to your own life.
+
+Write the feeling. Add the ticket, photograph, or note. Let the pages become layered and alive. The three refillable inserts and stitched folio give every part of the story somewhere to go.
+
+## What’s included
+
+- One handmade Flame leather Journal cover
+- Flame’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Flame design, as pictured
+
+Prefer more room for layers? Leave a note with your order and we will include additional elastic bands at no extra cost.
+
+## Handmade character
+
+Each Flame Journal begins as a full piece of leather and is cut, assembled, and finished by hand. The fabric folio is stitched for the design. Natural variations in grain and hand-finishing give every Journal its own subtle character.
+
+## Complimentary personalization
+
+Enter the name exactly as it should appear in the order note at checkout and choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is complimentary and does not extend the standard making time.
+
+## Gifting
+
+Flame makes a striking birthday, anniversary, graduation, wedding, travel, or new-chapter gift. It arrives gift-ready and can be embossed with a name for no additional charge.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**Are the pictured charms included?**  
+Yes. Flame arrives with the decorative charms shown in its photographs.
+
+**What paper comes with it?**  
+Three replaceable, 30-page inserts in a mix of dotted, grid, lined, and blank pages.
+
+**Can I add a name to the cover?**  
+Yes. Complimentary name embossing is available in gold, silver, or blind finish. Add your request to the order note.
+
+**Can it hold more than three inserts?**  
+It is supplied with three. If you prefer a bulkier setup, request extra elastic bands in your order note.
+
+**Does Classic Edition include digital storage?**  
+No. Choose Momento Edition for the built-in NFC entry point and private PIN-protected digital memory space.
+
+---
+
+# Eden Journal
+
+## SEO
+
+**SEO title:** Eden Green Leather Journal | Classic Edition
+
+**Meta description:** A handmade forest-green leather Journal with luminous florals, refillable inserts, gift-ready packaging, and free name embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Eden Journal
+
+**One-line hook**
+
+A private garden for the life you are growing.
+
+**Short description**
+
+Eden pairs forest-green leather with a luminous garden of white blooms, touched with blue, blush, and warm gold. Serene but abundant, it brings the calm of nature to pages filled with plans, reflections, and everyday growth.
+
+**Immediate benefit points**
+
+- Individually handmade
+- Includes three replaceable 30-page paper inserts
+- Interior pocket and zippered pouch for keepsakes
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD EDEN TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### Keep a record of what is quietly changing.
+
+Not every meaningful chapter announces itself. Sometimes growth looks like a new habit, a clearer thought, a trip taken alone, or an ordinary day you finally learned to appreciate.
+
+Eden gives those changes a place to gather. Write in the inserts, tuck paper fragments into the stitched folio, and let the Journal grow fuller as your life does. Replace the paper when it is finished; keep the cover and the history it has gathered.
+
+## What’s included
+
+- One handmade Eden leather Journal cover
+- Eden’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Eden design, as pictured
+
+Prefer a more layered Journal? Request extra elastic bands in your order note and we will include them at no additional cost.
+
+## Handmade character
+
+Eden is made one at a time. The leather is cut and assembled by hand, and the fabric folio is individually stitched. Natural grain and subtle variations in tone and finish are part of the Journal’s handmade character.
+
+## Complimentary personalization
+
+Add the name exactly as you would like it embossed in the order note at checkout, including capitalization. Choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is free and does not add to the standard making time.
+
+## Gifting
+
+Eden is a thoughtful choice for graduation, Mother’s Day, a new baby, a move, a healing season, or any new chapter. It arrives gift-ready and includes complimentary name embossing.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**Can I use Eden for junk journaling?**  
+Yes. Its three inserts, interior pocket, and zippered pouch make it easy to combine writing with tickets, notes, photographs, stickers, and other flat keepsakes.
+
+**Can I replace the paper?**  
+Yes. Use standard refills that match Eden’s size.
+
+**Is embossing free?**  
+Yes. Add the name and choose gold, silver, or blind embossing in the order note at checkout.
+
+**Will my Journal be unique?**  
+Yes. The design arrives as pictured, while natural leather and hand-finishing create slight differences in every piece.
+
+**What does Momento Edition include?**  
+Momento includes the same handmade Journal experience plus a built-in NFC entry point, a private digital memory space protected by an Owner PIN, and a QR/recovery card.
+
+---
+
+# Aurora Journal
+
+## SEO
+
+**SEO title:** Aurora Aqua Leather Journal | Classic Edition
+
+**Meta description:** A bright handmade aqua leather Journal with a watercolor folio, refillable inserts, gift-ready packaging, and complimentary embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Aurora Journal
+
+**One-line hook**
+
+Color for the chapters still unfolding.
+
+**Short description**
+
+Aurora brings fresh aqua leather together with a free-flowing watercolor folio in pink, yellow, green, and blue. Lighthearted and imaginative, it feels made for new places, bright ideas, and memories that refuse to stay inside the lines.
+
+**Immediate benefit points**
+
+- Cut, assembled, and finished by hand
+- Three replaceable 30-page inserts included
+- Fabric folio with interior pocket and zippered pouch
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD AURORA TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### Begin before you know exactly where the story is going.
+
+Aurora is a natural travel diary, creative notebook, and everyday companion. Fill it with observations, maps, lists, color, ticket stubs, and the quick thoughts that arrive somewhere between one place and the next.
+
+Three refillable inserts make space for different parts of your life, while the stitched fabric folio keeps loose paper memories from vanishing into a drawer. It is journaling with less pressure and more possibility.
+
+## What’s included
+
+- One handmade Aurora leather Journal cover
+- Aurora’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Aurora design, as pictured
+
+If you enjoy a fuller setup, request additional elastic bands in your order note and we will include them at no extra cost.
+
+## Handmade character
+
+Each Aurora Journal is made individually, from cutting the leather to assembling the cover and stitching the fabric folio. Variations in natural leather grain, tone, and hand-finishing make every Journal subtly one of a kind.
+
+## Complimentary personalization
+
+Enter the name exactly as you would like it embossed in the order note at checkout. Choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is complimentary and does not extend the standard making time.
+
+## Gifting
+
+Aurora is made for graduation, travel, a move, a creative beginning, friendship, or a bright self-gift. It arrives gift-ready, and complimentary name embossing makes it personal from the first page.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**Is Aurora refillable?**  
+Yes. Replace the supplied inserts with standard refills in Aurora’s size.
+
+**What page styles are included?**  
+The three 30-page inserts arrive in a curated mix of dotted, grid, lined, and blank pages.
+
+**Do all the pictured charms come with it?**  
+Yes. The decorative charms shown with Aurora are included.
+
+**How do I personalize it?**  
+Add the name and choose gold, silver, or blind embossing in the order note at checkout.
+
+**Does it have the Momento digital feature?**  
+This Classic Edition does not. Momento Edition adds NFC access to a private, PIN-protected digital memory space and includes a QR/recovery card.
+
+---
+
+# Eclipse Journal
+
+## SEO
+
+**SEO title:** Eclipse Black Leather Journal | Classic Edition
+
+**Meta description:** A celestial handmade black leather Journal with white florals, refillable inserts, gift-ready packaging, and free name embossing.
+
+## Above the fold
+
+**Eyebrow**
+
+CLASSIC EDITION
+
+**H1**
+
+Eclipse Journal
+
+**One-line hook**
+
+For late-night thoughts and luminous beginnings.
+
+**Short description**
+
+Eclipse pairs black leather with white peonies, deep green leaves, and tiny golden stars against a midnight ground. Feminine after dark, it is quietly dramatic, celestial, and timeless.
+
+**Immediate benefit points**
+
+- Handmade one at a time
+- Includes three replaceable 30-page paper inserts
+- Interior pocket and zippered pouch for keepsakes
+- Complimentary name embossing
+- Gift-ready
+
+**Price**
+
+[DYNAMIC PRICE]
+
+**CTA**
+
+ADD ECLIPSE TO BAG
+
+**CTA reassurance**
+
+Handmade · Gift-ready · Complimentary embossing
+
+## Product story
+
+### A private place for everything that becomes clear after dark.
+
+Eclipse is made for uncensored pages: late-night reflections, ambitious plans, travel memories, private hopes, and the small turning points you understand only after writing them down.
+
+Its stitched fabric folio keeps photographs, notes, and paper fragments close. Three refillable inserts let the Journal evolve with you—one chapter at a time, without losing the cover that has gathered your history.
+
+## What’s included
+
+- One handmade Eclipse leather Journal cover
+- Eclipse’s cotton fabric folio and lining, with an interior pocket and zippered pouch
+- Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages
+- Three elastic bands
+- All decorative charms shown in the product photographs
+- Leather care guide
+- Journal pouch
+- Gift-ready packaging
+- Complimentary name embossing
+
+## Product details
+
+- Edition: Classic Edition; no NFC or digital memory space
+- Size: `[SIZE: A5 OR A6]`
+- Closed dimensions: `[__ in × __ in / __ cm × __ cm]`
+- Cover: leather
+- Folio: cotton fabric with inner lining
+- Paper: three replaceable 30-page inserts, compatible with standard refills in the selected size
+- Capacity: holds three inserts as supplied
+- Pen loop: included with A6 Journals; not included with A5 Journals
+- Hardware and charms: Eclipse design, as pictured
+
+Prefer a bulkier Journal? Request extra elastic bands in your order note and we will include them at no additional cost.
+
+## Handmade character
+
+Eclipse begins as a full piece of leather and is individually cut, assembled, and finished by hand. Its fabric folio is stitched for the design. Natural variations in grain, tone, and finish make each Journal subtly unique.
+
+## Complimentary personalization
+
+Add the name exactly as you would like it embossed in the order note at checkout, including capitalization. Choose **gold**, **silver**, or **blind embossing** (no foil). English letters and a heart symbol are available; other special characters are not supported.
+
+Personalization is free and does not add to the standard making time.
+
+## Gifting
+
+Eclipse makes a memorable birthday, graduation, anniversary, friendship, new-chapter, or self-gift. It arrives gift-ready and includes complimentary name embossing.
+
+## Shipping & returns
+
+**Shipping:** [INSERT APPROVED SHIPPING SUMMARY]
+
+**Returns:** [INSERT APPROVED RETURNS SUMMARY, INCLUDING THE POLICY FOR PERSONALIZED ITEMS]
+
+## FAQ
+
+**What comes with Eclipse?**  
+The Journal cover, pictured folio and charms, three paper inserts, three elastic bands, pouch, care guide, gift-ready packaging, and complimentary name embossing.
+
+**Can I replace the paper inserts?**  
+Yes. Eclipse is compatible with standard refills in the same size.
+
+**Can I request more elastic bands?**  
+Yes. Leave a note with your order if you prefer a fuller setup.
+
+**Is every Eclipse Journal exactly the same?**  
+The design elements match the photographs. Natural variations in leather and hand-finishing make each finished Journal slightly different.
+
+**How is Momento Edition different?**  
+Momento Edition adds a built-in NFC entry point, a private PIN-protected digital memory space, and a QR/recovery card to the physical Journal.

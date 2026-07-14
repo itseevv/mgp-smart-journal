@@ -6,3 +6,9 @@
 node_modules/
 supabase/.temp/
 .vercel/
+.gstack/
+.DS_Store
+*.tsbuildinfo
+product pics/
+Journal-Level NFC Product Direction Summary.pdf
+brand-development-2026-06-24.zip

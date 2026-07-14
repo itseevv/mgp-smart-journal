@@ -12,18 +12,36 @@ import {
 } from "@/lib/admin/capsules";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase";
 
+function canonicalUrlForNfcComparison(value?: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return `${url.protocol}//${url.host}${url.pathname.replace(/\/$/, "")}`;
+  } catch {
+    return null;
+  }
+}
+
 function addAdminCapsuleUrls(
   request: Request,
   detail: Awaited<ReturnType<typeof getAdminCapsuleDetail>>,
 ) {
   if (!detail.ok || !detail.capsule) return detail;
   const appBaseUrl = resolveAdminAppBaseUrlFromRequest(request);
+  const expectedUrl = capsuleUrl(appBaseUrl.baseUrl, detail.capsule.publicToken);
+  const latestScanUrlMatchesExpected = detail.capsule.latestScanUrl
+    ? canonicalUrlForNfcComparison(detail.capsule.latestScanUrl) ===
+      canonicalUrlForNfcComparison(expectedUrl)
+    : null;
+
   return {
     ...detail,
     capsule: {
       ...detail.capsule,
       capsulePath: capsulePath(detail.capsule.publicToken),
-      capsuleUrl: capsuleUrl(appBaseUrl.baseUrl, detail.capsule.publicToken),
+      capsuleUrl: expectedUrl,
+      latestScanUrlMatchesExpected,
       appBaseUrlConfigured: appBaseUrl.configured,
       appBaseUrlWarning: appBaseUrl.warning ?? null,
     },

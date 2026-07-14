@@ -12,6 +12,9 @@ type CapsuleDetail = {
   publicToken: string;
   capsulePath: string;
   capsuleUrl: string;
+  latestScanUrl?: string | null;
+  latestScanAt?: string | null;
+  latestScanUrlMatchesExpected?: boolean | null;
   appBaseUrlConfigured: boolean;
   appBaseUrlWarning?: string | null;
   activationStatus: "unactivated" | "active";
@@ -201,17 +204,35 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
             {capsule.appBaseUrlWarning}
           </p>
         ) : null}
+        {capsule.latestScanUrl ? (
+          <p className="border border-rule bg-paper p-3 font-sans text-sm leading-6 text-ink-soft">
+            {capsule.latestScanUrlMatchesExpected
+              ? "Latest observed public open matches the expected URL."
+              : "Latest observed public open does not match the expected URL."}
+          </p>
+        ) : (
+          <p className="border border-rule bg-paper p-3 font-sans text-sm leading-6 text-ink-soft">
+            No public open recorded yet. After writing a tag, open it once so the
+            server can record the URL that reached this page. This is an
+            observational check, not proof that the request came from NFC.
+          </p>
+        )}
 
         <section className="grid gap-6 md:grid-cols-[1fr_260px]">
           <div className="grid gap-3 font-sans text-sm sm:grid-cols-2">
             <Info label="Public token" value={capsule.publicToken} />
             <Info label="Capsule path" value={capsule.capsulePath} />
-            <Info label="Full NFC / QR URL" value={capsule.capsuleUrl} />
+            <Info label="Expected NFC / QR URL" value={capsule.capsuleUrl} />
+            <Info
+              label="Latest observed public URL"
+              value={capsule.latestScanUrl ?? "No public open recorded yet"}
+            />
             <Info label="Activation" value={capsule.activationStatus} />
             <Info label="Fulfilment" value={capsule.fulfillmentStatus} />
             <Info label="NFC write/test" value={capsule.nfcWriteStatus} />
             <Info label="Recovery" value={capsule.recoveryStatus.replace("_", " ")} />
             <Info label="Created" value={dateLabel(capsule.createdAt)} />
+            <Info label="Latest observed open" value={dateLabel(capsule.latestScanAt)} />
             <Info label="Activated" value={dateLabel(capsule.activatedAt)} />
             <Info label="Written" value={dateLabel(capsule.writtenAt)} />
             <Info label="Tested" value={dateLabel(capsule.testedAt)} />

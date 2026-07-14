@@ -51,6 +51,9 @@ export type AdminCapsuleSummary = {
 export type AdminCapsuleDetail = AdminCapsuleSummary & {
   disabledAt?: string | null;
   disabledReason?: string | null;
+  latestScanUrl?: string | null;
+  latestScanAt?: string | null;
+  latestScanUrlMatchesExpected?: boolean | null;
   writtenAt?: string | null;
   testedAt?: string | null;
   recoveryIssuedAt?: string | null;

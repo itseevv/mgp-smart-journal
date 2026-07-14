@@ -250,9 +250,45 @@ test("admin detail distinguishes capsule path from full NFC and QR URL", async (
   assert.match(detailRoute, /capsulePath/);
   assert.match(detailRoute, /capsuleUrl/);
   assert.match(detailPage, /Capsule path/);
-  assert.match(detailPage, /Full NFC \/ QR URL/);
+  assert.match(detailPage, /Expected NFC \/ QR URL/);
   assert.match(detailPage, /Copy URL/);
   assert.match(detailPage, /Open public URL/);
+});
+
+test("admin detail labels the latest server-observed public open accurately", async () => {
+  const detailRoute = await readFile(
+    new URL("../app/api/admin/capsules/[capsuleId]/route.ts", import.meta.url),
+    "utf8",
+  );
+  const detailPage = await readFile(
+    new URL("../components/admin/admin-capsule-detail-page.tsx", import.meta.url),
+    "utf8",
+  );
+  const capsulesLib = await readFile(
+    new URL("../lib/admin/capsules.ts", import.meta.url),
+    "utf8",
+  );
+  const migration = await readFile(
+    new URL(
+      "../supabase/migrations/202607090001_capsule_latest_scan_tracking.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(detailRoute, /latestScanUrlMatchesExpected/);
+  assert.match(detailRoute, /canonicalUrlForNfcComparison/);
+  assert.match(detailPage, /Expected NFC \/ QR URL/);
+  assert.match(detailPage, /Latest observed public URL/);
+  assert.match(detailPage, /Latest observed open/);
+  assert.match(detailPage, /No public open recorded yet/);
+  assert.match(detailPage, /Latest observed public open matches the expected URL/);
+  assert.match(detailPage, /Latest observed public open does not match the expected URL/);
+  assert.match(detailPage, /not proof that the request came from NFC/);
+  assert.match(capsulesLib, /latestScanUrl\?: string \| null/);
+  assert.match(capsulesLib, /latestScanAt\?: string \| null/);
+  assert.match(migration, /'latestScanUrl', fulfillment\.latest_scan_url/);
+  assert.match(migration, /'latestScanAt', fulfillment\.latest_scan_at/);
 });
 
 test("disabled capsules return neutral public state and recovery actions are blocked", async () => {
