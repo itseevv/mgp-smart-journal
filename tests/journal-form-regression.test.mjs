@@ -1351,11 +1351,11 @@ test("phase 7R.5H locks Home typography, Seal the Day tray, and Detail playgroun
   assert.match(appMemoryRouteSource, /searchParams: Promise<\{ create\?: string \}>/);
   assert.match(appMemoryRouteSource, /create === "today" \|\| create === "backfill"/);
   assert.match(capsulePageSource, /createIntent\?: "today" \| "backfill"/);
+  assert.doesNotMatch(capsulePageSource, /canUseCachedAccess|cachedAccess/);
   assert.match(
     capsulePageSource,
-    /const canUseCachedAccess =[\s\S]*initialGateAllowsCachedAccess[\s\S]*!memoryId \|\| Boolean\(createIntent\)/,
+    /callCapsuleAccess\([\s\S]*"inspect"[\s\S]*applyInspection/,
   );
-  assert.match(capsulePageSource, /if \(active && cachedAccess && canUseCachedAccess\)/);
   assert.match(capsulePageSource, /createIntent=\{createIntent\}/);
   assert.match(journalMemoryPageSource, /createIntent\?: "today" \| "backfill"/);
   assert.match(journalMemoryPageSource, /createIntent === "today" && !initialMemory/);

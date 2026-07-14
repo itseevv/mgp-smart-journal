@@ -88,16 +88,11 @@ test("customer capsule routes provide a server-side initial gate before hydratio
   assert.match(capsulePage, /initialGate\?: CapsuleInitialGate/);
   assert.match(capsulePage, /useState<PageState>\(\(\) =>\s*pageStateFromInitialGate\(initialGate\)/);
   assert.match(capsulePage, /initialGate\.type === "locked"[\s\S]*return \{ type: "loading" \}/);
-  assert.match(capsulePage, /getCachedCapsuleAccess\(publicToken\)/);
-  assert.match(
-    capsulePage,
-    /initialGateAllowsCachedAccess[\s\S]*initialGate\.type === "locked"/,
-  );
-  assert.match(capsulePage, /cacheCapsuleAccess\(publicToken, inspection\)/);
-  assert.match(capsulePage, /clearCapsuleSessionCache\(state\.capsuleId, publicToken\)/);
-  assert.match(capsuleApi, /sessionCapsuleAccessCache/);
-  assert.match(capsuleApi, /export function getCachedCapsuleAccess/);
-  assert.match(capsuleApi, /export function cacheCapsuleAccess/);
+  assert.doesNotMatch(capsulePage, /getCachedCapsuleAccess\(publicToken\)/);
+  assert.doesNotMatch(capsulePage, /initialGateAllowsCachedAccess/);
+  assert.match(capsulePage, /clearCapsuleSessionCache\(state\.capsuleId\)/);
+  assert.doesNotMatch(capsuleApi, /sessionCapsuleAccessCache/);
+  assert.doesNotMatch(capsuleApi, /getCachedCapsuleAccess|cacheCapsuleAccess/);
 });
 
 test("public capsule opens record the latest observed URL without claiming NFC proof", async () => {

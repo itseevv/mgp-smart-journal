@@ -33,19 +33,9 @@ import { isPhotoCropMetadata } from "@/lib/scrap/crop-math";
 
 const MEDIA_BUCKET = "memory-media";
 const sessionMemoryCache = new Map<string, PersistentMemoryEntry>();
-type CachedCapsuleAccess = {
-  capsuleId: string;
-  productType: CapsuleProductType;
-  journalTheme?: Partial<JournalTheme> | null;
-};
-const sessionCapsuleAccessCache = new Map<string, CachedCapsuleAccess>();
 
 function memoryCacheKey(capsuleId: string, memoryId?: string) {
   return `${capsuleId}:${memoryId ?? "bookmark"}`;
-}
-
-function capsuleAccessCacheKey(publicToken: string) {
-  return publicToken;
 }
 
 function withoutResolvedUrls(
@@ -89,44 +79,9 @@ export function cacheAccessMemory(memory?: PersistentMemoryEntry | null) {
   return memory ?? undefined;
 }
 
-export function getCachedCapsuleAccess(publicToken: string) {
-  return sessionCapsuleAccessCache.get(capsuleAccessCacheKey(publicToken));
-}
-
-export function cacheCapsuleAccess(
-  publicToken: string,
-  inspection: CapsuleInspection,
-) {
-  if (
-    inspection.state !== "unlocked" ||
-    !inspection.capsuleId ||
-    !inspection.productType
-  ) {
-    return undefined;
-  }
-
-  const access = {
-    capsuleId: inspection.capsuleId,
-    productType: inspection.productType,
-    journalTheme: inspection.journalTheme,
-  };
-  sessionCapsuleAccessCache.set(capsuleAccessCacheKey(publicToken), access);
-  return access;
-}
-
-export function clearCapsuleSessionCache(
-  capsuleId: string,
-  publicToken?: string,
-) {
+export function clearCapsuleSessionCache(capsuleId: string) {
   for (const key of sessionMemoryCache.keys()) {
     if (key.startsWith(`${capsuleId}:`)) sessionMemoryCache.delete(key);
-  }
-  if (publicToken) {
-    sessionCapsuleAccessCache.delete(capsuleAccessCacheKey(publicToken));
-    return;
-  }
-  for (const [key, access] of sessionCapsuleAccessCache.entries()) {
-    if (access.capsuleId === capsuleId) sessionCapsuleAccessCache.delete(key);
   }
 }
 
@@ -159,6 +114,7 @@ export type CapsuleInspection = {
   state: CapsuleGateState;
   capsuleId?: string;
   productType?: CapsuleProductType;
+  accessExpiresAt?: string;
   journalTheme?: Partial<JournalTheme> | null;
   memory?: PersistentMemoryEntry | null;
   memoryUnavailable?: boolean;
@@ -218,7 +174,7 @@ export async function ensureAnonymousSession(
 
 export async function callCapsuleAccess(
   client: SupabaseClient,
-  action: "inspect" | "activate" | "unlock" | "lock",
+  action: "inspect" | "touch" | "activate" | "unlock" | "lock",
   publicToken: string,
   pin?: string,
   memoryId?: string,
