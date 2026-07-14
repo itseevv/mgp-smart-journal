@@ -351,6 +351,7 @@ Deno.serve(async (request) => {
   if (
     ![
       "inspect",
+      "touch",
       "activate",
       "unlock",
       "lock",
@@ -579,6 +580,7 @@ Deno.serve(async (request) => {
 
   const rpcName = {
     inspect: "inspect_capsule_access",
+    touch: "touch_capsule_access",
     activate: "activate_capsule_owner",
     unlock: "unlock_capsule_owner",
     lock: "lock_capsule_owner",
