@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { useAdminLocale } from "@/components/admin/admin-locale-provider";
+import { AdminShell } from "@/components/admin/admin-shell";
+import type { AdminTranslationKey } from "@/lib/admin/i18n";
+
 type ProductType = "journal" | "bookmark";
 type FulfillmentStatus =
   | "generated"
@@ -60,21 +64,18 @@ type AdminUrlConfig = {
   appBaseUrlWarning?: string | null;
 };
 
-function statusLabel(value: string) {
-  return value.replaceAll("_", " ");
-}
-
 export function AdminCapsulesPage() {
+  const { t, statusLabel, formatNumber } = useAdminLocale();
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [passcode, setPasscode] = useState("");
-  const [loginError, setLoginError] = useState("");
+  const [loginError, setLoginError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<AdminBatch[]>([]);
   const [capsules, setCapsules] = useState<AdminCapsule[]>([]);
   const [journalThemes, setJournalThemes] = useState<AdminJournalTheme[]>([]);
   const [handoff, setHandoff] = useState<RecoveryHandoffItem[]>([]);
   const [urlConfig, setUrlConfig] = useState<AdminUrlConfig | null>(null);
-  const [message, setMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<AdminTranslationKey | null>(null);
   const [filters, setFilters] = useState({
     productType: "",
     status: "",
@@ -102,7 +103,7 @@ export function AdminCapsulesPage() {
 
   const loadCapsules = async () => {
     setLoading(true);
-    setMessage("");
+    setMessageKey(null);
     try {
       const response = await fetch(`/api/admin/capsules${query ? `?${query}` : ""}`);
       if (response.status === 401) {
@@ -117,7 +118,7 @@ export function AdminCapsulesPage() {
       setJournalThemes(result.journalThemes ?? []);
       setUrlConfig(result.urlConfig ?? null);
     } catch {
-      setMessage("Admin capsule data could not be loaded.");
+      setMessageKey("capsulesLoadFailed");
     } finally {
       setLoading(false);
     }
@@ -144,14 +145,14 @@ export function AdminCapsulesPage() {
 
   const login = async (event: FormEvent) => {
     event.preventDefault();
-    setLoginError("");
+    setLoginError(false);
     const response = await fetch("/api/admin/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passcode }),
     });
     if (!response.ok) {
-      setLoginError("That admin passcode was not accepted.");
+      setLoginError(true);
       return;
     }
     setAuthenticated(true);
@@ -162,12 +163,12 @@ export function AdminCapsulesPage() {
   const generateBatch = async (event: FormEvent) => {
     event.preventDefault();
     if (form.productType === "journal" && !form.journalThemeId) {
-      setMessage("Choose a journal theme before generating journal capsules.");
+      setMessageKey("journalThemeRequired");
       setHandoff([]);
       return;
     }
     setLoading(true);
-    setMessage("");
+    setMessageKey(null);
     setHandoff([]);
     try {
       const response = await fetch("/api/admin/capsules", {
@@ -178,17 +179,17 @@ export function AdminCapsulesPage() {
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.code ?? "UNAVAILABLE");
       setHandoff(result.recoveryHandoff ?? []);
-      setMessage(
+      setMessageKey(
         result.recoveryPartialFailure
-          ? "Batch generated, but some recovery passcodes failed to issue. Retry from capsule detail."
-          : "Batch generated.",
+          ? "batchGeneratedPartial"
+          : "batchGenerated",
       );
       await loadCapsules();
     } catch (error) {
-      setMessage(
+      setMessageKey(
         error instanceof Error && error.message === "JOURNAL_THEME_REQUIRED"
-          ? "Choose a journal theme before generating journal capsules."
-          : "Batch generation failed. No silent recovery handoff was created.",
+          ? "journalThemeRequired"
+          : "batchGenerationFailed",
       );
     } finally {
       setLoading(false);
@@ -196,7 +197,7 @@ export function AdminCapsulesPage() {
   };
 
   if (authenticated === null) {
-    return <AdminShell><p className="font-sans text-sm text-ink-soft">Checking admin session…</p></AdminShell>;
+    return <AdminShell><p className="font-sans text-sm text-ink-soft">{t("checkingSession")}</p></AdminShell>;
   }
 
   if (!authenticated) {
@@ -205,17 +206,17 @@ export function AdminCapsulesPage() {
         <form onSubmit={login} className="mx-auto max-w-sm space-y-5">
           <div>
             <p className="font-sans text-xs font-bold uppercase tracking-[0.22em] text-oxblood">
-              Internal admin
+              {t("loginEyebrow")}
             </p>
             <h1 className="mt-3 font-serif text-4xl leading-tight text-ink">
-              Capsule provisioning
+              {t("loginTitle")}
             </h1>
             <p className="mt-3 font-sans text-sm leading-6 text-ink-soft">
-              Enter the internal admin passcode to generate NFC/QR capsule batches.
+              {t("loginDescription")}
             </p>
           </div>
           <label className="block font-sans text-sm font-semibold text-ink">
-            Admin passcode
+            {t("loginPasscode")}
             <input
               value={passcode}
               onChange={(event) => setPasscode(event.target.value)}
@@ -223,9 +224,9 @@ export function AdminCapsulesPage() {
               className="mt-2 w-full border border-rule bg-paper px-3 py-3 font-sans text-base text-ink outline-none focus:border-oxblood"
             />
           </label>
-          {loginError ? <p className="font-sans text-sm text-oxblood">{loginError}</p> : null}
+          {loginError ? <p className="font-sans text-sm text-oxblood">{t("loginRejected")}</p> : null}
           <button className="w-full bg-oxblood px-4 py-3 font-sans text-sm font-bold text-paper">
-            Unlock admin
+            {t("loginSubmit")}
           </button>
         </form>
       </AdminShell>
@@ -238,12 +239,11 @@ export function AdminCapsulesPage() {
         <header className="flex flex-col gap-4 border-b border-rule pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="font-sans text-xs font-bold uppercase tracking-[0.22em] text-oxblood">
-              Internal fulfilment
+              {t("capsulesEyebrow")}
             </p>
-            <h1 className="mt-2 font-serif text-4xl text-ink">Capsules</h1>
+            <h1 className="mt-2 font-serif text-4xl text-ink">{t("capsulesTitle")}</h1>
             <p className="mt-2 max-w-2xl font-sans text-sm leading-6 text-ink-soft">
-              Generate unactivated capsule URLs for NFC writing and QR fallback. No
-              private customer media or memory contents are shown here.
+              {t("capsulesDescription")}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -251,13 +251,13 @@ export function AdminCapsulesPage() {
               href="/admin/journal-themes"
               className="inline-flex justify-center border border-rule px-4 py-2 font-sans text-sm font-bold text-ink"
             >
-              Theme library
+              {t("navThemes")}
             </Link>
             <a
               href={`/api/admin/capsules/export${query ? `?${query}` : ""}`}
               className="inline-flex justify-center border border-oxblood px-4 py-2 font-sans text-sm font-bold text-oxblood"
             >
-              Export CSV
+              {t("exportCsv")}
             </a>
           </div>
         </header>
@@ -265,10 +265,10 @@ export function AdminCapsulesPage() {
         <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <form onSubmit={generateBatch} className="space-y-4 border border-rule bg-paper/70 p-4">
             <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-              Generate batch
+              {t("generateBatch")}
             </h2>
             <label className="block font-sans text-sm font-semibold">
-              Batch name
+              {t("batchName")}
               <input
                 value={form.batchName}
                 onChange={(event) => setForm({ ...form, batchName: event.target.value })}
@@ -277,7 +277,7 @@ export function AdminCapsulesPage() {
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block font-sans text-sm font-semibold">
-                Product
+                {t("product")}
                 <select
                   value={form.productType}
                   onChange={(event) =>
@@ -290,12 +290,12 @@ export function AdminCapsulesPage() {
                   }
                   className="mt-2 w-full border border-rule bg-paper px-3 py-2"
                 >
-                  <option value="journal">Journal</option>
-                  <option value="bookmark">Bookmark</option>
+                  <option value="journal">{statusLabel("journal")}</option>
+                  <option value="bookmark">{statusLabel("bookmark")}</option>
                 </select>
               </label>
               <label className="block font-sans text-sm font-semibold">
-                Quantity
+                {t("quantity")}
                 <input
                   value={form.quantity}
                   onChange={(event) =>
@@ -310,7 +310,7 @@ export function AdminCapsulesPage() {
             </div>
             {form.productType === "journal" ? (
               <label className="block font-sans text-sm font-semibold">
-                Journal theme
+                {t("journalTheme")}
                 <select
                   value={form.journalThemeId}
                   onChange={(event) =>
@@ -318,7 +318,7 @@ export function AdminCapsulesPage() {
                   }
                   className="mt-2 w-full border border-rule bg-paper px-3 py-2"
                 >
-                  <option value="">Choose a journal theme</option>
+                  <option value="">{t("chooseJournalTheme")}</option>
                   {journalThemes.map((theme) => (
                     <option key={theme.id} value={theme.id}>
                       {theme.name} ({theme.slug})
@@ -327,13 +327,13 @@ export function AdminCapsulesPage() {
                 </select>
                 {journalThemes.length === 0 ? (
                   <span className="mt-2 block text-xs font-normal text-oxblood">
-                    Add or activate a journal theme before generating journals.
+                    {t("noActiveThemes")}
                   </span>
                 ) : null}
               </label>
             ) : null}
             <label className="block font-sans text-sm font-semibold">
-              Optional serial prefix
+              {t("optionalSerialPrefix")}
               <input
                 value={form.serialPrefix}
                 onChange={(event) => setForm({ ...form, serialPrefix: event.target.value })}
@@ -342,7 +342,7 @@ export function AdminCapsulesPage() {
               />
             </label>
             <label className="block font-sans text-sm font-semibold">
-              Notes
+              {t("notes")}
               <textarea
                 value={form.notes}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
@@ -358,63 +358,67 @@ export function AdminCapsulesPage() {
                 type="checkbox"
                 className="mt-1"
               />
-              Issue initial Recovery Passcodes and show a one-time sensitive handoff.
+              {t("issueRecovery")}
             </label>
             <button
               disabled={loading}
               className="w-full bg-oxblood px-4 py-3 font-sans text-sm font-bold text-paper disabled:opacity-50"
             >
-              {loading ? "Working…" : "Generate capsules"}
+              {loading ? t("working") : t("generateCapsules")}
             </button>
           </form>
 
           <div className="space-y-4 border border-rule bg-paper/70 p-4">
             <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-              Filters
+              {t("filters")}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               <select
+                aria-label={t("product")}
                 value={filters.productType}
                 onChange={(event) =>
                   setFilters({ ...filters, productType: event.target.value })
                 }
                 className="border border-rule bg-paper px-3 py-2 font-sans text-sm"
               >
-                <option value="">All products</option>
-                <option value="journal">Journal</option>
-                <option value="bookmark">Bookmark</option>
+                <option value="">{t("allProducts")}</option>
+                <option value="journal">{statusLabel("journal")}</option>
+                <option value="bookmark">{statusLabel("bookmark")}</option>
               </select>
               <select
+                aria-label={t("status")}
                 value={filters.status}
                 onChange={(event) => setFilters({ ...filters, status: event.target.value })}
                 className="border border-rule bg-paper px-3 py-2 font-sans text-sm"
               >
-                <option value="">All statuses</option>
+                <option value="">{t("allStatuses")}</option>
                 {["generated", "written", "tested", "disabled"].map((status) => (
                   <option key={status} value={status}>{statusLabel(status)}</option>
                 ))}
               </select>
               <select
+                aria-label={t("allBatches")}
                 value={filters.batchId}
                 onChange={(event) => setFilters({ ...filters, batchId: event.target.value })}
                 className="border border-rule bg-paper px-3 py-2 font-sans text-sm"
               >
-                <option value="">All batches</option>
+                <option value="">{t("allBatches")}</option>
                 {batches.map((batch) => (
                   <option key={batch.id} value={batch.id}>{batch.batchName}</option>
                 ))}
               </select>
               <input
+                aria-label={t("searchSerialOrToken")}
                 value={filters.search}
                 onChange={(event) => setFilters({ ...filters, search: event.target.value })}
-                placeholder="Search serial or token"
+                placeholder={t("searchSerialOrToken")}
                 className="border border-rule bg-paper px-3 py-2 font-sans text-sm"
               />
             </div>
-            {message ? <p className="font-sans text-sm text-oxblood">{message}</p> : null}
+            {messageKey ? <p className="font-sans text-sm text-oxblood">{t(messageKey)}</p> : null}
             {urlConfig?.appBaseUrlWarning ? (
               <p className="border border-oxblood/30 bg-oxblood/5 p-3 font-sans text-sm leading-6 text-oxblood">
-                {urlConfig.appBaseUrlWarning}
+                {t("appBaseUrlWarning")}
               </p>
             ) : null}
             {handoff.length > 0 ? <RecoveryHandoff items={handoff} /> : null}
@@ -424,50 +428,61 @@ export function AdminCapsulesPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-              {capsules.length} capsules
+              {t("capsulesCount", { count: formatNumber(capsules.length) })}
             </h2>
-            {loading ? <span className="font-sans text-xs text-ink-soft">Loading…</span> : null}
+            {loading ? <span className="font-sans text-xs text-ink-soft">{t("loading")}</span> : null}
           </div>
           <div className="overflow-x-auto border border-rule">
             <table className="min-w-full border-collapse bg-paper/80 font-sans text-sm">
               <thead className="text-left text-xs uppercase tracking-[0.14em] text-ink-soft">
                 <tr>
-                  <th className="border-b border-rule p-3">Serial</th>
-                  <th className="border-b border-rule p-3">Product</th>
-                  <th className="border-b border-rule p-3">Theme</th>
-                  <th className="border-b border-rule p-3">Fulfilment</th>
-                  <th className="border-b border-rule p-3">Activation</th>
-                  <th className="border-b border-rule p-3">Recovery</th>
-                  <th className="border-b border-rule p-3">Counts</th>
-                  <th className="border-b border-rule p-3">Actions</th>
+                  <th className="border-b border-rule p-3">{t("tableSerial")}</th>
+                  <th className="border-b border-rule p-3">{t("tableProduct")}</th>
+                  <th className="border-b border-rule p-3">{t("tableTheme")}</th>
+                  <th className="border-b border-rule p-3">{t("tableFulfilment")}</th>
+                  <th className="border-b border-rule p-3">{t("tableActivation")}</th>
+                  <th className="border-b border-rule p-3">{t("tableRecovery")}</th>
+                  <th className="border-b border-rule p-3">{t("tableCounts")}</th>
+                  <th className="border-b border-rule p-3">{t("tableActions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {capsules.map((capsule) => (
                   <tr key={capsule.id} className="align-top">
                     <td className="border-b border-rule p-3 font-bold">{capsule.serialNumber}</td>
-                    <td className="border-b border-rule p-3 capitalize">{capsule.productType}</td>
+                    <td className="border-b border-rule p-3">{statusLabel(capsule.productType)}</td>
                     <td className="border-b border-rule p-3">
-                      {capsule.journalTheme?.name ?? "None"}
+                      {capsule.journalTheme?.name ?? t("none")}
                     </td>
                     <td className="border-b border-rule p-3 capitalize">{statusLabel(capsule.fulfillmentStatus)}</td>
-                    <td className="border-b border-rule p-3 capitalize">{capsule.activationStatus}</td>
+                    <td className="border-b border-rule p-3">{statusLabel(capsule.activationStatus)}</td>
                     <td className="border-b border-rule p-3">{statusLabel(capsule.recoveryStatus)}</td>
                     <td className="border-b border-rule p-3 text-ink-soft">
-                      {capsule.memoryCount} memories · {capsule.photoCount} photos · {capsule.voiceMemoCount} voice
+                      {t("capsuleCounts", {
+                        memories: formatNumber(capsule.memoryCount),
+                        photos: formatNumber(capsule.photoCount),
+                        voice: formatNumber(capsule.voiceMemoCount),
+                      })}
                     </td>
                     <td className="border-b border-rule p-3">
                       <div className="flex flex-wrap gap-2">
                         <Link href={`/admin/capsules/${capsule.id}`} className="font-bold text-oxblood underline underline-offset-4">
-                          Detail
+                          {t("detail")}
                         </Link>
                         <a href={`/c/${capsule.publicToken}`} target="_blank" className="text-ink-soft underline underline-offset-4">
-                          Open
+                          {t("open")}
                         </a>
                       </div>
                     </td>
                   </tr>
                 ))}
+                {capsules.length === 0 && !loading ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-ink-soft">
+                      {t("noCapsules")}
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
@@ -478,6 +493,7 @@ export function AdminCapsulesPage() {
 }
 
 function RecoveryHandoff({ items }: { items: RecoveryHandoffItem[] }) {
+  const { t } = useAdminLocale();
   const csv = [
     "# SENSITIVE RECOVERY HANDOFF - plaintext passcodes are shown once",
     "serial_number,capsule_url,recovery_passcode",
@@ -490,18 +506,17 @@ function RecoveryHandoff({ items }: { items: RecoveryHandoffItem[] }) {
   return (
     <div className="border border-oxblood/40 bg-oxblood/5 p-3">
       <p className="font-sans text-sm font-bold text-oxblood">
-        Sensitive one-time recovery handoff
+        {t("recoveryHandoffTitle")}
       </p>
       <p className="mt-1 font-sans text-xs leading-5 text-ink-soft">
-        These plaintext passcodes are not stored and cannot be viewed again after
-        this page changes.
+        {t("recoveryHandoffDescription")}
       </p>
       <a
         href={href}
         download="sensitive-recovery-handoff.csv"
         className="mt-3 inline-flex border border-oxblood px-3 py-2 font-sans text-xs font-bold text-oxblood"
       >
-        Download sensitive CSV
+        {t("downloadSensitiveCsv")}
       </a>
       <div className="mt-3 max-h-52 overflow-auto font-mono text-xs">
         {items.map((item) => (
@@ -512,15 +527,5 @@ function RecoveryHandoff({ items }: { items: RecoveryHandoffItem[] }) {
         ))}
       </div>
     </div>
-  );
-}
-
-function AdminShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-leather px-3 py-8 sm:px-6 sm:py-12">
-      <div className="paper-surface mx-auto max-w-6xl bg-paper p-5 shadow-[0_16px_45px_rgba(23,18,15,0.2)] sm:p-8">
-        {children}
-      </div>
-    </main>
   );
 }

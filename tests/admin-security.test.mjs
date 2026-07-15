@@ -249,10 +249,10 @@ test("admin detail distinguishes capsule path from full NFC and QR URL", async (
 
   assert.match(detailRoute, /capsulePath/);
   assert.match(detailRoute, /capsuleUrl/);
-  assert.match(detailPage, /Capsule path/);
-  assert.match(detailPage, /Expected NFC \/ QR URL/);
-  assert.match(detailPage, /Copy URL/);
-  assert.match(detailPage, /Open public URL/);
+  assert.match(detailPage, /t\("capsulePath"\)/);
+  assert.match(detailPage, /t\("expectedNfcUrl"\)/);
+  assert.match(detailPage, /t\("copyUrl"\)/);
+  assert.match(detailPage, /t\("openPublicUrl"\)/);
 });
 
 test("admin detail labels the latest server-observed public open accurately", async () => {
@@ -278,13 +278,13 @@ test("admin detail labels the latest server-observed public open accurately", as
 
   assert.match(detailRoute, /latestScanUrlMatchesExpected/);
   assert.match(detailRoute, /canonicalUrlForNfcComparison/);
-  assert.match(detailPage, /Expected NFC \/ QR URL/);
-  assert.match(detailPage, /Latest observed public URL/);
-  assert.match(detailPage, /Latest observed open/);
-  assert.match(detailPage, /No public open recorded yet/);
-  assert.match(detailPage, /Latest observed public open matches the expected URL/);
-  assert.match(detailPage, /Latest observed public open does not match the expected URL/);
-  assert.match(detailPage, /not proof that the request came from NFC/);
+  assert.match(detailPage, /t\("expectedNfcUrl"\)/);
+  assert.match(detailPage, /t\("latestPublicUrl"\)/);
+  assert.match(detailPage, /t\("latestObservedOpen"\)/);
+  assert.match(detailPage, /t\("noPublicOpen"\)/);
+  assert.match(detailPage, /t\("latestOpenMatches"\)/);
+  assert.match(detailPage, /t\("latestOpenMismatch"\)/);
+  assert.match(detailPage, /t\("noPublicOpenExplanation"\)/);
   assert.match(capsulesLib, /latestScanUrl\?: string \| null/);
   assert.match(capsulesLib, /latestScanAt\?: string \| null/);
   assert.match(migration, /'latestScanUrl', fulfillment\.latest_scan_url/);
