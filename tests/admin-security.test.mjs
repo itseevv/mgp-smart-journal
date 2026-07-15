@@ -249,10 +249,10 @@ test("admin detail distinguishes capsule path from full NFC and QR URL", async (
 
   assert.match(detailRoute, /capsulePath/);
   assert.match(detailRoute, /capsuleUrl/);
-  assert.match(detailPage, /Capsule path/);
-  assert.match(detailPage, /Full NFC \/ QR URL/);
-  assert.match(detailPage, /Copy URL/);
-  assert.match(detailPage, /Open public URL/);
+  assert.match(detailPage, /t\("capsulePath"\)/);
+  assert.match(detailPage, /t\("expectedNfcUrl"\)/);
+  assert.match(detailPage, /t\("copyUrl"\)/);
+  assert.match(detailPage, /t\("openPublicUrl"\)/);
 });
 
 test("disabled capsules return neutral public state and recovery actions are blocked", async () => {

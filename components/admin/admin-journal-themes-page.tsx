@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 
+import { useAdminLocale } from "@/components/admin/admin-locale-provider";
+import { AdminShell } from "@/components/admin/admin-shell";
 import {
   defaultJournalTheme,
   journalThemeStyle,
@@ -12,6 +14,7 @@ import {
   type JournalThemeStatus,
 } from "@/data/journal-themes";
 import { isCloseToPortraitBackgroundAspect } from "@/lib/journal-theme-background";
+import type { AdminTranslationKey } from "@/lib/admin/i18n";
 
 type AdminJournalTheme = JournalTheme & {
   description?: string | null;
@@ -123,18 +126,6 @@ function themePayload(form: ThemeFormState) {
   };
 }
 
-function statusLabel(status: string) {
-  return status.replaceAll("_", " ");
-}
-
-function textureDimensionLabel(theme: JournalTheme) {
-  if (!theme.textureWidth || !theme.textureHeight) {
-    return "Dimensions not detected yet";
-  }
-
-  return `${theme.textureWidth} × ${theme.textureHeight}`;
-}
-
 function shouldShowPortraitTextureNote(theme: JournalTheme) {
   return Boolean(
     theme.textureUrl &&
@@ -148,24 +139,25 @@ function shouldShowPortraitTextureNote(theme: JournalTheme) {
 }
 
 export function AdminJournalThemesPage() {
+  const { t, statusLabel, formatNumber } = useAdminLocale();
   const [themes, setThemes] = useState<AdminJournalTheme[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<AdminTranslationKey | null>(null);
 
   const load = async () => {
     setLoading(true);
-    setMessage("");
+    setMessageKey(null);
     try {
       const response = await fetch("/api/admin/journal-themes");
       if (response.status === 401) {
-        setMessage("Admin session required. Unlock from the capsule admin page.");
+        setMessageKey("themeLibrarySessionRequired");
         return;
       }
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.code ?? "UNAVAILABLE");
       setThemes(result.themes ?? []);
     } catch {
-      setMessage("Theme library could not be loaded.");
+      setMessageKey("themeLibraryLoadFailed");
     } finally {
       setLoading(false);
     }
@@ -182,46 +174,45 @@ export function AdminJournalThemesPage() {
         <header className="flex flex-col gap-4 border-b border-rule pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Link href="/admin/capsules" className="font-sans text-sm font-bold text-oxblood underline underline-offset-4">
-              Back to capsules
+              {t("backToCapsules")}
             </Link>
             <p className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.22em] text-oxblood">
-              Journal system
+              {t("themesEyebrow")}
             </p>
-            <h1 className="mt-2 font-serif text-4xl text-ink">Theme library</h1>
+            <h1 className="mt-2 font-serif text-4xl text-ink">{t("themesTitle")}</h1>
             <p className="mt-2 max-w-2xl font-sans text-sm leading-6 text-ink-soft">
-              Manage the dynamic leather and color identities that can be assigned
-              to journal capsules.
+              {t("themesDescription")}
             </p>
           </div>
           <Link
             href="/admin/journal-themes/new"
             className="inline-flex justify-center bg-oxblood px-4 py-2 font-sans text-sm font-bold text-paper"
           >
-            New theme
+            {t("newTheme")}
           </Link>
         </header>
 
-        {message ? <p className="font-sans text-sm text-oxblood">{message}</p> : null}
+        {messageKey ? <p className="font-sans text-sm text-oxblood">{t(messageKey)}</p> : null}
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-              {themes.length} themes
+              {t("themesCount", { count: formatNumber(themes.length) })}
             </h2>
-            {loading ? <span className="font-sans text-xs text-ink-soft">Loading...</span> : null}
+            {loading ? <span className="font-sans text-xs text-ink-soft">{t("loading")}</span> : null}
           </div>
           <div className="overflow-x-auto border border-rule">
             <table className="min-w-full border-collapse bg-paper/80 font-sans text-sm">
               <thead className="text-left text-xs uppercase tracking-[0.14em] text-ink-soft">
                 <tr>
-                  <th className="border-b border-rule p-3">Preview</th>
-                  <th className="border-b border-rule p-3">Name</th>
-                  <th className="border-b border-rule p-3">Slug</th>
-                  <th className="border-b border-rule p-3">Status</th>
-                  <th className="border-b border-rule p-3">Sort</th>
-                  <th className="border-b border-rule p-3">Texture</th>
-                  <th className="border-b border-rule p-3">Assigned</th>
-                  <th className="border-b border-rule p-3">Actions</th>
+                  <th className="border-b border-rule p-3">{t("preview")}</th>
+                  <th className="border-b border-rule p-3">{t("name")}</th>
+                  <th className="border-b border-rule p-3">{t("slug")}</th>
+                  <th className="border-b border-rule p-3">{t("status")}</th>
+                  <th className="border-b border-rule p-3">{t("sort")}</th>
+                  <th className="border-b border-rule p-3">{t("texture")}</th>
+                  <th className="border-b border-rule p-3">{t("assigned")}</th>
+                  <th className="border-b border-rule p-3">{t("tableActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,17 +230,24 @@ export function AdminJournalThemesPage() {
                       <td className="border-b border-rule p-3 font-bold">{resolved.name}</td>
                       <td className="border-b border-rule p-3 font-mono text-xs">{resolved.slug}</td>
                       <td className="border-b border-rule p-3 capitalize">{statusLabel(String(resolved.status ?? ""))}</td>
-                      <td className="border-b border-rule p-3">{theme.sortOrder}</td>
-                      <td className="border-b border-rule p-3">{resolved.textureUrl ? "Yes" : "No"}</td>
-                      <td className="border-b border-rule p-3">{theme.assignedCapsuleCount}</td>
+                      <td className="border-b border-rule p-3">{formatNumber(theme.sortOrder)}</td>
+                      <td className="border-b border-rule p-3">{resolved.textureUrl ? t("yes") : t("no")}</td>
+                      <td className="border-b border-rule p-3">{formatNumber(theme.assignedCapsuleCount)}</td>
                       <td className="border-b border-rule p-3">
                         <Link href={`/admin/journal-themes/${theme.id}`} className="font-bold text-oxblood underline underline-offset-4">
-                          Edit
+                          {t("edit")}
                         </Link>
                       </td>
                     </tr>
                   );
                 })}
+                {themes.length === 0 && !loading ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-ink-soft">
+                      {t("noThemes")}
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
@@ -261,43 +259,57 @@ export function AdminJournalThemesPage() {
 
 export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
   const router = useRouter();
+  const {
+    t,
+    statusLabel,
+    errorMessage,
+    textureWarning,
+    formatNumber,
+  } = useAdminLocale();
   const [form, setForm] = useState<ThemeFormState>(emptyForm);
   const [slugEdited, setSlugEdited] = useState(Boolean(themeId));
   const [loading, setLoading] = useState(Boolean(themeId));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
-  const [uploadMessage, setUploadMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<AdminTranslationKey | null>(null);
+  const [uploadMessageKey, setUploadMessageKey] =
+    useState<AdminTranslationKey | null>(null);
+  const [uploadErrorCode, setUploadErrorCode] = useState<string | null>(null);
   const preview = resolveJournalTheme({
     ...form,
     textureWidth: form.textureWidth ? Number(form.textureWidth) : undefined,
     textureHeight: form.textureHeight ? Number(form.textureHeight) : undefined,
   });
+  const textureDimensions =
+    preview.textureWidth && preview.textureHeight
+      ? `${formatNumber(preview.textureWidth)} × ${formatNumber(preview.textureHeight)}`
+      : t("dimensionsUnknown");
 
   useEffect(() => {
     if (!themeId) return;
     const timer = window.setTimeout(() => {
       void (async () => {
         setLoading(true);
-        setMessage("");
+        setMessageKey(null);
         try {
           const response = await fetch(`/api/admin/journal-themes/${themeId}`);
           if (response.status === 401) {
-            setMessage("Admin session required. Unlock from the capsule admin page.");
+            setMessageKey("themeLibrarySessionRequired");
             return;
           }
           const result = await response.json();
           if (!response.ok || !result.ok || !result.theme) {
-            setMessage("Theme could not be loaded.");
+            setMessageKey("themeLoadFailed");
             return;
           }
           setForm(formFromTheme(result.theme));
           setUploadWarnings([]);
-          setUploadMessage("");
+          setUploadMessageKey(null);
+          setUploadErrorCode(null);
           setSlugEdited(true);
         } catch {
-          setMessage("Theme could not be loaded.");
+          setMessageKey("themeLoadFailed");
         } finally {
           setLoading(false);
         }
@@ -309,7 +321,7 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
-    setMessage("");
+    setMessageKey(null);
     try {
       const response = await fetch(
         themeId ? `/api/admin/journal-themes/${themeId}` : "/api/admin/journal-themes",
@@ -321,19 +333,19 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
       );
       const result = await response.json();
       if (!response.ok || !result.ok) {
-        setMessage(
+        setMessageKey(
           result.code === "SLUG_CONFLICT"
-            ? "That slug is already used by another theme."
-            : "Theme could not be saved. Check the fields and retry.",
+            ? "slugConflict"
+            : "themeSaveFailed",
         );
         return;
       }
-      setMessage("Theme saved.");
+      setMessageKey("themeSaved");
       if (!themeId && result.theme?.id) {
         router.replace(`/admin/journal-themes/${result.theme.id}`);
       }
     } catch {
-      setMessage("Theme could not be saved.");
+      setMessageKey("themeSaveFailed");
     } finally {
       setSaving(false);
     }
@@ -357,7 +369,8 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
     if (!file || !themeId) return;
 
     setUploading(true);
-    setUploadMessage("");
+    setUploadMessageKey(null);
+    setUploadErrorCode(null);
     setUploadWarnings([]);
     try {
       const formData = new FormData();
@@ -368,17 +381,7 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
       });
       const result = await response.json();
       if (!response.ok || !result.ok || !result.theme) {
-        const errorCopy: Record<string, string> = {
-          TEXTURE_EMPTY: "Choose a texture image before uploading.",
-          TEXTURE_TOO_LARGE: "Texture is too large. Use an image under 12MB.",
-          TEXTURE_TYPE_UNSUPPORTED: "Use a JPEG, PNG, or WebP texture image.",
-          TEXTURE_TYPE_MISMATCH: "The file contents do not match its image type.",
-          TEXTURE_DIMENSIONS_UNREADABLE: "Texture dimensions could not be read.",
-          TEXTURE_REQUIRED: "Choose a texture image before uploading.",
-        };
-        setUploadMessage(
-          errorCopy[String(result.code)] ?? "Texture could not be uploaded.",
-        );
+        setUploadErrorCode(String(result.code ?? "UNAVAILABLE"));
         return;
       }
 
@@ -388,13 +391,13 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
         ? result.texture.warnings.filter((warning: unknown) => typeof warning === "string")
         : [];
       setUploadWarnings(warnings);
-      setUploadMessage(
+      setUploadMessageKey(
         warnings.length > 0
-          ? "Texture uploaded. Review the warnings before publishing."
-          : "Texture uploaded.",
+          ? "textureUploadedWithWarnings"
+          : "textureUploaded",
       );
     } catch {
-      setUploadMessage("Texture could not be uploaded.");
+      setUploadMessageKey("textureUploadFailed");
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -404,7 +407,7 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
   if (loading) {
     return (
       <AdminShell>
-        <p className="font-sans text-sm text-ink-soft">Loading theme...</p>
+        <p className="font-sans text-sm text-ink-soft">{t("loadingTheme")}</p>
       </AdminShell>
     );
   }
@@ -414,34 +417,34 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
       <form onSubmit={submit} className="space-y-8">
         <header className="border-b border-rule pb-6">
           <Link href="/admin/journal-themes" className="font-sans text-sm font-bold text-oxblood underline underline-offset-4">
-            Back to theme library
+            {t("backToThemeLibrary")}
           </Link>
           <p className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.22em] text-oxblood">
-            Journal theme
+            {t("themeEyebrow")}
           </p>
           <h1 className="mt-2 font-serif text-4xl text-ink">
-            {themeId ? form.name || "Edit theme" : "New theme"}
+            {themeId ? form.name || t("editTheme") : t("newTheme")}
           </h1>
         </header>
 
-        {message ? <p className="font-sans text-sm text-oxblood">{message}</p> : null}
+        {messageKey ? <p className="font-sans text-sm text-oxblood">{t(messageKey)}</p> : null}
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="space-y-8">
             <section className="space-y-5">
               <div>
                 <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-                  Theme details
+                  {t("themeDetails")}
                 </h2>
                 <p className="mt-2 font-sans text-sm leading-6 text-ink-soft">
-                  Name the journal theme, choose its availability, and set its library order.
+                  {t("themeDetailsDescription")}
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <TextField label="Theme name" value={form.name} onChange={updateName} />
-                <TextField label="Slug" value={form.slug} onChange={updateSlug} />
+                <TextField label={t("themeName")} value={form.name} onChange={updateName} />
+                <TextField label={t("slug")} value={form.slug} onChange={updateSlug} />
                 <label className="block font-sans text-sm font-semibold">
-                  Status
+                  {t("status")}
                   <select
                     value={form.status}
                     onChange={(event) =>
@@ -449,15 +452,15 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
                     }
                     className="mt-2 w-full border border-rule bg-paper px-3 py-2"
                   >
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="archived">Archived</option>
+                    <option value="draft">{statusLabel("draft")}</option>
+                    <option value="active">{statusLabel("active")}</option>
+                    <option value="archived">{statusLabel("archived")}</option>
                   </select>
                 </label>
-                <NumberField label="Sort order" value={form.sortOrder} onChange={(sortOrder) => setForm({ ...form, sortOrder })} />
+                <NumberField label={t("sortOrder")} value={form.sortOrder} onChange={(sortOrder) => setForm({ ...form, sortOrder })} />
               </div>
               <label className="block font-sans text-sm font-semibold">
-                Description
+                {t("description")}
                 <textarea
                   value={form.description}
                   onChange={(event) => setForm({ ...form, description: event.target.value })}
@@ -469,11 +472,10 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
             <section className="space-y-4 border-t border-rule pt-6">
               <div>
                 <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-                  Leather texture
+                  {t("leatherTexture")}
                 </h2>
                 <p className="mt-2 font-sans text-sm leading-6 text-ink-soft">
-                  Upload a prepared 9:16 portrait leather background. The full
-                  image is used by default for the app and daily export.
+                  {t("leatherTextureDescription")}
                 </p>
               </div>
 
@@ -486,7 +488,7 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
                     disabled={uploading}
                     onChange={(event) => void uploadTexture(event)}
                   />
-                  {uploading ? "Uploading..." : "Upload / Replace texture"}
+                  {uploading ? t("uploading") : t("uploadReplaceTexture")}
                 </label>
               ) : (
                 <div>
@@ -495,23 +497,25 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
                     disabled
                     className="border border-rule bg-paper-deep/20 px-4 py-3 font-sans text-sm font-bold text-ink-soft disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    Upload / Replace texture
+                    {t("uploadReplaceTexture")}
                   </button>
                   <p className="mt-2 font-sans text-xs leading-5 text-ink-soft">
-                    Texture upload is available after the theme is saved.
+                    {t("textureAfterSave")}
                   </p>
                 </div>
               )}
 
-              {uploadMessage ? (
+              {uploadMessageKey || uploadErrorCode ? (
                 <p className="font-sans text-sm text-oxblood" role="status">
-                  {uploadMessage}
+                  {uploadErrorCode
+                    ? errorMessage(uploadErrorCode)
+                    : t(uploadMessageKey!)}
                 </p>
               ) : null}
               {uploadWarnings.length > 0 ? (
                 <ul className="space-y-1 border border-oxblood/30 bg-oxblood/5 p-3 font-sans text-xs leading-5 text-oxblood">
                   {uploadWarnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
+                    <li key={warning}>{textureWarning(warning)}</li>
                   ))}
                 </ul>
               ) : null}
@@ -519,19 +523,20 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
               {preview.textureUrl ? (
                 <div className="space-y-1 font-sans text-xs leading-5 text-ink-soft">
                   <p>
-                    Current background: {textureDimensionLabel(preview)}{" "}
-                    {preview.textureMimeType ?? "image"}
+                    {t("currentBackground", {
+                      dimensions: textureDimensions,
+                      mimeType: preview.textureMimeType ?? t("image"),
+                    })}
                   </p>
                   {shouldShowPortraitTextureNote(preview) ? (
                     <p className="text-oxblood">
-                      For best results, upload a 9:16 portrait texture.
+                      {t("portraitTextureRecommendation")}
                     </p>
                   ) : null}
                 </div>
               ) : (
                 <p className="font-sans text-xs leading-5 text-ink-soft">
-                  No background uploaded yet. The previews fall back to the
-                  theme color tokens.
+                  {t("noBackground")}
                 </p>
               )}
 
@@ -542,18 +547,17 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
 
               <details className="border border-rule bg-paper/45 p-4">
                 <summary className="cursor-pointer font-sans text-xs font-bold uppercase tracking-[0.16em] text-ink">
-                  Advanced / Preview Settings
+                  {t("advancedPreviewSettings")}
                 </summary>
                 <p className="mt-3 font-sans text-sm leading-6 text-ink-soft">
-                  Advanced framing controls. Usually not needed when using a
-                  prepared 9:16 background.
+                  {t("advancedPreviewDescription")}
                 </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <SliderField label="Focus X" value={form.focusX} min={0} max={1} step={0.01} onChange={(focusX) => setForm({ ...form, focusX })} />
-                  <SliderField label="Focus Y" value={form.focusY} min={0} max={1} step={0.01} onChange={(focusY) => setForm({ ...form, focusY })} />
-                  <SliderField label="Zoom" value={form.zoom} min={1} max={3} step={0.05} onChange={(zoom) => setForm({ ...form, zoom })} />
-                  <SliderField label="Overlay opacity" value={form.overlayOpacity} min={0} max={0.8} step={0.01} onChange={(overlayOpacity) => setForm({ ...form, overlayOpacity })} />
-                  <TextField label="Overlay color" value={form.overlayColor} onChange={(overlayColor) => setForm({ ...form, overlayColor })} />
+                  <SliderField label={t("focusX")} value={form.focusX} min={0} max={1} step={0.01} onChange={(focusX) => setForm({ ...form, focusX })} />
+                  <SliderField label={t("focusY")} value={form.focusY} min={0} max={1} step={0.01} onChange={(focusY) => setForm({ ...form, focusY })} />
+                  <SliderField label={t("zoom")} value={form.zoom} min={1} max={3} step={0.05} onChange={(zoom) => setForm({ ...form, zoom })} />
+                  <SliderField label={t("overlayOpacity")} value={form.overlayOpacity} min={0} max={0.8} step={0.01} onChange={(overlayOpacity) => setForm({ ...form, overlayOpacity })} />
+                  <TextField label={t("overlayColor")} value={form.overlayColor} onChange={(overlayColor) => setForm({ ...form, overlayColor })} />
                 </div>
               </details>
             </section>
@@ -565,51 +569,49 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
               style={{ background: preview.fallbackBackgroundColor, color: preview.textPrimary }}
             >
               <p className="font-sans text-xs font-bold uppercase tracking-[0.18em]" style={{ color: preview.textSecondary }}>
-                Preview
+                {t("preview")}
               </p>
-              <p className="mt-3 font-serif text-3xl leading-none">{preview.name || "Theme"}</p>
+              <p className="mt-3 font-serif text-3xl leading-none">{preview.name || t("themeFallbackName")}</p>
               <div className="mt-5 h-10 border" style={{ background: preview.paperSurface, borderColor: preview.stampBorder }} />
             </div>
             <p className="font-sans text-xs leading-5 text-ink-soft">
-              The preview uses the uploaded 9:16 background at full frame when
-              available. Themes without a texture fall back to color tokens.
+              {t("previewDescription")}
             </p>
           </aside>
         </section>
 
         <section className="space-y-4 border-t border-rule pt-6">
           <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-            Advanced visual tokens
+            {t("advancedVisualTokens")}
           </h2>
           <p className="font-sans text-sm leading-6 text-ink-soft">
-            These color tokens remain editable while the texture workflow is prepared.
+            {t("advancedVisualDescription")}
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <TextField label="Background color" value={form.fallbackBackgroundColor} onChange={(fallbackBackgroundColor) => setForm({ ...form, fallbackBackgroundColor })} />
-            <TextField label="Text primary" value={form.textPrimary} onChange={(textPrimary) => setForm({ ...form, textPrimary })} />
-            <TextField label="Text secondary" value={form.textSecondary} onChange={(textSecondary) => setForm({ ...form, textSecondary })} />
-            <TextField label="Paper surface" value={form.paperSurface} onChange={(paperSurface) => setForm({ ...form, paperSurface })} />
-            <TextField label="Paper muted" value={form.paperSurfaceMuted} onChange={(paperSurfaceMuted) => setForm({ ...form, paperSurfaceMuted })} />
-            <TextField label="Stamp border" value={form.stampBorder} onChange={(stampBorder) => setForm({ ...form, stampBorder })} />
-            <TextField label="Accent color" value={form.accentColor} onChange={(accentColor) => setForm({ ...form, accentColor })} />
-            <TextField label="Logo variant" value={form.logoVariant} onChange={(logoVariant) => setForm({ ...form, logoVariant })} />
+            <TextField label={t("backgroundColor")} value={form.fallbackBackgroundColor} onChange={(fallbackBackgroundColor) => setForm({ ...form, fallbackBackgroundColor })} />
+            <TextField label={t("textPrimary")} value={form.textPrimary} onChange={(textPrimary) => setForm({ ...form, textPrimary })} />
+            <TextField label={t("textSecondary")} value={form.textSecondary} onChange={(textSecondary) => setForm({ ...form, textSecondary })} />
+            <TextField label={t("paperSurface")} value={form.paperSurface} onChange={(paperSurface) => setForm({ ...form, paperSurface })} />
+            <TextField label={t("paperMuted")} value={form.paperSurfaceMuted} onChange={(paperSurfaceMuted) => setForm({ ...form, paperSurfaceMuted })} />
+            <TextField label={t("stampBorder")} value={form.stampBorder} onChange={(stampBorder) => setForm({ ...form, stampBorder })} />
+            <TextField label={t("accentColor")} value={form.accentColor} onChange={(accentColor) => setForm({ ...form, accentColor })} />
+            <TextField label={t("logoVariant")} value={form.logoVariant} onChange={(logoVariant) => setForm({ ...form, logoVariant })} />
           </div>
         </section>
 
         <details className="border-t border-rule pt-6">
           <summary className="cursor-pointer font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-            Advanced / System Metadata
+            {t("advancedSystemMetadata")}
           </summary>
           <p className="mt-3 font-sans text-sm leading-6 text-ink-soft">
-            Texture asset metadata is kept here for system continuity. Normal setup
-            should use the upload flow above.
+            {t("systemMetadataDescription")}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <TextField label="Texture storage path" value={form.textureStoragePath} readOnly />
-            <TextField label="Texture public URL" value={form.texturePublicUrl} readOnly />
-            <TextField label="Texture width" value={form.textureWidth} readOnly />
-            <TextField label="Texture height" value={form.textureHeight} readOnly />
-            <TextField label="Texture MIME type" value={form.textureMimeType} readOnly />
+            <TextField label={t("textureStoragePath")} value={form.textureStoragePath} readOnly />
+            <TextField label={t("texturePublicUrl")} value={form.texturePublicUrl} readOnly />
+            <TextField label={t("textureWidth")} value={form.textureWidth} readOnly />
+            <TextField label={t("textureHeight")} value={form.textureHeight} readOnly />
+            <TextField label={t("textureMimeType")} value={form.textureMimeType} readOnly />
           </div>
         </details>
 
@@ -618,10 +620,10 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
             disabled={saving}
             className="bg-oxblood px-4 py-3 font-sans text-sm font-bold text-paper disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save theme"}
+            {saving ? t("saving") : t("saveTheme")}
           </button>
           <Link href="/admin/journal-themes" className="border border-rule px-4 py-3 font-sans text-sm font-bold text-ink">
-            Cancel
+            {t("cancel")}
           </Link>
         </div>
       </form>
@@ -630,10 +632,11 @@ export function AdminJournalThemeEditPage({ themeId }: { themeId?: string }) {
 }
 
 function ThemeMobilePreview({ theme }: { theme: JournalTheme }) {
+  const { t } = useAdminLocale();
   return (
     <section>
       <h3 className="font-sans text-xs font-bold uppercase tracking-[0.16em] text-ink">
-        Mobile App Preview
+        {t("mobileAppPreview")}
       </h3>
       <div
         className="relative mx-auto mt-3 aspect-[9/16] w-full max-w-[18rem] overflow-hidden bg-[var(--journal-background)] shadow-[0_16px_42px_rgba(18,11,10,0.22)]"
@@ -644,15 +647,15 @@ function ThemeMobilePreview({ theme }: { theme: JournalTheme }) {
         <div className="relative z-10 flex h-full flex-col p-4">
           <header className="text-[var(--journal-text)]">
             <p className="font-sans text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[var(--journal-muted)]">
-              Journal
+              {t("previewJournal")}
             </p>
             <p className="mt-2 font-serif text-3xl leading-none">
-              {theme.name || "Theme"}
+              {theme.name || t("themeFallbackName")}
             </p>
           </header>
           <div className="mt-5 bg-[var(--journal-paper)] p-3 shadow-[0_12px_30px_rgba(18,11,10,0.2)]">
             <p className="font-sans text-[0.58rem] font-bold uppercase tracking-[0.14em] text-[var(--journal-paper-muted-text)]">
-              July
+              {t("previewMonth")}
             </p>
             <div className="mt-3 grid grid-cols-4 gap-1.5 bg-[var(--journal-paper-muted)] p-1.5">
               {Array.from({ length: 12 }).map((_, index) => (
@@ -664,7 +667,7 @@ function ThemeMobilePreview({ theme }: { theme: JournalTheme }) {
             </div>
           </div>
           <div className="mt-auto pt-4 font-sans text-[0.62rem] text-[var(--journal-muted)]">
-            Private by nature.
+            {t("previewPrivacy")}
           </div>
         </div>
       </div>
@@ -673,10 +676,11 @@ function ThemeMobilePreview({ theme }: { theme: JournalTheme }) {
 }
 
 function ThemeExportPreview({ theme }: { theme: JournalTheme }) {
+  const { t, formatDateOnly } = useAdminLocale();
   return (
     <section>
       <h3 className="font-sans text-xs font-bold uppercase tracking-[0.16em] text-ink">
-        Daily Export Preview
+        {t("dailyExportPreview")}
       </h3>
       <div
         className="relative mx-auto mt-3 aspect-[9/16] w-full max-w-[18rem] overflow-hidden bg-[var(--journal-background)] shadow-[0_16px_42px_rgba(18,11,10,0.22)]"
@@ -686,10 +690,10 @@ function ThemeExportPreview({ theme }: { theme: JournalTheme }) {
         <ThemePreviewTextureImage theme={theme} />
         <div className="relative z-10 flex h-full flex-col p-5">
           <p className="font-sans text-[0.62rem] font-bold uppercase tracking-[0.16em] text-[var(--journal-muted)]">
-            July 6, 2026
+            {formatDateOnly(new Date("2026-07-06T12:00:00Z"))}
           </p>
           <p className="mt-3 max-w-[10ch] font-serif text-4xl leading-none text-[var(--journal-text)]">
-            Daily Scrap
+            {t("previewDailyScrap")}
           </p>
           <div className="mt-8 bg-[var(--journal-paper)] p-3 shadow-[0_18px_38px_rgba(18,11,10,0.24)]">
             <div className="grid grid-cols-3 gap-2 bg-[var(--journal-paper-muted)] p-2">
@@ -815,15 +819,5 @@ function NumberField({
         className="mt-2 w-full border border-rule bg-paper px-3 py-2"
       />
     </label>
-  );
-}
-
-function AdminShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-leather px-3 py-8 sm:px-6 sm:py-12">
-      <div className="paper-surface mx-auto max-w-6xl bg-paper p-5 shadow-[0_16px_45px_rgba(23,18,15,0.2)] sm:p-8">
-        {children}
-      </div>
-    </main>
   );
 }
