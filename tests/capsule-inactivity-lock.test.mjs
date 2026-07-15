@@ -7,13 +7,13 @@ const migrationUrl = new URL(
   import.meta.url,
 );
 
-test("capsule access leases are server controlled and expire after 30 days", async () => {
+test("capsule access leases are server controlled and expire after 1 hour", async () => {
   const migration = await readFile(migrationUrl, "utf8");
 
   assert.match(migration, /add column access_expires_at timestamptz/i);
   assert.match(
     migration,
-    /capsule_access_lease_duration\(\)[\s\S]+interval '30 days'/i,
+    /capsule_access_lease_duration\(\)[\s\S]+interval '1 hour'/i,
   );
   assert.match(
     migration,
@@ -138,6 +138,8 @@ test("authoritative inspection and resume checks cannot flash cached Journal con
   assert.doesNotMatch(capsulePage, /cacheCapsuleAccess/);
   assert.match(capsulePage, /inspection\.state === "locked"[\s\S]+clearCapsuleSessionCache/);
   assert.match(capsulePage, /CAPSULE_ACTIVITY_THROTTLE_MS\s*=\s*5 \* 60 \* 1000/);
+  assert.match(capsulePage, /addEventListener\("wheel",\s*handleActivity/);
+  assert.match(capsulePage, /removeEventListener\("wheel",\s*handleActivity/);
   assert.match(capsulePage, /visibilitychange/);
   assert.match(capsulePage, /window\.addEventListener\("focus"/);
   assert.match(capsulePage, /window\.addEventListener\("pointerdown"/);

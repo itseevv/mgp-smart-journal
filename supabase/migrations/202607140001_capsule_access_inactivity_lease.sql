@@ -4,7 +4,7 @@ language sql
 immutable
 set search_path = public
 as $$
-  select interval '30 days';
+  select interval '1 hour';
 $$;
 
 alter table public.capsule_access

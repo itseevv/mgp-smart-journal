@@ -386,23 +386,25 @@ export function CapsulePage({
       void touchAccess({ force: true, mask: true });
     };
 
-    const handleMeaningfulActivity = () => {
+    const handleActivity = () => {
       void touchAccess();
     };
 
     scheduleExpiryCheck();
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
-    window.addEventListener("pointerdown", handleMeaningfulActivity, true);
-    window.addEventListener("keydown", handleMeaningfulActivity, true);
+    window.addEventListener("pointerdown", handleActivity, true);
+    window.addEventListener("keydown", handleActivity, true);
+    window.addEventListener("wheel", handleActivity, { capture: true, passive: true });
 
     return () => {
       active = false;
       if (expiryTimer !== undefined) window.clearTimeout(expiryTimer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("pointerdown", handleMeaningfulActivity, true);
-      window.removeEventListener("keydown", handleMeaningfulActivity, true);
+      window.removeEventListener("pointerdown", handleActivity, true);
+      window.removeEventListener("keydown", handleActivity, true);
+      window.removeEventListener("wheel", handleActivity, true);
     };
   }, [applyInspection, publicToken, state]);
 
