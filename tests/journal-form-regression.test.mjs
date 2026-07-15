@@ -226,3 +226,28 @@ test("journal cover crop metadata persists through app and database layers", () 
   assert.match(phase42MigrationSource, /'coverCropMetadata', first_photo\.crop_metadata/);
   assert.match(phase42MigrationSource, /'firstPhotoStoragePath', first_photo\.storage_path/);
 });
+
+test("journal settings menu uses a compact, theme-aware action surface", () => {
+  const globalCssSource = readSource("app/globals.css");
+  const headerSource = readSource(
+    "components/journal/journal-identity-header.tsx",
+  );
+
+  assert.match(headerSource, /data-journal-settings-menu-treatment="compact-theme-aware"/);
+  assert.match(headerSource, /data-journal-settings-menu-item="rename"/);
+  assert.match(headerSource, /data-journal-settings-menu-item="lock"/);
+  assert.match(headerSource, /aria-controls=\{settingsMenuId\}/);
+  assert.match(headerSource, /aria-labelledby=\{settingsTriggerId\}/);
+  assert.match(headerSource, /settingsMenuRef/);
+  assert.match(headerSource, /settingsRootRef/);
+  assert.match(headerSource, /event\.key !== "Escape"/);
+  assert.match(headerSource, /event\.key !== "ArrowDown"/);
+  assert.match(headerSource, /event\.key !== "ArrowUp"/);
+  assert.match(headerSource, /event\.key !== "Home"/);
+  assert.match(headerSource, /event\.key !== "End"/);
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu\s*\{/);
+  assert.match(globalCssSource, /var\(--journal-paper\) 96%/);
+  assert.match(globalCssSource, /max-width: calc\(100vw - 1\.5rem\)/);
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu-item--lock:only-child/);
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu-item:focus-visible/);
+});
