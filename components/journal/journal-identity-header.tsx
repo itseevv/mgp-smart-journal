@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   IconButton,
   TextLinkButton,
 } from "@/components/journal/editorial-primitives";
-import { MoreIcon } from "@/components/memory/memory-icons";
+import {
+  LockIcon,
+  MoreIcon,
+  PencilIcon,
+} from "@/components/memory/memory-icons";
 import { journalConfig } from "@/data/journal";
 
 type JournalIdentityHeaderProps = {
@@ -41,6 +51,10 @@ export function JournalIdentityHeader({
   onLock,
 }: JournalIdentityHeaderProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsMenuId = useId();
+  const settingsTriggerId = useId();
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const settingsRootRef = useRef<HTMLDivElement>(null);
   const titleInputHintId = "journal-title-input-hint";
   const displayTitle = title;
   const editableTitle = titleDraft ?? displayTitle;
@@ -52,6 +66,77 @@ export function JournalIdentityHeader({
     Boolean(onSaveTitle) &&
     Boolean(onCancelTitle);
   const editingTitle = canRename && Boolean(isEditingTitle);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const firstMenuItem = settingsMenuRef.current?.querySelector<HTMLButtonElement>(
+      '[role="menuitem"]',
+    );
+    firstMenuItem?.focus();
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (
+        settingsMenuRef.current?.contains(event.target) ||
+        settingsRootRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setSettingsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setSettingsOpen(false);
+      settingsRootRef.current
+        ?.querySelector<HTMLButtonElement>(
+          '[data-journal-settings-trigger="true"]',
+        )
+        ?.focus();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [settingsOpen]);
+
+  const navigateSettingsMenu = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (
+      event.key !== "ArrowDown" &&
+      event.key !== "ArrowUp" &&
+      event.key !== "Home" &&
+      event.key !== "End"
+    ) {
+      return;
+    }
+
+    const menuItems = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]',
+      ),
+    );
+    if (!menuItems.length) return;
+
+    event.preventDefault();
+    const currentIndex = menuItems.findIndex(
+      (menuItem) => menuItem === document.activeElement,
+    );
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? menuItems.length - 1
+          : event.key === "ArrowDown"
+            ? (currentIndex + 1) % menuItems.length
+            : (currentIndex - 1 + menuItems.length) % menuItems.length;
+    menuItems[nextIndex]?.focus();
+  };
 
   const beginRename = () => {
     if (!onBeginRename) return;
@@ -148,12 +233,17 @@ export function JournalIdentityHeader({
             {displayTitle}
           </h1>
           {showSettings ? (
-            <div className="journal-identity-header__settings relative">
+            <div
+              ref={settingsRootRef}
+              className="journal-identity-header__settings relative"
+            >
               <IconButton
+                id={settingsTriggerId}
                 type="button"
                 aria-label="Journal settings"
                 aria-expanded={settingsOpen}
                 aria-haspopup="menu"
+                aria-controls={settingsMenuId}
                 data-journal-settings-trigger="true"
                 onClick={() => setSettingsOpen((current) => !current)}
                 className="editorial-icon-button--leather journal-identity-header__settings-button"
@@ -162,31 +252,37 @@ export function JournalIdentityHeader({
               </IconButton>
               {settingsOpen ? (
                 <div
+                  id={settingsMenuId}
+                  ref={settingsMenuRef}
                   role="menu"
+                  aria-labelledby={settingsTriggerId}
+                  aria-orientation="vertical"
+                  onKeyDown={navigateSettingsMenu}
                   data-journal-settings-menu="true"
-                  className="absolute right-0 top-full z-30 mt-2 min-w-36 border border-[var(--journal-photo-edge)] bg-[var(--journal-paper)] px-3 py-2 font-sans text-xs text-[var(--journal-paper-text)] shadow-[0_12px_28px_rgba(18,11,10,0.16)]"
+                  data-journal-settings-menu-treatment="compact-theme-aware"
+                  className="journal-identity-header__settings-menu"
                 >
                   {canRename ? (
                     <button
                       type="button"
                       role="menuitem"
+                      data-journal-settings-menu-item="rename"
                       onClick={beginRename}
-                      className="block w-full py-2 text-left font-semibold"
+                      className="journal-identity-header__settings-menu-item"
                     >
-                      Rename
+                      <PencilIcon className="journal-identity-header__settings-menu-icon" />
+                      <span>Rename</span>
                     </button>
                   ) : null}
                   <button
                     type="button"
                     role="menuitem"
+                    data-journal-settings-menu-item="lock"
                     onClick={lock}
-                    className={`block w-full py-2 text-left ${
-                      canRename
-                        ? "border-t border-[var(--journal-photo-edge)]"
-                        : ""
-                    }`}
+                    className="journal-identity-header__settings-menu-item journal-identity-header__settings-menu-item--lock"
                   >
-                    Lock journal
+                    <LockIcon className="journal-identity-header__settings-menu-icon" />
+                    <span>Lock journal</span>
                   </button>
                 </div>
               ) : null}

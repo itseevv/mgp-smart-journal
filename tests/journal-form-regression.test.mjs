@@ -1915,6 +1915,58 @@ test("journal rename and identity title handle long names without colliding with
   assert.match(variantTitleCss, /max-width: min\(13\.25rem, 100%\)/);
 });
 
+test("journal settings menu uses a compact, theme-aware action surface", () => {
+  const globalCssSource = readSource("app/globals.css");
+  const journalIdentityHeaderSource = readSource(
+    "components/journal/journal-identity-header.tsx",
+  );
+  const menuCss = cssRuleBody(
+    globalCssSource,
+    ".journal-identity-header__settings-menu",
+  );
+  const menuItemCss = cssRuleBody(
+    globalCssSource,
+    ".journal-identity-header__settings-menu-item",
+  );
+
+  assert.match(
+    journalIdentityHeaderSource,
+    /data-journal-settings-menu-treatment="compact-theme-aware"/,
+  );
+  assert.match(
+    journalIdentityHeaderSource,
+    /data-journal-settings-menu-item="rename"/,
+  );
+  assert.match(
+    journalIdentityHeaderSource,
+    /data-journal-settings-menu-item="lock"/,
+  );
+  assert.match(journalIdentityHeaderSource, /aria-controls=\{settingsMenuId\}/);
+  assert.match(journalIdentityHeaderSource, /aria-labelledby=\{settingsTriggerId\}/);
+  assert.match(journalIdentityHeaderSource, /settingsMenuRef/);
+  assert.match(journalIdentityHeaderSource, /settingsRootRef/);
+  assert.match(journalIdentityHeaderSource, /event\.key !== "Escape"/);
+  assert.match(journalIdentityHeaderSource, /event\.key !== "ArrowDown"/);
+  assert.match(journalIdentityHeaderSource, /event\.key !== "ArrowUp"/);
+  assert.match(journalIdentityHeaderSource, /event\.key !== "Home"/);
+  assert.match(journalIdentityHeaderSource, /event\.key !== "End"/);
+  assert.doesNotMatch(menuCss, /backdrop-filter/);
+  assert.match(menuCss, /var\(--journal-paper\) 96%/);
+  assert.match(menuCss, /var\(--journal-background\) 4%/);
+  assert.match(menuCss, /border-radius: 0\.625rem/);
+  assert.match(menuCss, /min-width: 9\.75rem/);
+  assert.match(menuCss, /max-width: calc\(100vw - 1\.5rem\)/);
+  assert.match(menuCss, /padding: 0\.25rem/);
+  assert.match(menuItemCss, /border-radius: 0\.375rem/);
+  assert.match(menuItemCss, /min-height: 2\.75rem/);
+  assert.match(menuItemCss, /font-family: var\(--font-ui\)/);
+  assert.match(
+    globalCssSource,
+    /\.journal-identity-header__settings-menu-item--lock:only-child/,
+  );
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu-item:focus-visible/);
+});
+
 test("additional moments keep the first available selections and render compact previews", () => {
   const journalPhotoPickerSource = readSource(
     "components/memory/journal-photo-picker.tsx",
