@@ -4,6 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useAdminLocale } from "@/components/admin/admin-locale-provider";
+import { AdminShell } from "@/components/admin/admin-shell";
+import type { AdminTranslationKey } from "@/lib/admin/i18n";
+
 type CapsuleDetail = {
   id: string;
   batchName: string;
@@ -41,18 +45,10 @@ type AdminJournalTheme = {
   fallbackBackgroundColor: string;
 };
 
-function dateLabel(value?: string | null) {
-  return value ? new Date(value).toLocaleString() : "Not yet";
-}
-
-function bytesLabel(value: number) {
-  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
-  return `${(value / 1024 / 1024).toFixed(1)} MB`;
-}
-
 export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
+  const { t, statusLabel, formatDate, formatNumber } = useAdminLocale();
   const [capsule, setCapsule] = useState<CapsuleDetail | null>(null);
-  const [message, setMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<AdminTranslationKey | null>(null);
   const [reason, setReason] = useState("");
   const [confirmActivated, setConfirmActivated] = useState(false);
   const [themes, setThemes] = useState<AdminJournalTheme[]>([]);
@@ -61,15 +57,23 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
   const [recoveryCode, setRecoveryCode] = useState("");
   const [copied, setCopied] = useState(false);
 
+  const dateLabel = (value?: string | null) =>
+    value ? formatDate(value) : t("notYet");
+
+  const bytesLabel = (value: number) =>
+    value < 1024 * 1024
+      ? `${formatNumber(Math.round(value / 1024))} KB`
+      : `${formatNumber(Number((value / 1024 / 1024).toFixed(1)))} MB`;
+
   const load = async () => {
     const response = await fetch(`/api/admin/capsules/${capsuleId}`);
     if (response.status === 401) {
-      setMessage("Admin session required. Return to the capsule admin page.");
+      setMessageKey("adminSessionRequired");
       return;
     }
     const result = await response.json();
     if (!response.ok || !result.ok) {
-      setMessage("Capsule detail could not be loaded.");
+      setMessageKey("capsuleLoadFailed");
       return;
     }
     setCapsule(result.capsule);
@@ -92,7 +96,7 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
   }, [capsuleId]);
 
   const update = async (action: string) => {
-    setMessage("");
+    setMessageKey(null);
     const response = await fetch(`/api/admin/capsules/${capsuleId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -100,41 +104,41 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
     });
     const result = await response.json();
     if (!response.ok || !result.ok) {
-      setMessage(
+      setMessageKey(
         result.code === "ACTIVATED_CONFIRMATION_REQUIRED"
-          ? "Disabling an activated capsule requires explicit confirmation."
+          ? "activatedConfirmationRequired"
           : result.code === "REASON_REQUIRED"
-            ? "A disabled reason is required."
-            : "The fulfilment status could not be updated.",
+            ? "disabledReasonRequired"
+            : "fulfilmentUpdateFailed",
       );
       return;
     }
     setCapsule(result.capsule);
-    setMessage("Capsule updated.");
+    setMessageKey("capsuleUpdated");
     setReason("");
     setConfirmActivated(false);
   };
 
   const issueRecovery = async () => {
     setRecoveryCode("");
-    setMessage("");
+    setMessageKey(null);
     const response = await fetch(`/api/admin/capsules/${capsuleId}/recovery`, {
       method: "POST",
     });
     const result = await response.json();
     if (!response.ok || !result.ok) {
-      setMessage("Recovery Passcode could not be issued.");
+      setMessageKey("recoveryIssueFailed");
       return;
     }
     setRecoveryCode(result.recoveryCode);
-    setMessage("Recovery Passcode rotated. Save the new code now.");
+    setMessageKey("recoveryRotated");
     await load();
   };
 
   const updateTheme = async () => {
     if (!themeDraft || themeBusy) return;
     setThemeBusy(true);
-    setMessage("");
+    setMessageKey(null);
     try {
       const response = await fetch(`/api/admin/capsules/${capsuleId}`, {
         method: "PATCH",
@@ -146,20 +150,20 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
       });
       const result = await response.json();
       if (!response.ok || !result.ok) {
-        setMessage(
+        setMessageKey(
           result.code === "JOURNAL_THEME_REQUIRED"
-            ? "Choose a journal theme before saving."
+            ? "themeAssignmentRequired"
             : result.code === "INVALID_JOURNAL_THEME"
-              ? "That journal theme is not available for assignment."
-              : "The journal theme could not be updated.",
+              ? "invalidThemeAssignment"
+              : "themeUpdateFailed",
         );
         return;
       }
       setCapsule(result.capsule);
       setThemeDraft(result.capsule.journalTheme?.id ?? "");
-      setMessage("Journal theme updated.");
+      setMessageKey("themeUpdated");
     } catch {
-      setMessage("The journal theme could not be updated.");
+      setMessageKey("themeUpdateFailed");
     } finally {
       setThemeBusy(false);
     }
@@ -167,9 +171,11 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
 
   if (!capsule) {
     return (
-      <main className="min-h-screen bg-leather px-3 py-8 font-sans text-paper sm:px-6 sm:py-12">
-        {message || "Loading capsule…"}
-      </main>
+      <AdminShell>
+        <p className="font-sans text-sm text-ink-soft">
+          {messageKey ? t(messageKey) : t("loadingCapsule")}
+        </p>
+      </AdminShell>
     );
   }
 
@@ -180,70 +186,69 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
   };
 
   return (
-    <main className="min-h-screen bg-leather px-3 py-8 sm:px-6 sm:py-12">
-      <div className="paper-surface mx-auto max-w-4xl space-y-8 bg-paper p-5 shadow-[0_16px_45px_rgba(23,18,15,0.2)] sm:p-8">
+    <AdminShell>
+      <div className="mx-auto max-w-4xl space-y-8">
         <header className="border-b border-rule pb-6">
           <Link href="/admin/capsules" className="font-sans text-sm font-bold text-oxblood underline underline-offset-4">
-            Back to admin
+            {t("backToAdmin")}
           </Link>
           <p className="mt-6 font-sans text-xs font-bold uppercase tracking-[0.22em] text-oxblood">
-            Capsule detail
+            {t("capsuleDetailEyebrow")}
           </p>
           <h1 className="mt-2 font-serif text-4xl text-ink">{capsule.serialNumber}</h1>
           <p className="mt-2 font-sans text-sm text-ink-soft">
-            {capsule.batchName} · {capsule.productType}
+            {capsule.batchName} · {statusLabel(capsule.productType)}
           </p>
         </header>
 
-        {message ? <p className="font-sans text-sm text-oxblood">{message}</p> : null}
+        {messageKey ? <p className="font-sans text-sm text-oxblood">{t(messageKey)}</p> : null}
         {capsule.appBaseUrlWarning ? (
           <p className="border border-oxblood/30 bg-oxblood/5 p-3 font-sans text-sm leading-6 text-oxblood">
-            {capsule.appBaseUrlWarning}
+            {t("appBaseUrlWarning")}
           </p>
         ) : null}
-
         <section className="grid gap-6 md:grid-cols-[1fr_260px]">
           <div className="grid gap-3 font-sans text-sm sm:grid-cols-2">
-            <Info label="Public token" value={capsule.publicToken} />
-            <Info label="Capsule path" value={capsule.capsulePath} />
-            <Info label="Full NFC / QR URL" value={capsule.capsuleUrl} />
-            <Info label="Activation" value={capsule.activationStatus} />
-            <Info label="Fulfilment" value={capsule.fulfillmentStatus} />
-            <Info label="NFC write/test" value={capsule.nfcWriteStatus} />
-            <Info label="Recovery" value={capsule.recoveryStatus.replace("_", " ")} />
-            <Info label="Created" value={dateLabel(capsule.createdAt)} />
-            <Info label="Activated" value={dateLabel(capsule.activatedAt)} />
-            <Info label="Written" value={dateLabel(capsule.writtenAt)} />
-            <Info label="Tested" value={dateLabel(capsule.testedAt)} />
-            <Info label="Memories" value={String(capsule.memoryCount)} />
-            <Info label="Photos" value={String(capsule.photoCount)} />
-            <Info label="Voice memos" value={String(capsule.voiceMemoCount)} />
-            <Info label="Storage estimate" value={bytesLabel(capsule.storageEstimateBytes)} />
+            <Info label={t("publicToken")} value={capsule.publicToken} />
+            <Info label={t("capsulePath")} value={capsule.capsulePath} />
+            <Info label={t("expectedNfcUrl")} value={capsule.capsuleUrl} />
+            <Info label={t("activation")} value={statusLabel(capsule.activationStatus)} />
+            <Info label={t("fulfilment")} value={statusLabel(capsule.fulfillmentStatus)} />
+            <Info label={t("nfcWriteTest")} value={statusLabel(capsule.nfcWriteStatus)} />
+            <Info label={t("recovery")} value={statusLabel(capsule.recoveryStatus)} />
+            <Info label={t("created")} value={dateLabel(capsule.createdAt)} />
+            <Info label={t("activated")} value={dateLabel(capsule.activatedAt)} />
+            <Info label={t("written")} value={dateLabel(capsule.writtenAt)} />
+            <Info label={t("tested")} value={dateLabel(capsule.testedAt)} />
+            <Info label={t("memories")} value={formatNumber(capsule.memoryCount)} />
+            <Info label={t("photos")} value={formatNumber(capsule.photoCount)} />
+            <Info label={t("voiceMemos")} value={formatNumber(capsule.voiceMemoCount)} />
+            <Info label={t("storageEstimate")} value={bytesLabel(capsule.storageEstimateBytes)} />
             {capsule.productType === "journal" ? (
-              <Info label="Journal theme" value={capsule.journalTheme?.name ?? "Fallback default"} />
+              <Info label={t("journalTheme")} value={capsule.journalTheme?.name ?? t("fallbackDefault")} />
             ) : null}
           </div>
           <div className="space-y-3">
             <Image
               src={`/api/admin/capsules/${capsule.id}/qr?preview=1`}
-              alt={`QR code for ${capsule.serialNumber}`}
+              alt={t("qrAlt", { serial: capsule.serialNumber })}
               width={260}
               height={260}
               unoptimized
               className="w-full border border-rule bg-white p-3"
             />
             <a href={`/api/admin/capsules/${capsule.id}/qr`} className="block border border-oxblood px-3 py-2 text-center font-sans text-sm font-bold text-oxblood">
-              Download QR SVG
+              {t("downloadQrSvg")}
             </a>
             <a href={`/api/admin/capsules/${capsule.id}/qr?format=png`} className="block border border-rule px-3 py-2 text-center font-sans text-sm font-bold text-ink">
-              Download QR PNG
+              {t("downloadQrPng")}
             </a>
             <button
               type="button"
               onClick={() => void copyFullUrl()}
               className="block w-full border border-rule px-3 py-2 text-center font-sans text-sm font-bold text-ink"
             >
-              {copied ? "Copied URL" : "Copy URL"}
+              {copied ? t("copiedUrl") : t("copyUrl")}
             </button>
           </div>
         </section>
@@ -251,17 +256,17 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
         {capsule.productType === "journal" ? (
           <section className="space-y-4 border-t border-rule pt-6">
             <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-              Journal theme
+              {t("journalTheme")}
             </h2>
             <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
               <label className="block font-sans text-sm font-semibold">
-                Assigned theme
+                {t("assignedTheme")}
                 <select
                   value={themeDraft}
                   onChange={(event) => setThemeDraft(event.target.value)}
                   className="mt-2 w-full border border-rule bg-paper px-3 py-2"
                 >
-                  <option value="">Choose a journal theme</option>
+                  <option value="">{t("chooseJournalTheme")}</option>
                   {themes
                     .filter(
                       (theme) =>
@@ -281,21 +286,24 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
                 disabled={themeBusy || !themeDraft}
                 className="bg-oxblood px-4 py-2 font-sans text-sm font-bold text-paper disabled:opacity-50"
               >
-                {themeBusy ? "Saving..." : "Save theme"}
+                {themeBusy ? t("saving") : t("saveTheme")}
               </button>
             </div>
             {capsule.activationStatus === "active" ? (
               <p className="border border-oxblood/30 bg-oxblood/5 p-3 font-sans text-sm leading-6 text-oxblood">
-                Changing the theme will update the customer-facing journal background.
+                {t("activeThemeChangeWarning")}
               </p>
             ) : null}
             {capsule.journalTheme ? (
               <p className="font-sans text-sm text-ink-soft">
-                Current theme: {capsule.journalTheme.name} · {capsule.journalTheme.slug}
+                {t("currentTheme", {
+                  name: capsule.journalTheme.name,
+                  slug: capsule.journalTheme.slug,
+                })}
               </p>
             ) : (
               <p className="font-sans text-sm text-ink-soft">
-                This existing journal has no assigned theme and will use the safe fallback until one is saved.
+                {t("noAssignedTheme")}
               </p>
             )}
           </section>
@@ -303,22 +311,22 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
 
         <section className="space-y-4 border-t border-rule pt-6">
           <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-            Fulfilment actions
+            {t("fulfilmentActions")}
           </h2>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => void update("mark_written")} className="bg-oxblood px-4 py-2 font-sans text-sm font-bold text-paper">
-              Mark written
+              {t("markWritten")}
             </button>
             <button onClick={() => void update("mark_tested")} className="bg-oxblood px-4 py-2 font-sans text-sm font-bold text-paper">
-              Mark tested
+              {t("markTested")}
             </button>
             <a href={capsule.capsuleUrl} target="_blank" className="border border-rule px-4 py-2 font-sans text-sm font-bold text-ink">
-              Open public URL
+              {t("openPublicUrl")}
             </a>
           </div>
           <div className="space-y-3 border border-rule p-4">
             <label className="block font-sans text-sm font-semibold">
-              Disabled reason
+              {t("disabledReason")}
               <textarea
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
@@ -333,21 +341,20 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
                   type="checkbox"
                   className="mt-1"
                 />
-                I understand this capsule is already activated and disabling it
-                will make customer content inaccessible.
+                {t("disableActivatedConfirmation")}
               </label>
             ) : null}
             <div className="flex flex-wrap gap-3">
               <button onClick={() => void update("disable")} className="border border-oxblood px-4 py-2 font-sans text-sm font-bold text-oxblood">
-                Disable capsule
+                {t("disableCapsule")}
               </button>
               <button onClick={() => void update("reenable")} className="border border-rule px-4 py-2 font-sans text-sm font-bold text-ink">
-                Re-enable unactivated capsule
+                {t("reenableCapsule")}
               </button>
             </div>
             {capsule.disabledReason ? (
               <p className="font-sans text-sm text-ink-soft">
-                Internal disabled reason: {capsule.disabledReason}
+                {t("internalDisabledReason", { reason: capsule.disabledReason })}
               </p>
             ) : null}
           </div>
@@ -355,26 +362,25 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
 
         <section className="space-y-4 border-t border-rule pt-6">
           <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
-            Recovery Passcode
+            {t("recoveryPasscode")}
           </h2>
           <p className="font-sans text-sm leading-6 text-ink-soft">
-            Issuing or rotating a Recovery Passcode invalidates the previous one.
-            Plaintext is shown once and is never stored.
+            {t("recoveryDescription")}
           </p>
           <button onClick={() => void issueRecovery()} className="bg-oxblood px-4 py-2 font-sans text-sm font-bold text-paper">
-            Issue / rotate Recovery Passcode
+            {t("issueOrRotateRecovery")}
           </button>
           {recoveryCode ? (
             <div className="border border-oxblood/40 bg-oxblood/5 p-4">
               <p className="font-sans text-sm font-bold text-oxblood">
-                Sensitive one-time value
+                {t("sensitiveOneTimeValue")}
               </p>
               <p className="mt-2 font-mono text-lg">{recoveryCode}</p>
             </div>
           ) : null}
         </section>
       </div>
-    </main>
+    </AdminShell>
   );
 }
 

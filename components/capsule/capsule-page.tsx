@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -16,11 +16,9 @@ import {
 } from "@/lib/capsule/opening";
 import {
   cacheAccessMemory,
-  cacheCapsuleAccess,
   callCapsuleAccess,
   clearCapsuleSessionCache,
   ensureAnonymousSession,
-  getCachedCapsuleAccess,
   type CapsuleInspection,
 } from "@/lib/capsule/api";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -33,6 +31,9 @@ import {
 } from "@/data/journal-themes";
 import type { CapsuleInitialGate } from "@/lib/capsule/gate-state";
 
+const CAPSULE_ACTIVITY_THROTTLE_MS = 5 * 60 * 1000;
+const MAX_BROWSER_TIMER_MS = 2_147_000_000;
+
 type PageState =
   | { type: "loading" }
   | { type: "notFound" }
@@ -43,6 +44,7 @@ type PageState =
       client: SupabaseClient;
       capsuleId: string;
       productType: CapsuleProductType;
+      accessExpiresAt?: string;
       journalTheme?: JournalTheme;
       initialMemory?: PersistentMemoryEntry;
     }
@@ -95,6 +97,8 @@ export function CapsulePage({
   const [gateError, setGateError] = useState("");
   const [gateBusy, setGateBusy] = useState(false);
   const [recovering, setRecovering] = useState(false);
+  const [leaseChecking, setLeaseChecking] = useState(false);
+  const lastActivityTouchAt = useRef(0);
 
   const applyInspection = useCallback((
     client: SupabaseClient,
@@ -110,17 +114,20 @@ export function CapsulePage({
     } else if (inspection.state === "unactivated") {
       setState({ type: "unactivated", client });
     } else if (inspection.state === "locked") {
+      if (inspection.capsuleId) {
+        clearCapsuleSessionCache(inspection.capsuleId);
+      }
+      setRecovering(false);
       setState({ type: "locked", client });
     } else if (inspection.capsuleId && inspection.productType) {
-      const access = cacheCapsuleAccess(publicToken, inspection);
+      lastActivityTouchAt.current = Date.now();
       setState({
         type: "unlocked",
         client,
-        capsuleId: access?.capsuleId ?? inspection.capsuleId,
-        productType: access?.productType ?? inspection.productType,
-        journalTheme: resolveJournalTheme(
-          access?.journalTheme ?? inspection.journalTheme,
-        ),
+        capsuleId: inspection.capsuleId,
+        productType: inspection.productType,
+        accessExpiresAt: inspection.accessExpiresAt,
+        journalTheme: resolveJournalTheme(inspection.journalTheme),
         initialMemory: cacheAccessMemory(inspection.memory),
       });
     } else {
@@ -129,7 +136,7 @@ export function CapsulePage({
         message: "The capsule could not be opened.",
       });
     }
-  }, [publicToken]);
+  }, []);
 
   const bootstrap = async () => {
     setState({ type: "loading" });
@@ -170,22 +177,6 @@ export function CapsulePage({
       void (async () => {
         try {
           const client = getSupabaseBrowserClient();
-          const cachedAccess = getCachedCapsuleAccess(publicToken);
-          const initialGateAllowsCachedAccess =
-            !initialGate || initialGate.type === "locked";
-          const canUseCachedAccess =
-            initialGateAllowsCachedAccess &&
-            (!memoryId || Boolean(createIntent));
-          if (active && cachedAccess && canUseCachedAccess) {
-            setState({
-              type: "unlocked",
-              client,
-              capsuleId: cachedAccess.capsuleId,
-              productType: cachedAccess.productType,
-              journalTheme: resolveJournalTheme(cachedAccess.journalTheme),
-              initialMemory: undefined,
-            });
-          }
           await ensureAnonymousSession(client, CAPSULE_OPEN_TIMEOUT_MS);
           const inspection = await callCapsuleAccess(
             client,
@@ -221,7 +212,7 @@ export function CapsulePage({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [applyInspection, createIntent, initialGate, memoryId, publicToken]);
+  }, [applyInspection, initialGate, memoryId, publicToken]);
 
   const submitPin = async (
     existingClient: SupabaseClient | undefined,
@@ -289,7 +280,135 @@ export function CapsulePage({
     }
   }, [memoryId, publicToken, router, state]);
 
-  if (state.type === "loading") {
+  useEffect(() => {
+    if (state.type !== "unlocked") return;
+
+    let active = true;
+    let touchInFlight = false;
+    let wasBackgrounded = document.visibilityState === "hidden";
+    let expiryTimer: number | undefined;
+
+    const locallyExpired = () => {
+      const expiresAt = Date.parse(state.accessExpiresAt ?? "");
+      return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+    };
+
+    const touchAccess = async ({
+      force = false,
+      mask = false,
+    }: {
+      force?: boolean;
+      mask?: boolean;
+    } = {}) => {
+      const now = Date.now();
+      const elapsed = now - lastActivityTouchAt.current;
+      if (
+        touchInFlight ||
+        (!force && elapsed < CAPSULE_ACTIVITY_THROTTLE_MS)
+      ) {
+        return;
+      }
+
+      touchInFlight = true;
+      lastActivityTouchAt.current = now;
+      const shouldMask = mask || locallyExpired();
+      if (shouldMask) setLeaseChecking(true);
+
+      try {
+        const inspection = await callCapsuleAccess(
+          state.client,
+          "touch",
+          publicToken,
+          undefined,
+          undefined,
+          CAPSULE_OPEN_TIMEOUT_MS,
+        );
+        if (!active) return;
+
+        if (inspection.state === "unlocked") {
+          setState((current) =>
+            current.type === "unlocked"
+              ? {
+                  ...current,
+                  accessExpiresAt:
+                    inspection.accessExpiresAt ?? current.accessExpiresAt,
+                }
+              : current,
+          );
+          return;
+        }
+
+        applyInspection(state.client, inspection);
+      } catch (error) {
+        if (!active || !shouldMask) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The capsule is temporarily unavailable.";
+        setState({ type: "error", message });
+      } finally {
+        touchInFlight = false;
+        if (active) setLeaseChecking(false);
+      }
+    };
+
+    const scheduleExpiryCheck = () => {
+      const expiresAt = Date.parse(state.accessExpiresAt ?? "");
+      if (!Number.isFinite(expiresAt)) return;
+
+      const remaining = expiresAt - Date.now();
+      const delay = Math.min(Math.max(remaining, 0), MAX_BROWSER_TIMER_MS);
+      expiryTimer = window.setTimeout(() => {
+        if (!active) return;
+        if (Date.now() < expiresAt) {
+          scheduleExpiryCheck();
+          return;
+        }
+        void touchAccess({ force: true, mask: true });
+      }, delay);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        wasBackgrounded = true;
+        setLeaseChecking(true);
+        return;
+      }
+      if (wasBackgrounded) {
+        wasBackgrounded = false;
+        void touchAccess({ force: true, mask: true });
+      }
+    };
+
+    const handleFocus = () => {
+      if (!wasBackgrounded) return;
+      wasBackgrounded = false;
+      void touchAccess({ force: true, mask: true });
+    };
+
+    const handleActivity = () => {
+      void touchAccess();
+    };
+
+    scheduleExpiryCheck();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("pointerdown", handleActivity, true);
+    window.addEventListener("keydown", handleActivity, true);
+    window.addEventListener("wheel", handleActivity, { capture: true, passive: true });
+
+    return () => {
+      active = false;
+      if (expiryTimer !== undefined) window.clearTimeout(expiryTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pointerdown", handleActivity, true);
+      window.removeEventListener("keydown", handleActivity, true);
+      window.removeEventListener("wheel", handleActivity, true);
+    };
+  }, [applyInspection, publicToken, state]);
+
+  if (leaseChecking || state.type === "loading") {
     return (
       <main className="min-h-screen bg-leather p-8 text-center font-sans text-sm text-paper">
         Opening capsule…
@@ -335,7 +454,7 @@ export function CapsulePage({
           publicToken={publicToken}
           onCancel={() => setRecovering(false)}
           onComplete={async (capsuleId) => {
-            if (capsuleId) clearCapsuleSessionCache(capsuleId, publicToken);
+            if (capsuleId) clearCapsuleSessionCache(capsuleId);
             setRecovering(false);
             await bootstrap();
           }}
@@ -372,7 +491,7 @@ export function CapsulePage({
 
   const lock = async () => {
     await callCapsuleAccess(state.client, "lock", publicToken);
-    clearCapsuleSessionCache(state.capsuleId, publicToken);
+    clearCapsuleSessionCache(state.capsuleId);
     setState({ type: "locked", client: state.client });
   };
 

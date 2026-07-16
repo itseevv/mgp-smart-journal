@@ -76,6 +76,10 @@ test("customer capsule routes provide a server-side initial gate before hydratio
     new URL("../components/capsule/capsule-page.tsx", import.meta.url),
     "utf8",
   );
+  const capsuleApi = await readFile(
+    new URL("../lib/capsule/api.ts", import.meta.url),
+    "utf8",
+  );
 
   assert.match(route, /getCapsuleInitialGate\(publicToken\)/);
   assert.match(route, /initialGate=\{initialGate\}/);
@@ -83,6 +87,11 @@ test("customer capsule routes provide a server-side initial gate before hydratio
   assert.match(memoryRoute, /initialGate=\{initialGate\}/);
   assert.match(capsulePage, /initialGate\?: CapsuleInitialGate/);
   assert.match(capsulePage, /useState<PageState>\(\(\) =>\s*pageStateFromInitialGate\(initialGate\)/);
+  assert.match(capsulePage, /initialGate\.type === "locked"[\s\S]*return \{ type: "loading" \}/);
+  assert.doesNotMatch(capsulePage, /getCachedCapsuleAccess\(publicToken\)/);
+  assert.doesNotMatch(capsulePage, /initialGateAllowsCachedAccess/);
+  assert.doesNotMatch(capsuleApi, /sessionCapsuleAccessCache/);
+  assert.doesNotMatch(capsuleApi, /getCachedCapsuleAccess|cacheCapsuleAccess/);
 });
 
 test("server-side capsule gate exposes only coarse public-opening state", async () => {

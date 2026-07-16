@@ -109,3 +109,40 @@ export function MoreIcon({ className = "h-5 w-5" }: IconProps) {
     </svg>
   );
 }
+
+export function PencilIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none">
+      <path
+        d="m5 16.8-.8 3 3-.8L18.4 7.8a1.6 1.6 0 0 0 0-2.3 1.6 1.6 0 0 0-2.3 0L5 16.8Z"
+        stroke="currentColor"
+        strokeWidth="1.45"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="m14.8 6.8 2.4 2.4" stroke="currentColor" strokeWidth="1.45" />
+    </svg>
+  );
+}
+
+export function LockIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none">
+      <rect
+        x="5.5"
+        y="10"
+        width="13"
+        height="10"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.45"
+      />
+      <path
+        d="M8.5 10V7.5a3.5 3.5 0 1 1 7 0V10M12 14v2"
+        stroke="currentColor"
+        strokeWidth="1.45"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

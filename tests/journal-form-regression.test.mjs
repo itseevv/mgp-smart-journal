@@ -96,22 +96,25 @@ test("journal route passes the journal product mode through to the form flow", (
   assert.match(journalPhotoPickerSource, /onConfirmCrop/);
   assert.match(journalPhotoPickerSource, /Adjust scrap/);
   assert.match(journalPhotoPickerSource, /Add more moments \(optional\)/);
-  assert.match(journalPhotoPickerSource, /Up to 8 more moments\./);
+  assert.match(
+    journalPhotoPickerSource,
+    /Add up to \{additionalCapacity\.remaining\} more/,
+  );
   assert.match(scrapTableSource, /Find today&apos;s scrap/);
   assert.match(scrapTableSource, /Move the photo under the finder\./);
   assert.match(scrapTableSource, /Use this scrap/);
   assert.match(scrapTableSource, /data-scrap-table-mode="immersive"/);
-  assert.match(scrapTableSource, /data-finder-tool="physical-frame"/);
-  assert.match(scrapTableSource, /data-scrap-aperture="stamp-window"/);
-  assert.match(scrapTableSource, /StampFrame/);
-  assert.match(scrapTableSource, /variant="lg"/);
+  assert.match(scrapTableSource, /data-finder-tool="editorial-finder"/);
+  assert.match(scrapTableSource, /data-scrap-aperture="finder-window"/);
+  assert.match(scrapTableSource, /JournalPrimaryCTA/);
+  assert.match(scrapTableSource, /data-scrap-primary-action="use-this-scrap"/);
   assert.match(scrapTableSource, /data-punch-feedback="enabled"/);
   assert.match(scrapTableSource, /data-scrap-photo-natural="true"/);
   assert.doesNotMatch(scrapTableSource, />\s*Scrap Table\s*</);
   assert.doesNotMatch(scrapTableSource, /Crop image|Edit photo|Aspect ratio|Template|Collage|desktop/);
   assert.doesNotMatch(journalPhotoPickerSource, /Press and drag to reorder|1 moment added|0 of 9 moments/);
-  assert.match(journalPhotoPickerSource, /StampFrame/);
-  assert.match(journalPhotoPickerSource, /variant="md"/);
+  assert.match(journalPhotoPickerSource, /data-journal-cover-preview="editorial-photo"/);
+  assert.match(journalPhotoPickerSource, /data-journal-cover-treatment="borderless-editorial"/);
   assert.match(journalPhotoPickerSource, /stampFramePreview/);
   assert.match(stampFrameSource, /export type StampFrameVariant = "lg" \| "md" \| "sm"/);
   assert.match(stampFrameSource, /export const StampFrame/);
@@ -119,7 +122,10 @@ test("journal route passes the journal product mode through to the form flow", (
   assert.match(stampFrameSource, /data-stamp-edge="perforated"/);
   assert.match(stampFrameSource, /data-stamp-frame=\{variant\}/);
   assert.doesNotMatch(memoryFormSource, /showJournalSealingFields/);
-  assert.match(memoryFormSource, /disabled=\{journalSaveDisabled \|\| isRecording \|\| isSaving\}/);
+  assert.match(
+    memoryFormSource,
+    /disabled=\{\s*journalSaveDisabled \|\|\s*isPreparingPhotos \|\|\s*isRecording \|\|\s*isSaving\s*\}/,
+  );
 });
 
 test("journal mobile surfaces remove placeholder branding", () => {
@@ -164,13 +170,13 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.doesNotMatch(stampDetailSource, />\s*SD\s*</);
   assert.match(stampGridSource, /getStampLayout/);
   assert.match(stampGridSource, /data-stamp-layout/);
-  assert.match(stampGridSource, /buildStampFrameRows/);
+  assert.match(stampGridSource, /gridColumns\(visiblePhotos\.length\)/);
+  assert.match(stampGridSource, /data-stamp-grid-columns=\{columns\}/);
   assert.match(stampGridSource, /data-stamp-row-sizes/);
   assert.match(stampGridSource, /data-stamp-frame-ratio/);
   assert.match(stampGridSource, /data-stamp-cover-crop/);
-  assert.match(stampGridSource, /StampFrameButton/);
-  assert.match(stampGridSource, /variant="sm"/);
   assert.match(stampGridSource, /CroppedPrivateStampImage/);
+  assert.match(stampGridSource, /PrivatePhoto/);
   assert.match(stampGridSource, /PhotoViewer/);
   assert.match(croppedStampImageSource, /cropMetadataToImageStyle/);
   assert.match(croppedStampImageSource, /centerSquareCropMetadata/);
@@ -179,14 +185,14 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(croppedStampImageSource, /object-cover/);
   assert.doesNotMatch(stampGridSource, /StampFiller|data-stamp-filler-count|object-contain/);
   assert.match(journalPhotoPickerSource, /object-cover/);
-  assert.match(journalPhotoPickerSource, /data-journal-cover-preview="stamp-frame"/);
+  assert.match(journalPhotoPickerSource, /data-journal-cover-preview="editorial-photo"/);
   assert.match(journalPhotoPickerSource, /data-journal-cover-crop/);
   assert.doesNotMatch(journalPhotoPickerSource, /aspect-\[4\/5\]|object-contain|preserveAspectRatio/);
   assert.match(sortableGridSource, /stampFramePreview/);
   assert.match(sortableGridSource, /object-cover/);
-  assert.match(sortableGridSource, /StampFrame/);
+  assert.match(sortableGridSource, /data-photo-preview-frame="borderless-editorial"/);
   assert.match(sortableGridSource, /data-photo-preview-fit/);
-  assert.match(sortableGridSource, /variant="sm"/);
+  assert.match(sortableGridSource, /data-photo-preview-fit="editorial-square"/);
   assert.match(stampFrameSource, /stampFrameClassName/);
   assert.match(stampFrameSource, /stamp-frame--lg/);
   assert.match(stampFrameSource, /stamp-frame--md/);
@@ -225,4 +231,29 @@ test("journal cover crop metadata persists through app and database layers", () 
   assert.match(migrationSource, /item->'cropMetadata'/);
   assert.match(phase42MigrationSource, /'coverCropMetadata', first_photo\.crop_metadata/);
   assert.match(phase42MigrationSource, /'firstPhotoStoragePath', first_photo\.storage_path/);
+});
+
+test("journal settings menu uses a compact, theme-aware action surface", () => {
+  const globalCssSource = readSource("app/globals.css");
+  const headerSource = readSource(
+    "components/journal/journal-identity-header.tsx",
+  );
+
+  assert.match(headerSource, /data-journal-settings-menu-treatment="compact-theme-aware"/);
+  assert.match(headerSource, /data-journal-settings-menu-item="rename"/);
+  assert.match(headerSource, /data-journal-settings-menu-item="lock"/);
+  assert.match(headerSource, /aria-controls=\{settingsMenuId\}/);
+  assert.match(headerSource, /aria-labelledby=\{settingsTriggerId\}/);
+  assert.match(headerSource, /settingsMenuRef/);
+  assert.match(headerSource, /settingsRootRef/);
+  assert.match(headerSource, /event\.key !== "Escape"/);
+  assert.match(headerSource, /event\.key !== "ArrowDown"/);
+  assert.match(headerSource, /event\.key !== "ArrowUp"/);
+  assert.match(headerSource, /event\.key !== "Home"/);
+  assert.match(headerSource, /event\.key !== "End"/);
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu\s*\{/);
+  assert.match(globalCssSource, /var\(--journal-paper\) 96%/);
+  assert.match(globalCssSource, /max-width: calc\(100vw - 1\.5rem\)/);
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu-item--lock:only-child/);
+  assert.match(globalCssSource, /\.journal-identity-header__settings-menu-item:focus-visible/);
 });
