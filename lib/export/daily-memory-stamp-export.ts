@@ -41,10 +41,14 @@ const brand = {
   cocoaTaupe: "#62453A",
 };
 
-const displayFontVariable = "--font-brand-display";
-const utilityFontVariable = "--font-brand-interface";
-const displayFontFallback = '"Cormorant Garamond", Georgia, serif';
-const utilityFontFallback = "Inter, system-ui, sans-serif";
+// Canvas exports must not depend on next/font web fonts. Some WebKit and
+// embedded-browser builds can report a web font as loaded while fillText()
+// still resolves its glyphs to tofu. Native stacks keep exported text
+// readable offline and include explicit CJK fallbacks.
+const displayFont =
+  '"Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", STSong, SimSun, Georgia, serif';
+const utilityFont =
+  '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif';
 
 const dailyStampExportLayout = {
   journalTitleCenterY: 202,
@@ -68,40 +72,6 @@ const dailyStampExportLayout = {
   logoBoxSize: 190,
   logoBottom: 170,
 };
-
-function resolvedBrandFont(variable: string, fallback: string) {
-  const family = getComputedStyle(document.documentElement)
-    .getPropertyValue(variable)
-    .trim();
-  return family || fallback;
-}
-
-async function loadDailyStampExportFonts() {
-  const displayFont = resolvedBrandFont(
-    displayFontVariable,
-    displayFontFallback,
-  );
-  const utilityFont = resolvedBrandFont(
-    utilityFontVariable,
-    utilityFontFallback,
-  );
-
-  if (document.fonts) {
-    await Promise.all([
-      document.fonts.load(
-        `600 ${dailyStampExportLayout.journalTitleFontSize}px ${displayFont}`,
-      ),
-      document.fonts.load(
-        `500 ${dailyStampExportLayout.titleFontSize}px ${displayFont}`,
-      ),
-      document.fonts.load(
-        `600 ${dailyStampExportLayout.dateFontSize}px ${utilityFont}`,
-      ),
-    ]);
-  }
-
-  return { displayFont, utilityFont };
-}
 
 export type DailyStampExportBrandMark =
   | {
@@ -950,7 +920,6 @@ export async function renderDailyMemoryStampExport({
     textureWidth: resolvedTheme.textureWidth,
     textureHeight: resolvedTheme.textureHeight,
   });
-  const { displayFont, utilityFont } = await loadDailyStampExportFonts();
 
   const canvas = document.createElement("canvas");
   canvas.width = DAILY_STAMP_EXPORT_WIDTH;
