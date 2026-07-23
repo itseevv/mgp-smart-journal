@@ -3,6 +3,7 @@
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  DownloadIcon,
 } from "@/components/memory/memory-icons";
 import { TextLinkButton } from "@/components/journal/editorial-primitives";
 import {
@@ -21,6 +22,8 @@ type MonthlyStampSheetProps = {
   thumbnailUrls: Record<string, string>;
   onOpen: (memory: JournalMemorySummary) => void;
   onSelectMonth: (monthKey: string) => void;
+  onExport: () => void;
+  exportBusy?: boolean;
 };
 
 function emptyStateCopy(status: MonthlyStampArchive["selectedMonthStatus"]) {
@@ -47,6 +50,8 @@ export function MonthlyStampSheet({
   thumbnailUrls,
   onOpen,
   onSelectMonth,
+  onExport,
+  exportBusy = false,
 }: MonthlyStampSheetProps) {
   const { selectedSheet: sheet } = archive;
   const selectedTitle = monthTitle(archive.selectedMonthKey);
@@ -100,7 +105,7 @@ export function MonthlyStampSheet({
           </div>
           <div
             className="month-sheet-nav-controls flex shrink-0 items-center gap-1"
-            aria-label="Month navigation"
+            aria-label="Month navigation and export"
           >
             <JournalShellIconButton
               type="button"
@@ -120,6 +125,21 @@ export function MonthlyStampSheet({
               className="month-sheet-nav-button disabled:cursor-not-allowed disabled:opacity-35"
             >
               <ChevronRightIcon className="h-4 w-4" />
+            </JournalShellIconButton>
+            <span
+              className="month-sheet-export-divider"
+              aria-hidden="true"
+            />
+            <JournalShellIconButton
+              type="button"
+              onClick={onExport}
+              disabled={exportBusy || sheet.stamps.length === 0}
+              aria-label={`Preview ${selectedTitle} Memory Edition`}
+              title={`Preview ${selectedTitle} Memory Edition`}
+              className="month-sheet-nav-button month-sheet-export-button disabled:cursor-not-allowed disabled:opacity-35"
+              data-monthly-stamp-export-action="true"
+            >
+              <DownloadIcon className="h-4 w-4" />
             </JournalShellIconButton>
           </div>
         </div>

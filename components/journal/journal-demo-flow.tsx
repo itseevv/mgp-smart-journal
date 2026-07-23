@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 
 import { BottomRitualAction } from "@/components/journal/bottom-ritual-action";
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
@@ -36,6 +37,14 @@ type JournalDemoFlowProps = {
   scenario?: "duplicate-today" | "backfill-may";
   initialMonth?: string;
 };
+
+const MonthlyStampExportComposer = dynamic(
+  () =>
+    import("@/components/export/monthly-stamp-export-composer").then(
+      (module) => module.MonthlyStampExportComposer,
+    ),
+  { ssr: false },
+);
 
 const DEMO_NOW_ISO = "2026-08-31T16:00:00.000Z";
 const DEMO_NOW = new Date(DEMO_NOW_ISO);
@@ -337,6 +346,7 @@ export function JournalDemoFlow({
         : initialScreen,
   );
   const [titleDraft, setTitleDraft] = useState("My Journal");
+  const [monthlyExportOpen, setMonthlyExportOpen] = useState(false);
   const demoConfig = useMemo(
     () => ({
       ...memoryMediaConfig,
@@ -531,6 +541,7 @@ export function JournalDemoFlow({
             thumbnailUrls={thumbnailUrls}
             onOpen={(memory) => openJournalStamp(memory.id)}
             onSelectMonth={selectMonth}
+            onExport={() => setMonthlyExportOpen(true)}
           />
 
           <BottomRitualAction
@@ -594,6 +605,15 @@ export function JournalDemoFlow({
           theme={defaultJournalTheme}
         />
       ) : null}
+      <MonthlyStampExportComposer
+        open={monthlyExportOpen}
+        journalTitle="My Journal"
+        monthKey={archive.selectedMonthKey}
+        stamps={archive.selectedSheet.stamps}
+        thumbnailUrls={thumbnailUrls}
+        theme={defaultJournalTheme}
+        onClose={() => setMonthlyExportOpen(false)}
+      />
     </div>
   );
 }
