@@ -599,6 +599,20 @@ test("server export sanitizes XML controls and survives a corrupt texture", asyn
   assert.equal(metadata.height, DAILY_STAMP_EXPORT_HEIGHT);
 });
 
+test("server export tolerates an undated memory without rendering an empty text input", async () => {
+  const png = await renderServerDailyStampPng({
+    memory: {
+      ...memory,
+      capturedAt: "",
+      localDate: "",
+      photos: [],
+    },
+    journalTitle: "Undated journal",
+    photos: [],
+  });
+  assert.equal((await sharp(png).metadata()).format, "png");
+});
+
 test("server export enforces photo-count boundaries", async () => {
   const one = await sharp({
     create: {
