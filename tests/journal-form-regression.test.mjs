@@ -18,15 +18,18 @@ test("journal form product rules use Scrap the Day constraints and copy", () => 
   assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, false);
   assert.equal(rules.maxPhotosPerEntry, 9);
   assert.equal(rules.voiceMemosEnabled, false);
-  assert.equal(rules.copy.newTitle, "New Daily Scrap");
+  assert.equal(rules.copy.newTitle, "New Memory Stamp");
+  assert.equal(rules.copy.editTitle, "Edit Memory Stamp");
+  assert.equal(rules.copy.editAriaLabel, "Edit Memory Stamp");
   assert.equal(rules.copy.titleLabel, "One line to keep");
   assert.equal(rules.copy.titlePlaceholder, "What would you call today?");
   assert.equal(rules.copy.photoSectionTitle, "Moments");
   assert.equal(rules.copy.addEmptyPhotos, "Add moments");
   assert.equal(rules.copy.saveNew, "Seal this day");
+  assert.equal(rules.copy.saveEdit, "Save changes");
 
   const journalCopy = JSON.stringify(rules.copy);
-  assert.doesNotMatch(journalCopy, /New memory|Name this memory|Memory title|Photographs|Save memory|Voice memos|Record a voice memo|30 photos|0 of 30/i);
+  assert.doesNotMatch(journalCopy, /"newTitle":"New memory"|Name this memory|Memory title|Photographs|Save memory|Voice memos|Record a voice memo|30 photos|0 of 30/i);
 });
 
 test("journal drafts carry semantic local date metadata", () => {
@@ -91,7 +94,7 @@ test("journal route passes the journal product mode through to the form flow", (
   assert.match(journalDemoPageSource, /screen === "sealed"/);
   assert.match(capsulePageSource, /JournalMobileShell/);
   assert.match(journalPhotoPickerSource, /Cover Scrap/);
-  assert.match(journalPhotoPickerSource, /Choose today&apos;s scrap/);
+  assert.match(journalPhotoPickerSource, /Choose today’s Cover Scrap/);
   assert.match(journalPhotoPickerSource, /One photo is enough to seal the day\./);
   assert.match(journalPhotoPickerSource, /onConfirmCrop/);
   assert.match(journalPhotoPickerSource, /Adjust scrap/);
@@ -100,7 +103,7 @@ test("journal route passes the journal product mode through to the form flow", (
     journalPhotoPickerSource,
     /Add up to \{additionalCapacity\.remaining\} more/,
   );
-  assert.match(scrapTableSource, /Find today&apos;s scrap/);
+  assert.match(scrapTableSource, /Find Your Cover Scrap/);
   assert.match(scrapTableSource, /Move the photo under the finder\./);
   assert.match(scrapTableSource, /Use this scrap/);
   assert.match(scrapTableSource, /data-scrap-table-mode="immersive"/);
@@ -152,6 +155,7 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(journalDemoSource, /createArchiveMonthStamps\("2026-08"/);
   assert.match(journalDemoSource, /Array\.from\(\{ length: 31 \}/);
   assert.match(monthlyStampSheetSource, /MonthSheetGrid/);
+  assert.match(monthlyStampSheetSource, /No stamps yet\./);
   assert.doesNotMatch(monthlyStampSheetSource, /journal-sheets-title/);
   assert.doesNotMatch(monthlyStampSheetSource, /archive\.stampedSheets/);
   assert.doesNotMatch(monthlyStampSheetSource, />\s*Sheets\s*</);

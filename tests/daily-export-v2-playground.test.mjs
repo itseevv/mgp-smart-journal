@@ -25,8 +25,8 @@ test("phase 7.2A daily export v2 playground stays isolated from production expor
   assert.match(playgroundSource, /data-save-share-modal-chrome="utility-action-surface"/);
   assert.match(playgroundSource, /data-save-share-modal-production-wiring="none"/);
   assert.match(playgroundSource, /data-save-share-modal-title="simple"/);
-  assert.match(playgroundSource, /Save or share/);
-  assert.match(playgroundSource, /Save Image/);
+  assert.match(playgroundSource, /Your Memory Stamp/);
+  assert.match(playgroundSource, /Save Your Stamp/);
   assert.match(playgroundSource, /Share/);
   assert.match(playgroundSource, /Creating image\.\.\./);
   assert.doesNotMatch(playgroundSource, /Image ready\./);

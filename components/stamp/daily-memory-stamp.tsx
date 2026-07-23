@@ -138,7 +138,7 @@ export function DailyMemoryStamp({
           <button
             type="button"
             onClick={onEdit}
-            aria-label="Edit stamp"
+            aria-label="Edit Memory Stamp"
             className="daily-detail-edit-button flex h-9 w-9 items-center justify-center rounded-full"
             data-daily-detail-edit-placement="overlay-icon"
           >
@@ -170,7 +170,7 @@ export function DailyMemoryStamp({
           data-daily-stamp-export-action="true"
           data-daily-detail-bottom-cta="save-share"
         >
-          Save / Share
+          Keep or Share
         </JournalPrimaryCTA>
       </footer>
 

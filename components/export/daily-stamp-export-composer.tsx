@@ -456,7 +456,7 @@ export function DailyStampExportComposer({
             data-save-share-modal-title="simple"
             style={{ fontFamily: displayFont }}
           >
-            Save or share
+            Your Memory Stamp
           </h2>
           <button
             type="button"
@@ -465,7 +465,7 @@ export function DailyStampExportComposer({
             style={{
               backgroundColor: rgbaFromHex(brand.deepBurgundy, 0.08),
             }}
-            aria-label="Close save and share preview"
+            aria-label="Close Memory Stamp preview"
           >
             <CloseIcon className="h-4 w-4" />
           </button>
@@ -530,7 +530,7 @@ export function DailyStampExportComposer({
             style={modalPrimaryActionStyle(resolvedTheme)}
           >
             <DownloadIcon className="h-3.5 w-3.5" />
-            {composerState.status === "error" ? "Retry" : "Save Image"}
+            {composerState.status === "error" ? "Retry" : "Save Your Stamp"}
           </button>
           <button
             type="button"

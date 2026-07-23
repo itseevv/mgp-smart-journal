@@ -423,11 +423,11 @@ function SaveShareModalConcept({
               data-save-share-modal-title="simple"
               style={{ fontFamily: displayFont }}
             >
-              Save or share
+              Your Memory Stamp
             </h2>
             <button
               type="button"
-              aria-label="Close save and share preview"
+              aria-label="Close Memory Stamp preview"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{
                 backgroundColor: rgbaFromHex(brand.deepBurgundy, 0.08),
@@ -457,7 +457,7 @@ function SaveShareModalConcept({
               style={modalPrimaryActionStyle(theme)}
             >
               <DownloadIcon className="h-3.5 w-3.5" />
-              Save Image
+              Save Your Stamp
             </button>
             <button
               type="button"
@@ -496,7 +496,7 @@ export function DailyExportV2Playground() {
             className="mt-2 text-4xl leading-none text-[#28231e] sm:text-5xl"
             style={{ fontFamily: displayFont }}
           >
-            Save or share export artifact
+            Memory Stamp export artifact
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-[#5d574f]">
             A focused review surface for the utility modal chrome and the 9:16
@@ -515,7 +515,7 @@ export function DailyExportV2Playground() {
               className="text-2xl leading-tight"
               style={{ fontFamily: displayFont }}
             >
-              Save / Share modal chrome
+              Keep or Share modal chrome
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#5d574f]">
               The modal stays an action surface: simple title, close control,

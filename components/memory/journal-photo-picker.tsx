@@ -299,7 +299,7 @@ export function JournalPhotoPicker({
         accept="image/*"
         onChange={handleCover}
         className="sr-only"
-        aria-label="Choose today's scrap"
+        aria-label="Choose today’s Cover Scrap"
       />
 
       {cover ? (
@@ -371,7 +371,7 @@ export function JournalPhotoPicker({
           <span className="journal-cover-empty-button__icon flex h-9 w-9 items-center justify-center rounded-full">
             <PlusIcon className="h-4 w-4" />
           </span>
-          Choose today&apos;s scrap
+          Choose today’s Cover Scrap
           <span className="max-w-[22ch] font-normal leading-relaxed">
             One photo is enough to seal the day.
           </span>

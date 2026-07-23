@@ -96,10 +96,10 @@ const journalFormRules: MemoryFormProductRules = {
   maxPhotosPerEntry: DAILY_MEMORY_STAMP_MAX_PHOTOS,
   voiceMemosEnabled: JOURNAL_VOICE_MEMOS_ENABLED,
   copy: {
-    newTitle: "New Daily Scrap",
-    editTitle: "Edit stamp",
+    newTitle: "New Memory Stamp",
+    editTitle: "Edit Memory Stamp",
     createAriaLabel: "Create Daily Memory Stamp",
-    editAriaLabel: "Edit stamp",
+    editAriaLabel: "Edit Memory Stamp",
     titleLabel: "One line to keep",
     titlePlaceholder: "What would you call today?",
     titleRequiredError: "Add one line to keep.",
@@ -131,7 +131,7 @@ const journalFormRules: MemoryFormProductRules = {
     savingMedia: "Adding moments…",
     savingDetails: "Sealing day…",
     saveNew: "Seal this day",
-    saveEdit: "Save stamp",
+    saveEdit: "Save changes",
   },
 };
 
