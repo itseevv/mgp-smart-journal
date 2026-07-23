@@ -27,6 +27,16 @@ const oldStrings = [
   "Voice memos",
   "Record a voice memo",
   "Save memory",
+  "New Daily Scrap",
+  "Edit stamp",
+  "Save stamp",
+  "Choose today's scrap",
+  "Find today's scrap",
+  "Save / Share",
+  "Save or share",
+  "Save Image",
+  "Creating image...",
+  "No scraps yet.",
 ];
 const createStrings = [
   "New Memory Stamp",
