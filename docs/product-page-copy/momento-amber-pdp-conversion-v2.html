@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Amber Momento Journal conversion-focused PDP prototype">
+  <title>Amber Momento Journal — Conversion PDP v2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f6f1e9;
+      --paper-soft: #fbf8f3;
+      --ink: #281f1b;
+      --muted: #6f655f;
+      --line: #d7cec2;
+      --brown: #7d4b2e;
+      --brown-dark: #4a2b1f;
+      --amber: #b07142;
+      --green: #203f34;
+      --cream: #eee0cf;
+      --white: #fffdf9;
+      --serif: "Newsreader", Georgia, serif;
+      --sans: "Manrope", Arial, sans-serif;
+      --page: min(1460px, calc(100vw - 64px));
+      --section-space: clamp(88px, 10vw, 152px);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; }
+    button, summary, a { -webkit-tap-highlight-color: transparent; }
+    img { display: block; width: 100%; }
+    a { color: inherit; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, h3 {
+      font-family: var(--serif);
+      font-weight: 400;
+      line-height: .96;
+      letter-spacing: -.035em;
+    }
+    h1 { font-size: clamp(62px, 6vw, 108px); margin-bottom: 18px; }
+    h2 { font-size: clamp(52px, 5.4vw, 92px); margin-bottom: 24px; }
+    h3 { font-size: clamp(28px, 2.5vw, 42px); margin-bottom: 12px; }
+    p { color: var(--muted); }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible {
+      outline: 2px solid var(--amber);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 10px;
+      left: 10px;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      background: var(--ink);
+      color: white;
+    }
+    .skip-link:focus { transform: none; }
+
+    .prototype-bar {
+      min-height: 44px;
+      padding: 7px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #201916;
+      color: #fff;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .prototype-bar button {
+      border: 1px solid rgba(255,255,255,.38);
+      background: transparent;
+      color: white;
+      padding: 7px 11px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      font-size: 10px;
+    }
+    .prototype-bar button[aria-pressed="true"] { background: white; color: var(--ink); }
+    body.editing [data-copy] { outline: 1px dashed var(--amber); outline-offset: 5px; }
+
+    .announcement {
+      padding: 9px 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--cream);
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .site-header {
+      height: 82px;
+      padding: 0 32px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246,241,233,.96);
+    }
+    .site-header a {
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .site-header a:last-child { justify-self: end; }
+    .wordmark {
+      font-family: var(--serif);
+      font-size: 25px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .breadcrumb {
+      width: var(--page);
+      margin: 0 auto;
+      padding: 20px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .product-grid {
+      width: var(--page);
+      margin: 0 auto;
+      padding: 8px 0 72px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(420px, .88fr);
+      gap: clamp(50px, 6vw, 100px);
+      align-items: start;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      gap: 16px;
+      position: sticky;
+      top: 20px;
+    }
+    .thumbs { display: grid; gap: 12px; align-content: start; }
+    .thumb {
+      width: 82px;
+      height: 100px;
+      padding: 0;
+      border: 1px solid transparent;
+      background: #111;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .thumb[aria-current="true"] { border-color: var(--brown); }
+    .thumb img { height: 100%; object-fit: cover; opacity: .82; }
+    .thumb[aria-current="true"] img { opacity: 1; }
+    .main-media {
+      margin: 0;
+      min-height: 720px;
+      position: relative;
+      overflow: hidden;
+      background: #0d0d0f;
+    }
+    .main-media > img {
+      height: 100%;
+      min-height: 720px;
+      object-fit: cover;
+      transition: opacity .18s ease;
+    }
+    .edition-tag, .media-count {
+      position: absolute;
+      z-index: 2;
+      color: white;
+      background: rgba(25,20,18,.86);
+      border: 1px solid rgba(255,255,255,.35);
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .edition-tag { top: 16px; right: 16px; padding: 10px 13px; }
+    .media-count { right: 16px; bottom: 16px; padding: 8px 10px; }
+
+    .buy-panel { padding-top: 10px; }
+    .eyebrow {
+      margin-bottom: 13px;
+      color: var(--brown);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .product-hook {
+      margin-bottom: 20px;
+      color: var(--brown);
+      font-family: var(--serif);
+      font-size: clamp(25px, 2.2vw, 36px);
+      font-style: italic;
+      line-height: 1.15;
+    }
+    .product-description {
+      max-width: 640px;
+      margin-bottom: 26px;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+    .benefit-line {
+      margin: 0 0 28px;
+      padding: 20px 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .benefit-line div { padding: 0 18px; border-right: 1px solid var(--line); }
+    .benefit-line div:first-child { padding-left: 0; }
+    .benefit-line div:last-child { padding-right: 0; border-right: 0; }
+    .benefit-line strong { display: block; margin-bottom: 3px; font-size: 13px; }
+    .benefit-line span { display: block; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .price-row {
+      margin-bottom: 25px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .price { font-family: var(--serif); font-size: 36px; }
+    .price-note { color: var(--muted); font-size: 10px; }
+    .option-block { margin-bottom: 18px; }
+    .option-label {
+      margin-bottom: 7px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .option-label span:last-child { color: var(--muted); font-weight: 400; letter-spacing: 0; text-transform: none; }
+    .option-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .option-button {
+      min-height: 48px;
+      border: 1px solid #b7aea4;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .option-button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 -2px 0 var(--amber); }
+    .personalization-grid { display: grid; grid-template-columns: 1fr 150px; gap: 8px; }
+    input, select {
+      min-height: 50px;
+      border: 1px solid #b7aea4;
+      background: var(--paper-soft);
+      color: var(--ink);
+      padding: 0 13px;
+    }
+    .primary-cta {
+      width: 100%;
+      min-height: 56px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      transition: background .18s ease, color .18s ease;
+    }
+    .primary-cta:hover { background: var(--brown-dark); }
+    .cta-reassurance { margin: 7px 0 16px; text-align: center; font-size: 10px; }
+
+    .purchase-details { border-top: 1px solid var(--line); }
+    details { border-bottom: 1px solid var(--line); }
+    summary {
+      min-height: 58px;
+      padding: 14px 34px 14px 0;
+      display: flex;
+      align-items: center;
+      position: relative;
+      cursor: pointer;
+      list-style: none;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      content: "+";
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 19px;
+      font-weight: 400;
+    }
+    details[open] summary::after { content: "−"; }
+    .summary-copy { display: grid; gap: 2px; }
+    .summary-copy small { color: var(--muted); font-size: 10px; font-weight: 400; }
+    .details-content { padding: 0 28px 20px 0; color: var(--muted); font-size: 12px; }
+    .details-content p { margin-bottom: 0; }
+    .details-content ul { margin: 0; padding-left: 18px; }
+    .details-content li + li { margin-top: 4px; }
+
+    .trust-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--paper-soft);
+    }
+    .trust-item { min-height: 108px; padding: 24px 32px; border-right: 1px solid var(--line); }
+    .trust-item:last-child { border-right: 0; }
+    .trust-item strong { display: block; margin-bottom: 4px; font-family: var(--serif); font-size: 23px; font-weight: 400; }
+    .trust-item span { color: var(--muted); font-size: 11px; }
+
+    .page-section { width: var(--page); margin: 0 auto; padding: var(--section-space) 0; }
+    .design-story {
+      display: grid;
+      grid-template-columns: 1.06fr .94fr;
+      align-items: stretch;
+      background: var(--paper-soft);
+    }
+    .design-story-media { min-height: 720px; overflow: hidden; }
+    .design-story-media img { height: 100%; object-fit: cover; }
+    .design-story-copy { padding: clamp(55px, 7vw, 110px); display: flex; flex-direction: column; justify-content: center; }
+    .design-story-copy > p:not(.eyebrow) { max-width: 560px; font-size: 16px; }
+    .material-notes {
+      margin-top: 25px;
+      padding-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .material-notes strong { display: block; margin-bottom: 3px; font-size: 11px; }
+    .material-notes span { color: var(--muted); font-size: 10px; line-height: 1.4; }
+
+    .two-worlds { padding-top: 0; }
+    .section-heading {
+      margin-bottom: 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap: 70px;
+      align-items: end;
+    }
+    .section-heading h2 { margin-bottom: 0; }
+    .section-heading > p { max-width: 510px; margin-bottom: 7px; font-size: 16px; }
+    .world-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .world-card { min-height: 700px; position: relative; overflow: hidden; background: #111; }
+    .world-card img { height: 100%; min-height: 700px; object-fit: cover; }
+    .world-caption {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 26px 30px;
+      background: linear-gradient(transparent, rgba(20,14,12,.88));
+      color: white;
+    }
+    .world-caption span { display: block; margin-bottom: 5px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+    .world-caption h3 { margin-bottom: 5px; color: white; }
+    .world-caption p { max-width: 430px; margin-bottom: 0; color: rgba(255,255,255,.78); font-size: 12px; }
+
+    .ritual-section {
+      width: 100%;
+      padding: var(--section-space) max(32px, calc((100vw - min(1460px, calc(100vw - 64px))) / 2));
+      background: var(--cream);
+    }
+    .ritual-title { max-width: 820px; margin-bottom: 48px; }
+    .ritual-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .ritual-card { background: var(--paper-soft); }
+    .ritual-image { aspect-ratio: 1.14; overflow: hidden; }
+    .ritual-image img { height: 100%; object-fit: cover; }
+    .ritual-copy { min-height: 190px; padding: 25px 27px 30px; display: grid; grid-template-columns: 32px 1fr; gap: 13px; }
+    .step { color: var(--brown); font-size: 10px; font-weight: 700; }
+    .ritual-copy h3 { font-size: 31px; }
+    .ritual-copy p { margin-bottom: 0; font-size: 12px; }
+
+    .memory-section {
+      width: 100%;
+      padding: var(--section-space) max(32px, calc((100vw - min(1460px, calc(100vw - 64px))) / 2));
+      background: var(--green);
+      color: white;
+    }
+    .memory-layout { display: grid; grid-template-columns: .84fr 1.16fr; gap: clamp(60px, 8vw, 130px); align-items: center; }
+    .memory-media { position: relative; }
+    .memory-media img { aspect-ratio: .9; object-fit: cover; }
+    .memory-number {
+      position: absolute;
+      left: -18px;
+      top: -55px;
+      color: #dfc19e;
+      font-family: var(--serif);
+      font-size: clamp(105px, 13vw, 210px);
+      line-height: 1;
+      letter-spacing: -.07em;
+    }
+    .memory-copy .eyebrow { color: #dfc19e; }
+    .memory-copy h2 { max-width: 780px; color: white; }
+    .memory-copy > p { max-width: 630px; color: rgba(255,255,255,.72); font-size: 16px; }
+    .memory-facts {
+      margin-top: 36px;
+      padding-top: 25px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0;
+      border-top: 1px solid rgba(255,255,255,.3);
+    }
+    .memory-fact { min-height: 88px; padding: 15px 20px 15px 0; border-bottom: 1px solid rgba(255,255,255,.18); }
+    .memory-fact:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.18); }
+    .memory-fact:nth-child(even) { padding-left: 20px; }
+    .memory-fact strong { display: block; margin-bottom: 4px; font-family: var(--serif); font-size: 25px; font-weight: 400; }
+    .memory-fact span { color: rgba(255,255,255,.63); font-size: 11px; }
+
+    .gifting-section { display: grid; grid-template-columns: .88fr 1.12fr; background: var(--paper-soft); }
+    .gifting-copy { padding: clamp(55px, 7vw, 105px); display: flex; flex-direction: column; justify-content: center; }
+    .gifting-copy > p:not(.eyebrow) { max-width: 530px; font-size: 16px; }
+    .occasion-list { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .occasion-list span { padding: 7px 10px; border: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .gifting-media { min-height: 680px; overflow: hidden; }
+    .gifting-media img { height: 100%; object-fit: cover; }
+
+    .faq-section { display: grid; grid-template-columns: .7fr 1.3fr; gap: clamp(60px, 9vw, 150px); }
+    .faq-heading { position: sticky; top: 30px; align-self: start; }
+    .faq-heading h2 { font-size: clamp(48px, 5vw, 78px); }
+    .faq-heading p:last-child { max-width: 380px; }
+    .faq-list { border-top: 1px solid var(--line); }
+    .faq-list summary { min-height: 78px; font-size: 14px; }
+    .faq-list .details-content { max-width: 760px; padding-bottom: 26px; font-size: 13px; }
+
+    .final-cta {
+      width: var(--page);
+      margin: 0 auto var(--section-space);
+      padding: clamp(75px, 9vw, 135px) 28px;
+      background: var(--brown-dark);
+      color: white;
+      text-align: center;
+    }
+    .final-cta h2 { max-width: 950px; margin: 0 auto 22px; color: white; }
+    .final-cta p { max-width: 610px; margin: 0 auto 28px; color: rgba(255,255,255,.73); }
+    .final-cta .primary-cta { width: min(320px, 100%); background: var(--paper-soft); color: var(--ink); border-color: var(--paper-soft); }
+    .site-footer {
+      min-height: 90px;
+      padding: 25px 32px 110px;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+    .mobile-sticky {
+      display: none;
+      position: fixed;
+      z-index: 30;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 10px 14px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(251,248,243,.96);
+      backdrop-filter: blur(12px);
+    }
+    .mobile-sticky div { min-width: 0; }
+    .mobile-sticky strong, .mobile-sticky span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mobile-sticky strong { font-family: var(--serif); font-size: 17px; font-weight: 400; }
+    .mobile-sticky span { color: var(--muted); font-size: 9px; }
+    .mobile-sticky .primary-cta { width: 125px; min-height: 46px; flex: 0 0 auto; }
+    .toast {
+      position: fixed;
+      z-index: 50;
+      left: 50%;
+      bottom: 100px;
+      max-width: calc(100vw - 30px);
+      padding: 12px 16px;
+      transform: translate(-50%, 20px);
+      background: var(--ink);
+      color: white;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1100px) {
+      :root { --page: min(100% - 40px, 980px); }
+      .product-grid { grid-template-columns: 1fr 1fr; gap: 38px; }
+      .gallery { grid-template-columns: 1fr; position: static; }
+      .thumbs { grid-template-columns: repeat(5, 1fr); grid-row: 2; }
+      .thumb { width: 100%; height: 78px; }
+      .main-media, .main-media > img { min-height: 610px; }
+      .benefit-line { grid-template-columns: 1fr; }
+      .benefit-line div { padding: 9px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .benefit-line div:last-child { border-bottom: 0; }
+      .design-story-media { min-height: 620px; }
+      .design-story-copy { padding: 55px; }
+      .world-card, .world-card img { min-height: 570px; }
+      .gifting-copy { padding: 55px; }
+      .gifting-media { min-height: 570px; }
+    }
+
+    @media (max-width: 820px) {
+      :root { --page: calc(100% - 32px); --section-space: 82px; }
+      h1 { font-size: clamp(54px, 11vw, 78px); }
+      h2 { font-size: clamp(48px, 10vw, 72px); }
+      .site-header { height: 70px; padding-inline: 16px; }
+      .site-header a:first-child { display: none; }
+      .site-header { grid-template-columns: 1fr auto; }
+      .wordmark { justify-self: start; font-size: 19px; }
+      .product-grid { grid-template-columns: 1fr; padding-bottom: 50px; }
+      .gallery { order: 0; }
+      .buy-panel { order: 1; }
+      .main-media, .main-media > img { min-height: min(720px, 100vw); }
+      .trust-strip { grid-template-columns: 1fr 1fr; }
+      .trust-item:nth-child(2) { border-right: 0; }
+      .trust-item:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .design-story, .gifting-section { grid-template-columns: 1fr; }
+      .design-story-media, .gifting-media { min-height: 78vw; }
+      .section-heading { grid-template-columns: 1fr; gap: 22px; }
+      .world-grid { grid-template-columns: 1fr; }
+      .world-card, .world-card img { min-height: 690px; }
+      .ritual-grid { grid-template-columns: 1fr; }
+      .ritual-card { display: grid; grid-template-columns: 1fr 1fr; }
+      .ritual-image { aspect-ratio: auto; min-height: 300px; }
+      .ritual-copy { min-height: 300px; align-content: center; }
+      .memory-layout { grid-template-columns: 1fr; }
+      .memory-media { max-width: 620px; }
+      .memory-number { left: -8px; top: -42px; }
+      .gifting-copy { order: 1; }
+      .gifting-media { order: 0; }
+      .faq-section { grid-template-columns: 1fr; gap: 30px; }
+      .faq-heading { position: static; }
+      .mobile-sticky { display: flex; }
+    }
+
+    @media (max-width: 520px) {
+      :root { --page: calc(100% - 24px); --section-space: 68px; }
+      body { font-size: 14px; }
+      .prototype-bar { padding-inline: 12px; }
+      .prototype-bar span { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .announcement { padding-inline: 12px; font-size: 9px; }
+      .wordmark { font-size: 16px; }
+      .breadcrumb { padding: 13px 0; font-size: 10px; }
+      .product-grid { padding-top: 0; gap: 26px; }
+      .thumbs { gap: 7px; }
+      .thumb { height: 63px; }
+      .main-media, .main-media > img { min-height: calc(100vw - 24px); }
+      .edition-tag { top: 10px; right: 10px; }
+      h1 { font-size: 52px; }
+      h2 { font-size: 48px; }
+      .product-hook { font-size: 27px; }
+      .product-description { font-size: 14px; }
+      .benefit-line { margin-bottom: 20px; }
+      .personalization-grid { grid-template-columns: 1fr 110px; }
+      .trust-item { min-height: 96px; padding: 19px 15px; }
+      .trust-item strong { font-size: 20px; }
+      .design-story-copy, .gifting-copy { padding: 45px 24px; }
+      .design-story-media, .gifting-media { min-height: 100vw; }
+      .material-notes { grid-template-columns: 1fr; }
+      .world-card, .world-card img { min-height: 118vw; }
+      .world-caption { padding: 23px 20px; }
+      .ritual-section, .memory-section { padding-inline: 12px; }
+      .ritual-card { grid-template-columns: 1fr; }
+      .ritual-image { min-height: auto; aspect-ratio: 1.2; }
+      .ritual-copy { min-height: 175px; }
+      .memory-number { font-size: 115px; top: -37px; }
+      .memory-facts { grid-template-columns: 1fr; }
+      .memory-fact:nth-child(odd) { border-right: 0; }
+      .memory-fact:nth-child(even) { padding-left: 0; }
+      .faq-list summary { min-height: 70px; padding-right: 30px; }
+      .final-cta { padding-inline: 20px; }
+      .site-footer { padding-inline: 18px; }
+      .site-footer span:last-child { display: none; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root { color-scheme: light; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#product">Skip to product</a>
+
+  <div class="prototype-bar">
+    <span>Review prototype · reduced conversion hierarchy · not connected to Shopify</span>
+    <button id="toggle-edit" type="button" aria-pressed="false">Edit copy</button>
+  </div>
+
+  <div class="announcement">Handmade in small batches · Complimentary name embossing · Gift-ready packaging</div>
+
+  <header class="site-header">
+    <a href="#">Shop Journals</a>
+    <div class="wordmark">Modern Goddess Patina</div>
+    <a href="#product">Bag (0)</a>
+  </header>
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">Home / Journals / Momento Edition / Amber</nav>
+
+  <main id="product">
+    <section class="product-grid" aria-labelledby="product-title">
+      <div class="gallery" aria-label="Amber product gallery">
+        <div class="thumbs" id="thumbs">
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" aria-label="View Amber folio" aria-current="true"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" aria-label="View Amber open Journal" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/3%20(1).jpg" aria-label="View Amber closed Journal" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/3%20(1).jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" aria-label="View Amber cover and charms" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" aria-label="View Amber pocket detail" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" alt=""></button>
+        </div>
+        <figure class="main-media">
+          <span class="edition-tag">Momento Edition</span>
+          <img id="main-image" src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" alt="Amber handmade leather Momento Journal with floral fabric folio">
+          <figcaption class="media-count" id="media-count">1 / 5</figcaption>
+        </figure>
+      </div>
+
+      <aside class="buy-panel">
+        <p class="eyebrow">Momento Edition · Amber</p>
+        <h1 id="product-title" data-copy data-pretext>Amber Momento Journal</h1>
+        <p class="product-hook" data-copy>Keep the page. Keep the moment around it.</p>
+        <p class="product-description" data-copy>A handmade leather Journal for what you write by hand, with a private digital space for the photographs, extra words and voice that bring each day back.</p>
+
+        <div class="benefit-line" aria-label="Momento highlights">
+          <div><strong>365 memories</strong><span>Kept at your own pace</span></div>
+          <div><strong>More than a page</strong><span>Photos, words and voice</span></div>
+          <div><strong>Simple to return to</strong><span>No app or subscription</span></div>
+        </div>
+
+        <div class="price-row">
+          <span class="price">£—</span>
+          <span class="price-note">Live price supplied by Shopify</span>
+        </div>
+
+        <div class="option-block">
+          <div class="option-label"><span>Choose size</span><span>Momento is included in both</span></div>
+          <div class="option-row" id="size-options">
+            <button class="option-button" type="button" aria-pressed="true">A5</button>
+            <button class="option-button" type="button" aria-pressed="false">A6</button>
+          </div>
+        </div>
+
+        <div class="option-block">
+          <div class="option-label"><span>Complimentary embossing</span><span>Optional</span></div>
+          <div class="personalization-grid">
+            <input type="text" maxlength="24" placeholder="Name to emboss" aria-label="Name to emboss">
+            <select aria-label="Embossing finish"><option>Gold</option><option>Silver</option><option>Blind</option></select>
+          </div>
+        </div>
+
+        <button class="primary-cta" type="button" data-prototype-cart>Add Amber Momento to bag</button>
+        <p class="cta-reassurance">Handmade · Gift-ready · Complimentary embossing</p>
+
+        <div class="purchase-details">
+          <details open>
+            <summary><span class="summary-copy"><span>What’s included</span><small>The complete Journal and Momento experience</small></span></summary>
+            <div class="details-content"><ul><li>Amber handmade leather Journal and cotton fabric folio</li><li>Three replaceable 30-page inserts</li><li>Journal pouch, leather care guide and gift packaging</li><li>Complimentary name embossing</li><li>Your private Momento space for 365 Daily Memory Stamps</li></ul></div>
+          </details>
+          <details>
+            <summary><span class="summary-copy"><span>How does Momento work?</span><small>Write · Open · Seal</small></span></summary>
+            <div class="details-content"><p>Write in your Journal as usual. When a day deserves more, touch the Journal with your phone or scan the included card, then add the photographs, words or voice you want to keep with it.</p></div>
+          </details>
+          <details>
+            <summary><span class="summary-copy"><span>Is my Journal private?</span><small>Protected by your Owner PIN</small></span></summary>
+            <div class="details-content"><p>Yes. Touching the Journal does not reveal its memories. Your Momento space is protected by the six-digit Owner PIN you create when you first open it.</p></div>
+          </details>
+          <details>
+            <summary><span class="summary-copy"><span>Shipping & returns</span><small>Store policy</small></span></summary>
+            <div class="details-content"><p><strong>Shipping:</strong> Approved shipping summary inserted from the store policy.</p><p><strong>Returns:</strong> Approved personalised-product policy inserted here.</p></div>
+          </details>
+        </div>
+      </aside>
+    </section>
+
+    <section class="trust-strip" aria-label="Product reassurance">
+      <div class="trust-item"><strong>Made by hand</strong><span>Cut, assembled and finished one at a time</span></div>
+      <div class="trust-item"><strong>Made to continue</strong><span>Refillable inserts for the pages still ahead</span></div>
+      <div class="trust-item"><strong>Made to give</strong><span>Gift-ready with complimentary embossing</span></div>
+      <div class="trust-item"><strong>Yours to keep</strong><span>A private Momento space protected by your PIN</span></div>
+    </section>
+
+    <section class="page-section" id="amber-story">
+      <div class="design-story">
+        <div class="design-story-media"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" alt="Closed Amber Journal with floral fabric and charms" loading="lazy"></div>
+        <div class="design-story-copy">
+          <p class="eyebrow">The Amber story</p>
+          <h2 data-copy data-pretext>Where the afternoon turns golden.</h2>
+          <p data-copy>Warm leather, softened florals and keepsakes gathered along the way. Amber is made for pages that feel already lived in, even before the first word is written.</p>
+          <p data-copy>Its folio keeps tickets, notes, photographs and small pieces of the day close to the page.</p>
+          <div class="material-notes"><div><strong>Natural leather</strong><span>Each Journal carries its own variations</span></div><div><strong>Refillable</strong><span>Three replaceable inserts included</span></div><div><strong>Amber details</strong><span>Fabric, hardware and charms as pictured</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page-section two-worlds" id="momento-story">
+      <div class="section-heading">
+        <div><p class="eyebrow">One Journal, more of the day</p><h2 data-copy data-pretext>What the page held. What the moment felt like.</h2></div>
+        <p data-copy>The paper keeps your handwriting and the things you can hold. A Daily Memory Stamp keeps the photographs, extra words and voice that complete the same memory.</p>
+      </div>
+      <div class="world-grid">
+        <article class="world-card"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" alt="Amber Journal open with paper insert and fabric pocket" loading="lazy"><div class="world-caption"><span>On the page</span><h3>Write it by hand.</h3><p>Journal, sketch, collect and keep the fragments that belong on paper.</p></div></article>
+        <article class="world-card"><img src="../../how-it-works/04-memory-stamp.png" alt="A Daily Memory Stamp open on a phone" loading="lazy"><div class="world-caption"><span>In Momento</span><h3>Keep what paper cannot.</h3><p>Add the photographs, a few more words and the sound of your voice.</p></div></article>
+      </div>
+    </section>
+
+    <section class="ritual-section" id="how-it-works">
+      <div class="ritual-title"><p class="eyebrow">A simple ritual</p><h2 data-copy data-pretext>Three steps. That’s all.</h2><p data-copy>Momento stays quiet until you want it. Use the Journal as a Journal, then open its digital layer when a day is worth sealing.</p></div>
+      <div class="ritual-grid">
+        <article class="ritual-card"><div class="ritual-image"><img src="../../how-it-works/01-write.png" alt="Writing in a handmade Journal" loading="eager"></div><div class="ritual-copy"><span class="step">01</span><div><h3>Write.</h3><p>Put the feeling on paper and keep the pieces of the day close.</p></div></div></article>
+        <article class="ritual-card"><div class="ritual-image"><img src="../../how-it-works/02-tap.png" alt="Opening Momento from a phone" loading="eager"></div><div class="ritual-copy"><span class="step">02</span><div><h3>Open.</h3><p>Touch the Journal or scan the included card. Momento opens in your browser.</p></div></div></article>
+        <article class="ritual-card"><div class="ritual-image"><img src="../../how-it-works/03-curate.png" alt="Choosing photographs for a memory" loading="eager"></div><div class="ritual-copy"><span class="step">03</span><div><h3>Seal.</h3><p>Choose the date, keep one line, then add the photographs, words or voice you want.</p></div></div></article>
+      </div>
+    </section>
+
+    <section class="memory-section" id="memory-stamps">
+      <div class="memory-layout">
+        <div class="memory-media"><span class="memory-number">365</span><img src="../../how-it-works/04-memory-stamp.png" alt="Finished Daily Memory Stamp on a phone" loading="lazy"></div>
+        <div class="memory-copy"><p class="eyebrow">Daily Memory Stamps</p><h2 data-copy data-pretext>Not every day. The days you want to keep.</h2><p data-copy>Create up to 365 dated memories in your own time. Record today or return to an earlier day. There is no streak, no missed-day pressure and nothing to catch up on.</p><div class="memory-facts"><div class="memory-fact"><strong>One line to keep</strong><span>The thought that brings the day back</span></div><div class="memory-fact"><strong>1–9 photographs</strong><span>One cover image, with more when you want them</span></div><div class="memory-fact"><strong>Extra words</strong><span>Optional space for what needs saying</span></div><div class="memory-fact"><strong>One Voice Note</strong><span>Optional, up to five minutes</span></div></div></div>
+      </div>
+    </section>
+
+    <section class="page-section" id="gifting">
+      <div class="gifting-section">
+        <div class="gifting-copy"><p class="eyebrow">For chapters worth keeping</p><h2 data-copy data-pretext>A Journal to open now and fill over time.</h2><p data-copy>For ordinary days, long-awaited journeys and the chapters that arrive with a before and after. Amber comes gift-ready, with complimentary name embossing.</p><div class="occasion-list"><span>Everyday life</span><span>Travel</span><span>A year of growth</span><span>Graduation</span><span>New chapter</span><span>Self-gift</span></div></div>
+        <div class="gifting-media"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" alt="Amber Journal opened inside its leather folio" loading="lazy"></div>
+      </div>
+    </section>
+
+    <section class="page-section faq-section" id="faq">
+      <div class="faq-heading"><p class="eyebrow">Good to know</p><h2 data-copy data-pretext>A few questions, simply answered.</h2><p>Only the details that may matter before you choose Momento.</p></div>
+      <div class="faq-list">
+        <details><summary>Do I need an app or subscription?</summary><div class="details-content"><p>No. Momento opens in your phone’s browser, so there is no app to download. No subscription is required for the included 365-memory capacity. An internet connection is required.</p></div></details>
+        <details><summary>Can someone see my Journal just by touching it?</summary><div class="details-content"><p>No. Touching or scanning leads to the PIN screen on an unauthorised device. Your memories stay behind the six-digit Owner PIN you create when you first open Momento.</p></div></details>
+        <details><summary>Can I keep a memory from an earlier date?</summary><div class="details-content"><p>Yes. Choose today or return to a past date, then create or edit its Daily Memory Stamp when you are ready.</p></div></details>
+        <details><summary>What does “365” mean?</summary><div class="details-content"><p>One Momento Journal can hold up to 365 dated Daily Memory Stamps. They do not need to be consecutive, and Momento does not ask you to record every day.</p></div></details>
+        <details><summary>Will it work with my phone, and does the Journal need charging?</summary><div class="details-content"><p>The Journal itself needs no battery or charging. Use touch access on a supported NFC phone, or scan the included QR card to open the same Momento space in your mobile browser.</p></div></details>
+      </div>
+    </section>
+
+    <section class="final-cta" aria-labelledby="final-title">
+      <h2 id="final-title" data-copy data-pretext>Keep the page. Keep what made it matter.</h2>
+      <p data-copy>Choose Amber in Momento Edition and give the days you love somewhere beautiful to return to.</p>
+      <button class="primary-cta" type="button" data-prototype-cart>Choose Amber Momento</button>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>Modern Goddess Patina</span><span>Handmade · Refillable · Journal-first</span></footer>
+
+  <div class="mobile-sticky" aria-label="Sticky purchase bar"><div><strong>Amber Momento</strong><span>A5 · £— · Gift-ready</span></div><button class="primary-cta" type="button" data-prototype-cart>Add to bag</button></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const thumbs = [...document.querySelectorAll('.thumb')];
+    const mainImage = document.getElementById('main-image');
+    const mediaCount = document.getElementById('media-count');
+    const toast = document.getElementById('toast');
+    let toastTimer;
+
+    thumbs.forEach((thumb, index) => thumb.addEventListener('click', () => {
+      mainImage.style.opacity = '.35';
+      window.setTimeout(() => {
+        mainImage.src = thumb.dataset.image;
+        mainImage.alt = `Amber Momento Journal product view ${index + 1}`;
+        mainImage.style.opacity = '1';
+        mediaCount.textContent = `${index + 1} / ${thumbs.length}`;
+        thumbs.forEach(item => item.setAttribute('aria-current', String(item === thumb)));
+      }, 90);
+    }));
+
+    document.querySelectorAll('#size-options .option-button').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('#size-options .option-button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      document.querySelector('.mobile-sticky span').textContent = `${button.textContent} · £— · Gift-ready`;
+    }));
+
+    function showToast() {
+      window.clearTimeout(toastTimer);
+      toast.textContent = 'Prototype only. Connect this button to the Amber Momento Shopify product form.';
+      toast.classList.add('show');
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    document.querySelectorAll('[data-prototype-cart]').forEach(button => button.addEventListener('click', showToast));
+
+    const editToggle = document.getElementById('toggle-edit');
+    const editableElements = [...document.querySelectorAll('[data-copy]')];
+    editToggle.addEventListener('click', () => {
+      const editing = !document.body.classList.contains('editing');
+      document.body.classList.toggle('editing', editing);
+      editToggle.setAttribute('aria-pressed', String(editing));
+      editableElements.forEach(element => { element.contentEditable = String(editing); });
+      if (editing && editableElements[0]) editableElements[0].focus();
+    });
+
+    // FALLBACK: vendor/pretext.js missing, using CDN as a progressive enhancement.
+    (async () => {
+      try {
+        const { prepare, layout } = await import('https://esm.sh/@chenglou/pretext');
+        await document.fonts.ready;
+        const targets = [...document.querySelectorAll('[data-pretext]')];
+        const prepared = new Map();
+        const prepareElement = element => prepared.set(element, prepare(element.textContent, getComputedStyle(element).font));
+        targets.forEach(prepareElement);
+        const relayout = () => {
+          targets.forEach(element => {
+            const styles = getComputedStyle(element);
+            const lineHeight = parseFloat(styles.lineHeight) || parseFloat(styles.fontSize) * 1.05;
+            const result = layout(prepared.get(element), element.clientWidth, lineHeight);
+            if (result && Number.isFinite(result.height)) element.style.minHeight = `${Math.ceil(result.height)}px`;
+          });
+        };
+        targets.forEach(element => new MutationObserver(() => { prepareElement(element); relayout(); }).observe(element, { characterData: true, subtree: true, childList: true }));
+        new ResizeObserver(relayout).observe(document.body);
+        relayout();
+      } catch (error) {
+        document.documentElement.dataset.pretext = 'native-flow';
+      }
+    })();
+  </script>
+</body>
+</html>

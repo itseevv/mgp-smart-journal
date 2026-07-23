@@ -40,6 +40,10 @@ const MAX_DISPLAY_INPUT_PIXELS = 20_000_000;
 const MAX_TEXTURE_INPUT_PIXELS = 12_000_000;
 const MAX_LOGO_INPUT_PIXELS = 4_000_000;
 const MAX_PNG_RESPONSE_BYTES = 4 * 1024 * 1024;
+const SERVER_EXPORT_FONT_PATH = path.join(
+  process.cwd(),
+  "public/fonts/NotoSansCJKsc-Regular.otf",
+);
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -380,47 +384,14 @@ async function preparedLogo(logo: Buffer, theme: JournalTheme) {
 
 function artifactSvg({
   theme,
-  journalTitle,
-  dateLabel,
-  title,
   overlayTop,
   overlayHeight,
 }: {
   theme: JournalTheme;
-  journalTitle: string;
-  dateLabel: string;
-  title: string;
   overlayTop: number;
   overlayHeight: number;
 }) {
   const lightTheme = theme.logoVariant === "dark";
-  const journalTitleColor = journalTitleUsesDarkInk(theme)
-    ? brand.deepBurgundy
-    : "rgba(228,180,143,0.86)";
-  const titleColor = lightTheme ? brand.deepBurgundy : brand.warmIvory;
-  const utilityColor = lightTheme
-    ? "rgba(98,69,58,0.76)"
-    : "rgba(228,180,143,0.78)";
-  const journalLines = wrapText(
-    serverSafeText(journalTitle),
-    layout.journalTitleFontSize,
-    layout.journalTitleMaxWidth,
-    2,
-  );
-  const firstJournalLineY =
-    layout.journalTitleCenterY -
-    ((journalLines.length - 1) * layout.journalTitleLineHeight) / 2;
-  const journalText = journalLines
-    .map(
-      (line, index) =>
-        `<tspan x="${DAILY_STAMP_EXPORT_WIDTH / 2}" y="${firstJournalLineY + index * layout.journalTitleLineHeight}">${escapeXml(line)}</tspan>`,
-    )
-    .join("");
-  const memoryTitle = truncateLine(
-    serverSafeText(title),
-    layout.titleFontSize,
-    layout.overlayWidth - layout.overlayPadding * 2,
-  );
   const panelFill = lightTheme ? "#fffbf0" : brand.vintageBlush;
   const panelOpacity = lightTheme ? 0.42 : 0.16;
   const panelGradientStart = lightTheme ? "#fffbf0" : brand.warmIvory;
@@ -448,11 +419,152 @@ function artifactSvg({
       ${themeOverlay}
       <rect x="${layout.overlayX}" y="${overlayTop}" width="${layout.overlayWidth}" height="${overlayHeight}" rx="${layout.overlayRadius}" fill="${panelFill}" fill-opacity="${panelOpacity}"/>
       <rect x="${layout.overlayX}" y="${overlayTop}" width="${layout.overlayWidth}" height="${overlayHeight}" rx="${layout.overlayRadius}" fill="url(#panel-shade)"/>
-      <text text-anchor="middle" dominant-baseline="middle" fill="${safeCssColor(journalTitleColor, brand.champagnePeach)}" font-family="Georgia, 'Times New Roman', serif" font-weight="600" font-size="${layout.journalTitleFontSize}">${journalText}</text>
-      <text x="${layout.overlayX + layout.overlayPadding}" y="${overlayTop + layout.dateBaselineOffset}" fill="${safeCssColor(utilityColor, brand.champagnePeach)}" font-family="Arial, sans-serif" font-weight="600" font-size="${layout.dateFontSize}" letter-spacing="${layout.dateLetterSpacing}">${escapeXml(dateLabel)}</text>
-      <text x="${layout.overlayX + layout.overlayPadding}" y="${overlayTop + layout.titleBaselineOffset}" fill="${safeCssColor(titleColor, brand.warmIvory)}" font-family="Georgia, 'Times New Roman', serif" font-weight="500" font-size="${layout.titleFontSize}">${escapeXml(memoryTitle)}</text>
     </svg>
   `);
+}
+
+async function renderTextLayer({
+  text,
+  fontSize,
+  color,
+  alpha = 1,
+  weight,
+  maxWidth = 0,
+  align = "left",
+  lineHeight = 0,
+  letterSpacing = 0,
+}: {
+  text: string;
+  fontSize: number;
+  color: string;
+  alpha?: number;
+  weight: number;
+  maxWidth?: number;
+  align?: "left" | "centre";
+  lineHeight?: number;
+  letterSpacing?: number;
+}) {
+  if (!text) {
+    return {
+      input: await sharp({
+        create: {
+          width: 1,
+          height: 1,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        },
+      })
+        .png()
+        .toBuffer(),
+      width: 1,
+      height: 1,
+    };
+  }
+  const letterSpacingMarkup =
+    letterSpacing > 0
+      ? ` letter_spacing="${Math.round(letterSpacing * 1024)}"`
+      : "";
+  const markup =
+    `<span foreground="${escapeXml(color)}" alpha="${Math.round(clamp(alpha, 0, 1) * 100)}%" weight="${weight}"${letterSpacingMarkup}>` +
+    `${escapeXml(text)}</span>`;
+  const rendered = await sharp({
+    text: {
+      text: markup,
+      font: `Noto Sans CJK SC ${fontSize}`,
+      fontfile: SERVER_EXPORT_FONT_PATH,
+      ...(maxWidth > 0 ? { width: maxWidth } : {}),
+      align,
+      ...(lineHeight > 0 ? { spacing: lineHeight } : {}),
+      wrap: "none",
+      rgba: true,
+    },
+  })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  return {
+    input: rendered.data,
+    width: rendered.info.width,
+    height: rendered.info.height,
+  };
+}
+
+async function artifactTextLayers({
+  theme,
+  journalTitle,
+  dateLabel,
+  title,
+  overlayTop,
+}: {
+  theme: JournalTheme;
+  journalTitle: string;
+  dateLabel: string;
+  title: string;
+  overlayTop: number;
+}): Promise<sharp.OverlayOptions[]> {
+  const lightTheme = theme.logoVariant === "dark";
+  const journalTitleColor = journalTitleUsesDarkInk(theme)
+    ? brand.deepBurgundy
+    : brand.champagnePeach;
+  const journalTitleAlpha = journalTitleUsesDarkInk(theme) ? 1 : 0.86;
+  const titleColor = lightTheme ? brand.deepBurgundy : brand.warmIvory;
+  const utilityColor = lightTheme ? brand.cocoaTaupe : brand.champagnePeach;
+  const utilityAlpha = lightTheme ? 0.76 : 0.78;
+  const journalText = wrapText(
+    serverSafeText(journalTitle),
+    layout.journalTitleFontSize,
+    layout.journalTitleMaxWidth,
+    2,
+  ).join("\n");
+  const memoryTitle = truncateLine(
+    serverSafeText(title),
+    layout.titleFontSize,
+    layout.overlayWidth - layout.overlayPadding * 2,
+  );
+  const [journalLayer, dateLayer, titleLayer] = await Promise.all([
+    renderTextLayer({
+      text: journalText,
+      fontSize: layout.journalTitleFontSize,
+      color: journalTitleColor,
+      alpha: journalTitleAlpha,
+      weight: 600,
+      maxWidth: layout.journalTitleMaxWidth,
+      align: "centre",
+      lineHeight: layout.journalTitleLineHeight,
+    }),
+    renderTextLayer({
+      text: serverSafeText(dateLabel),
+      fontSize: layout.dateFontSize,
+      color: utilityColor,
+      alpha: utilityAlpha,
+      weight: 600,
+      letterSpacing: layout.dateLetterSpacing,
+    }),
+    renderTextLayer({
+      text: memoryTitle,
+      fontSize: layout.titleFontSize,
+      color: titleColor,
+      weight: 500,
+      maxWidth: layout.overlayWidth - layout.overlayPadding * 2,
+    }),
+  ]);
+  const textLeft = layout.overlayX + layout.overlayPadding;
+  return [
+    {
+      input: journalLayer.input,
+      left: Math.round((DAILY_STAMP_EXPORT_WIDTH - journalLayer.width) / 2),
+      top: Math.round(layout.journalTitleCenterY - journalLayer.height / 2),
+    },
+    {
+      input: dateLayer.input,
+      left: textLeft,
+      top: Math.round(overlayTop + layout.dateBaselineOffset - dateLayer.height),
+    },
+    {
+      input: titleLayer.input,
+      left: textLeft,
+      top: Math.round(overlayTop + layout.titleBaselineOffset - titleLayer.height),
+    },
+  ];
 }
 
 export async function renderServerDailyStampPng({
@@ -540,19 +652,24 @@ export async function renderServerDailyStampPng({
     });
   }
 
+  const textLayers = await artifactTextLayers({
+    theme: resolvedTheme,
+    journalTitle: model.journalTitle,
+    dateLabel: model.dateLabel,
+    title: model.title,
+    overlayTop,
+  });
   const layers: sharp.OverlayOptions[] = [
     {
       input: artifactSvg({
         theme: resolvedTheme,
-        journalTitle: model.journalTitle,
-        dateLabel: model.dateLabel,
-        title: model.title,
         overlayTop,
         overlayHeight,
       }),
       left: 0,
       top: 0,
     },
+    ...textLayers,
     ...photoLayers,
   ];
 

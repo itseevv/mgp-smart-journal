@@ -236,9 +236,13 @@ export function journalThemeStyle(theme: JournalTheme) {
   const overlayOpacity = theme.overlayColor ? theme.overlayOpacity : 0;
   const usesDarkText = theme.logoVariant === "dark";
   const usesDarkHomeTitle = journalTitleUsesDarkInk(theme);
+  const usesTealHomeTitleContrast = theme.slug === "teal";
+  // Teal leather uses the Month Sheet's full Warm Ivory contrast treatment.
   const homeTitle = usesDarkHomeTitle
     ? modernGoddessPatina.deepBurgundy
-    : transparentMix(modernGoddessPatina.champagnePeach, 78);
+    : usesTealHomeTitleContrast
+      ? modernGoddessPatina.warmIvory
+      : transparentMix(modernGoddessPatina.champagnePeach, 78);
   const monthTitle = usesDarkText
     ? modernGoddessPatina.deepBurgundy
     : modernGoddessPatina.warmIvory;

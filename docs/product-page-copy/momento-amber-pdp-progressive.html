@@ -1,0 +1,1776 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Amber Momento Journal PDP concept for Modern Goddess Patina.">
+  <title>Amber Momento Journal | PDP Concept</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f3ee;
+      --paper-strong: #eee5dc;
+      --surface: #fffdf9;
+      --ink: #251d19;
+      --muted: #716660;
+      --line: rgba(37, 29, 25, 0.15);
+      --line-strong: rgba(37, 29, 25, 0.34);
+      --accent: #a36d43;
+      --accent-deep: #684128;
+      --accent-soft: #ead7c5;
+      --green: #294238;
+      --green-soft: #dce5dc;
+      --cream: #f3e5d3;
+      --shadow: 0 24px 72px rgba(51, 37, 29, 0.12);
+      --serif: "Cormorant Garamond", Iowan Old Style, Baskerville, "Times New Roman", serif;
+      --sans: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --page: 1480px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 92px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      text-rendering: optimizeLegibility;
+    }
+
+    button,
+    input,
+    summary,
+    select { font: inherit; }
+
+    button { color: inherit; }
+    img { display: block; max-width: 100%; }
+    a { color: inherit; }
+
+    :focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 58%, white);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 12px;
+      left: 12px;
+      padding: 9px 13px;
+      background: var(--ink);
+      color: white;
+      transform: translateY(-160%);
+      transition: transform 150ms ease;
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .prototype-bar {
+      position: sticky;
+      z-index: 70;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 42px;
+      padding: 7px 22px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      background: var(--ink);
+      color: white;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .prototype-actions {
+      display: flex;
+      gap: 7px;
+    }
+
+    .prototype-button {
+      min-height: 28px;
+      padding: 4px 10px;
+      border: 1px solid rgba(255,255,255,0.35);
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .prototype-button[aria-pressed="true"] {
+      background: white;
+      color: var(--ink);
+    }
+
+    .announcement {
+      padding: 8px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--accent-soft);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .site-header {
+      position: sticky;
+      z-index: 50;
+      top: 42px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      min-height: 74px;
+      padding: 0 30px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 243, 238, 0.95);
+      backdrop-filter: blur(16px);
+    }
+
+    .header-link,
+    .header-action {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+
+    .header-action { justify-self: end; }
+
+    .wordmark {
+      font-family: var(--serif);
+      font-size: clamp(18px, 2vw, 25px);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .breadcrumb {
+      max-width: var(--page);
+      margin: 0 auto;
+      padding: 18px 32px 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .page-shell {
+      max-width: var(--page);
+      margin: 0 auto;
+      padding: 18px 32px 100px;
+    }
+
+    .review-wrap {
+      position: relative;
+    }
+
+    .review-label {
+      position: absolute;
+      z-index: 6;
+      top: 14px;
+      left: 14px;
+      padding: 6px 8px;
+      border: 1px solid rgba(255,255,255,0.34);
+      background: rgba(31, 24, 20, 0.76);
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      backdrop-filter: blur(8px);
+    }
+
+    body.hide-review-labels .review-label { display: none; }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.16fr) minmax(390px, 0.84fr);
+      align-items: start;
+      gap: clamp(42px, 6vw, 92px);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .thumbs {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .thumb {
+      padding: 0;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .thumb[aria-current="true"] { border-color: var(--ink); }
+
+    .thumb img {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+    }
+
+    .main-media {
+      position: relative;
+      min-height: 740px;
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      box-shadow: var(--shadow);
+    }
+
+    .main-media img {
+      width: 100%;
+      height: 100%;
+      min-height: 740px;
+      object-fit: cover;
+      transition: opacity 150ms ease;
+    }
+
+    .edition-tag,
+    .media-count {
+      position: absolute;
+      z-index: 3;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.32);
+      background: rgba(28, 22, 19, 0.66);
+      color: white;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      backdrop-filter: blur(9px);
+    }
+
+    .edition-tag { top: 14px; right: 14px; }
+    .media-count { right: 14px; bottom: 14px; }
+
+    .buy-panel {
+      position: sticky;
+      top: 136px;
+      padding-top: 4px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent-deep);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: var(--serif);
+      text-wrap: balance;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(50px, 5vw, 76px);
+      font-weight: 500;
+      letter-spacing: -0.045em;
+      line-height: 0.95;
+    }
+
+    .product-hook {
+      max-width: 570px;
+      margin: 16px 0 0;
+      color: var(--accent-deep);
+      font-family: var(--serif);
+      font-size: clamp(23px, 2vw, 29px);
+      font-style: italic;
+      line-height: 1.15;
+    }
+
+    .product-description {
+      max-width: 590px;
+      margin: 19px 0 0;
+      color: #504641;
+      font-size: 14px;
+    }
+
+    .benefit-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px 18px;
+      margin: 22px 0 0;
+      padding: 18px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      list-style: none;
+    }
+
+    .benefit-list li {
+      position: relative;
+      padding-left: 18px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .benefit-list li::before {
+      position: absolute;
+      top: 0.45em;
+      left: 0;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      content: "";
+    }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .price {
+      font-family: var(--serif);
+      font-size: 36px;
+      font-weight: 600;
+    }
+
+    .price-note {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .option-block {
+      margin-top: 17px;
+    }
+
+    .option-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .option-label span:last-child {
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .option-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .option-button {
+      min-height: 46px;
+      padding: 10px 13px;
+      border: 1px solid var(--line-strong);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .option-button[aria-pressed="true"] {
+      border-color: var(--ink);
+      background: var(--surface);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .personalization-grid {
+      display: grid;
+      grid-template-columns: 1fr 148px;
+      gap: 8px;
+    }
+
+    .personalization-grid input,
+    .personalization-grid select {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 0;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .primary-cta {
+      width: 100%;
+      min-height: 54px;
+      margin-top: 16px;
+      padding: 13px 18px;
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      background: var(--ink);
+      color: white;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .primary-cta:hover { background: var(--accent-deep); }
+
+    .cta-reassurance {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .purchase-details {
+      margin-top: 22px;
+      border-top: 1px solid var(--line-strong);
+    }
+
+    details { border-bottom: 1px solid var(--line); }
+
+    summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      min-height: 55px;
+      padding: 10px 1px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      color: var(--accent-deep);
+      content: "+";
+      font-size: 18px;
+      font-weight: 400;
+    }
+
+    details[open] summary::after { content: "−"; }
+
+    .summary-title {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .summary-hint {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 400;
+    }
+
+    .details-content {
+      padding: 0 0 19px;
+      color: #544a44;
+      font-size: 12px;
+    }
+
+    .details-content p { margin: 0; }
+    .details-content p + p { margin-top: 10px; }
+
+    .details-content ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .details-content li + li { margin-top: 5px; }
+
+    .trust-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 68px 0 0;
+      border-top: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .trust-item {
+      min-height: 98px;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .trust-item:last-child { border-right: 0; }
+
+    .trust-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-family: var(--serif);
+      font-size: 21px;
+      font-weight: 600;
+      line-height: 1.05;
+    }
+
+    .trust-item span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .page-section {
+      position: relative;
+      margin-top: 118px;
+      scroll-margin-top: 138px;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      align-items: end;
+      gap: 54px;
+      margin-bottom: 38px;
+    }
+
+    .section-heading h2 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(43px, 5vw, 68px);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 0.98;
+    }
+
+    .section-intro {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .design-story {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(350px, 0.95fr);
+      align-items: stretch;
+      background: var(--surface);
+    }
+
+    .design-story-media {
+      min-height: 690px;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .design-story-media img {
+      width: 100%;
+      height: 100%;
+      min-height: 690px;
+      object-fit: cover;
+    }
+
+    .design-story-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(42px, 6vw, 92px);
+    }
+
+    .design-story-copy h2 {
+      margin: 0;
+      font-size: clamp(42px, 5vw, 68px);
+      font-weight: 500;
+      line-height: 0.98;
+    }
+
+    .design-story-copy p {
+      margin: 20px 0 0;
+      color: #5a5049;
+      font-size: 15px;
+    }
+
+    .material-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 30px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    .material-list strong {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .material-list span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .two-layers {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .layer-panel {
+      position: relative;
+      min-height: 670px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .layer-panel img {
+      width: 100%;
+      height: 100%;
+      min-height: 670px;
+      object-fit: cover;
+    }
+
+    .layer-caption {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      left: 18px;
+      padding: 20px;
+      background: rgba(255,253,249,0.93);
+      backdrop-filter: blur(10px);
+    }
+
+    .layer-caption span {
+      color: var(--accent-deep);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .layer-caption h3 {
+      margin: 5px 0 0;
+      font-size: 29px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .layer-caption p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .how-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      background: var(--surface);
+    }
+
+    .how-image {
+      min-height: 410px;
+      overflow: hidden;
+    }
+
+    .how-image img {
+      width: 100%;
+      height: 100%;
+      min-height: 410px;
+      object-fit: cover;
+    }
+
+    .how-copy {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr);
+      gap: 16px;
+      padding: 25px;
+      border-top: 1px solid var(--line);
+    }
+
+    .step-number {
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 35px;
+      line-height: 1;
+    }
+
+    .how-copy h3 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .how-copy p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stamp-section {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.82fr) minmax(0, 1.18fr);
+      align-items: center;
+      gap: clamp(44px, 7vw, 100px);
+      padding: clamp(44px, 7vw, 100px);
+      background: var(--surface);
+    }
+
+    .stamp-visual {
+      position: relative;
+      overflow: hidden;
+      background: var(--paper-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .stamp-visual img {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+    }
+
+    .stamp-copy h2 {
+      margin: 0;
+      font-size: clamp(42px, 5vw, 66px);
+      font-weight: 500;
+      line-height: 0.98;
+    }
+
+    .stamp-copy > p {
+      margin: 19px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .stamp-anatomy {
+      margin: 29px 0 0;
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .anatomy-row {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      align-items: baseline;
+      gap: 13px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .anatomy-row b {
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 22px;
+    }
+
+    .anatomy-row strong { font-size: 13px; }
+    .anatomy-row span { color: var(--muted); font-size: 11px; }
+
+    .capacity-section {
+      padding: clamp(50px, 7vw, 105px);
+      background: var(--green);
+      color: #f5ede2;
+    }
+
+    .capacity-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(340px, 1.15fr);
+      align-items: end;
+      gap: 64px;
+    }
+
+    .capacity-heading h2 {
+      margin: 0;
+      font-size: clamp(62px, 9vw, 126px);
+      font-weight: 500;
+      letter-spacing: -0.055em;
+      line-height: 0.78;
+    }
+
+    .capacity-heading h2 span {
+      display: block;
+      margin-top: 18px;
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .capacity-heading p {
+      margin: 0;
+      color: rgba(245,237,226,0.78);
+      font-size: 15px;
+    }
+
+    .capacity-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 52px;
+      border-top: 1px solid rgba(255,255,255,0.28);
+      border-left: 1px solid rgba(255,255,255,0.28);
+    }
+
+    .capacity-stat {
+      min-height: 140px;
+      padding: 24px;
+      border-right: 1px solid rgba(255,255,255,0.28);
+      border-bottom: 1px solid rgba(255,255,255,0.28);
+    }
+
+    .capacity-stat strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: 42px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .capacity-stat span {
+      display: block;
+      margin-top: 8px;
+      color: rgba(245,237,226,0.7);
+      font-size: 11px;
+    }
+
+    .month-sheet {
+      display: grid;
+      grid-template-columns: 0.78fr 1.22fr;
+      gap: 42px;
+      margin-top: 48px;
+      padding-top: 44px;
+      border-top: 1px solid rgba(255,255,255,0.22);
+    }
+
+    .month-copy h3 {
+      margin: 0;
+      font-size: 36px;
+      line-height: 1;
+    }
+
+    .month-copy p {
+      margin: 14px 0 0;
+      color: rgba(245,237,226,0.72);
+      font-size: 13px;
+    }
+
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .month-stamp {
+      position: relative;
+      min-height: 116px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .month-stamp img {
+      width: 100%;
+      height: 100%;
+      min-height: 116px;
+      object-fit: cover;
+      opacity: 0.82;
+    }
+
+    .month-stamp span {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      padding: 3px 6px;
+      background: rgba(0,0,0,0.55);
+      color: white;
+      font-size: 9px;
+    }
+
+    .trust-section-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .trust-card {
+      min-height: 440px;
+      padding: clamp(36px, 6vw, 76px);
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .trust-card.alt {
+      background: var(--accent-soft);
+    }
+
+    .trust-card h3 {
+      max-width: 500px;
+      margin: 0;
+      font-size: clamp(38px, 4vw, 55px);
+      font-weight: 500;
+      line-height: 0.98;
+    }
+
+    .trust-card > p {
+      margin: 18px 0 0;
+      color: #594f48;
+      font-size: 13px;
+    }
+
+    .truth-list {
+      margin: 28px 0 0;
+      padding: 0;
+      border-top: 1px solid var(--line-strong);
+      list-style: none;
+    }
+
+    .truth-list li {
+      padding: 11px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .warning-note {
+      margin-top: 22px;
+      padding: 13px 15px;
+      border-left: 3px solid var(--accent-deep);
+      background: rgba(255,255,255,0.45);
+      font-size: 11px;
+    }
+
+    .compatibility {
+      display: grid;
+      grid-template-columns: 0.72fr 1.28fr;
+      gap: 58px;
+      padding: clamp(42px, 7vw, 92px);
+      background: var(--surface);
+    }
+
+    .compatibility h2 {
+      margin: 0;
+      font-size: clamp(42px, 5vw, 66px);
+      font-weight: 500;
+      line-height: 0.98;
+    }
+
+    .compat-list {
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .compat-row {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 16px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .compat-row b {
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 26px;
+    }
+
+    .compat-row strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .compat-row span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .comparison-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+    }
+
+    .comparison {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+    }
+
+    .comparison th,
+    .comparison td {
+      padding: 17px 20px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .comparison th:last-child,
+    .comparison td:last-child { border-right: 0; }
+    .comparison tr:last-child td { border-bottom: 0; }
+
+    .comparison th {
+      background: var(--paper-strong);
+      font-family: var(--serif);
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .comparison th:first-child { width: 40%; }
+    .comparison td { font-size: 12px; }
+    .comparison td:first-child { color: var(--muted); }
+    .comparison .momento-cell { background: #fbf4eb; font-weight: 600; }
+
+    .use-cases {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+      min-height: 660px;
+      background: var(--surface);
+    }
+
+    .use-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(42px, 7vw, 94px);
+    }
+
+    .use-copy h2 {
+      margin: 0;
+      font-size: clamp(43px, 5vw, 66px);
+      font-weight: 500;
+      line-height: 0.98;
+    }
+
+    .use-copy p {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .occasion-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 26px;
+    }
+
+    .occasion-list span {
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .use-media {
+      min-height: 660px;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .use-media img {
+      width: 100%;
+      height: 100%;
+      min-height: 660px;
+      object-fit: cover;
+    }
+
+    .faq-section {
+      display: grid;
+      grid-template-columns: minmax(270px, 0.55fr) minmax(0, 1.45fr);
+      align-items: start;
+      gap: 64px;
+    }
+
+    .faq-heading {
+      position: sticky;
+      top: 142px;
+    }
+
+    .faq-heading h2 {
+      margin: 0;
+      font-size: clamp(42px, 5vw, 62px);
+      font-weight: 500;
+      line-height: 0.98;
+    }
+
+    .faq-heading p {
+      margin: 17px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .faq-list {
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .faq-list summary {
+      min-height: 66px;
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .faq-list .details-content {
+      max-width: 740px;
+      padding-bottom: 23px;
+      font-size: 13px;
+    }
+
+    .final-cta {
+      margin-top: 120px;
+      padding: clamp(55px, 8vw, 112px);
+      background: var(--accent-deep);
+      color: white;
+      text-align: center;
+    }
+
+    .final-cta h2 {
+      max-width: 900px;
+      margin: 0 auto;
+      font-size: clamp(48px, 7vw, 88px);
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      line-height: 0.9;
+    }
+
+    .final-cta p {
+      max-width: 620px;
+      margin: 24px auto 0;
+      color: rgba(255,255,255,0.75);
+      font-size: 13px;
+    }
+
+    .final-cta .primary-cta {
+      width: auto;
+      min-width: 260px;
+      margin-top: 28px;
+      border-color: white;
+      background: white;
+      color: var(--accent-deep);
+    }
+
+    .site-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 28px 32px 82px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .mobile-sticky {
+      position: fixed;
+      z-index: 65;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: none;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--line-strong);
+      background: rgba(255,253,249,0.96);
+      backdrop-filter: blur(14px);
+    }
+
+    .mobile-sticky strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .mobile-sticky span {
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .mobile-sticky .primary-cta {
+      width: auto;
+      min-height: 44px;
+      margin: 0;
+      padding: 9px 17px;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 90;
+      right: 22px;
+      bottom: 22px;
+      max-width: 340px;
+      padding: 13px 16px;
+      background: var(--ink);
+      color: white;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    body.editing [data-copy] {
+      background: #fff1bf;
+      box-shadow: inset 0 -1px 0 #a67925;
+    }
+
+    @media (max-width: 1100px) {
+      .product-grid { grid-template-columns: minmax(0, 1fr) minmax(350px, 0.9fr); gap: 42px; }
+      .gallery { grid-template-columns: 64px minmax(0, 1fr); }
+      .main-media,
+      .main-media img { min-height: 610px; }
+      .benefit-list { grid-template-columns: 1fr; }
+      .stamp-section { grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.25fr); }
+    }
+
+    @media (max-width: 820px) {
+      html { scroll-padding-top: 120px; }
+      .prototype-bar { padding-inline: 14px; }
+      .site-header { top: 42px; grid-template-columns: 1fr auto; padding: 0 16px; }
+      .header-link { display: none; }
+      .wordmark { justify-self: start; font-size: 17px; text-align: left; }
+      .page-shell { padding: 12px 16px 90px; }
+      .breadcrumb { padding-inline: 16px; }
+      .product-grid { grid-template-columns: 1fr; }
+      .buy-panel { position: static; }
+      .gallery { grid-template-columns: 1fr; }
+      .thumbs {
+        order: 2;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+      }
+      .main-media,
+      .main-media img { min-height: 620px; }
+      .benefit-list { grid-template-columns: repeat(2, 1fr); }
+      .trust-strip { grid-template-columns: repeat(2, 1fr); }
+      .trust-item:nth-child(2) { border-right: 0; }
+      .trust-item:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .section-heading,
+      .design-story,
+      .stamp-section,
+      .capacity-heading,
+      .month-sheet,
+      .compatibility,
+      .use-cases,
+      .faq-section { grid-template-columns: 1fr; }
+      .design-story-media,
+      .design-story-media img { min-height: 560px; }
+      .two-layers { grid-template-columns: 1fr; }
+      .layer-panel,
+      .layer-panel img { min-height: 560px; }
+      .capacity-heading { gap: 28px; }
+      .month-sheet { gap: 24px; }
+      .faq-heading { position: static; }
+      .mobile-sticky { display: grid; }
+      .site-footer { padding-bottom: 100px; }
+    }
+
+    @media (max-width: 560px) {
+      body { font-size: 14px; }
+      [data-pretext] { min-height: 0 !important; }
+      .prototype-bar > span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .prototype-button { padding-inline: 7px; }
+      .announcement { font-size: 9px; }
+      .site-header { min-height: 62px; }
+      .header-action { font-size: 10px; }
+      .breadcrumb { display: none; }
+      .page-shell { padding-top: 14px; }
+      .main-media,
+      .main-media img { min-height: 470px; }
+      h1 { font-size: 52px; }
+      .product-hook { font-size: 23px; }
+      .benefit-list { grid-template-columns: 1fr; }
+      .personalization-grid { grid-template-columns: 1fr; }
+      .trust-strip { margin-top: 42px; }
+      .trust-item { min-height: 92px; padding: 16px; }
+      .page-section { margin-top: 82px; }
+      .section-heading { gap: 16px; margin-bottom: 24px; }
+      .section-heading h2 { font-size: 45px; }
+      .design-story-media,
+      .design-story-media img,
+      .layer-panel,
+      .layer-panel img { min-height: 440px; }
+      .design-story-copy { padding: 34px 24px; }
+      .how-grid { grid-template-columns: 1fr; }
+      .how-image,
+      .how-image img { min-height: 280px; }
+      .stamp-section { padding: 34px 20px; }
+      .stamp-visual img { aspect-ratio: 1 / 1.15; }
+      .anatomy-row { grid-template-columns: 34px minmax(0, 1fr); }
+      .anatomy-row span { grid-column: 2; }
+      .capacity-section { padding: 48px 22px; }
+      .capacity-stats { grid-template-columns: 1fr; }
+      .capacity-stat { min-height: 104px; }
+      .month-grid { grid-template-columns: repeat(2, 1fr); }
+      .trust-section-grid { grid-template-columns: 1fr; }
+      .trust-card { min-height: auto; padding: 38px 24px; }
+      .compatibility { padding: 38px 22px; }
+      .use-copy { padding: 38px 24px; }
+      .use-media,
+      .use-media img { min-height: 470px; }
+      .final-cta { margin-top: 86px; padding-inline: 22px; }
+      .final-cta h2 { font-size: 50px; }
+      .site-footer { display: block; text-align: center; }
+      .site-footer span { display: block; }
+      .site-footer span + span { margin-top: 6px; }
+      .toast { right: 12px; bottom: 76px; left: 12px; max-width: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#product">Skip to product</a>
+
+  <div class="prototype-bar">
+    <span>PDP concept · Amber Momento · not connected to Shopify</span>
+    <div class="prototype-actions">
+      <button class="prototype-button" id="toggle-labels" type="button" aria-pressed="true">Layer labels</button>
+      <button class="prototype-button" id="toggle-edit" type="button" aria-pressed="false">Edit copy</button>
+    </div>
+  </div>
+
+  <div class="announcement">Complimentary name embossing · Gift-ready packaging · No subscription for included capacity</div>
+
+  <header class="site-header">
+    <a class="header-link" href="#">Shop Journals</a>
+    <div class="wordmark">Modern Goddess Patina</div>
+    <a class="header-action" href="#product">Bag (0)</a>
+  </header>
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">Home / Journals / Momento Edition / Amber</nav>
+
+  <main class="page-shell" id="product">
+    <section class="product-grid review-wrap" aria-labelledby="product-title">
+      <span class="review-label">P0 · Purchase decision</span>
+      <div class="gallery" aria-label="Amber product gallery">
+        <div class="thumbs" id="thumbs">
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" aria-label="View Amber folio" aria-current="true"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" aria-label="View Amber open Journal" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/3%20(1).jpg" aria-label="View Amber closed Journal" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/3%20(1).jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" aria-label="View Amber cover and charms" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" alt=""></button>
+          <button class="thumb" type="button" data-image="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" aria-label="View Amber pocket detail" aria-current="false"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" alt=""></button>
+        </div>
+        <figure class="main-media">
+          <span class="edition-tag">Momento Edition</span>
+          <img id="main-image" src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" alt="Amber handmade leather Momento Journal with floral fabric folio">
+          <figcaption class="media-count" id="media-count">1 / 5</figcaption>
+        </figure>
+      </div>
+
+      <aside class="buy-panel">
+        <p class="eyebrow">Momento Edition · Amber</p>
+        <h1 id="product-title" data-copy data-pretext>Amber Momento Journal</h1>
+        <p class="product-hook" data-copy>The Journal that keeps the page and the picture.</p>
+        <p class="product-description" data-copy>Write what the day felt like on paper, then keep the photographs, extra words, and voice that bring it back. Amber pairs a handmade leather Journal with its own PIN-protected digital memory space.</p>
+
+        <ul class="benefit-list" aria-label="Momento highlights">
+          <li>365 dated Daily Memory Stamps</li>
+          <li>1–9 photos in every Stamp</li>
+          <li>Optional text and 5-minute Voice Note</li>
+          <li>Six-digit Owner PIN</li>
+          <li>No app required</li>
+          <li>No subscription for included capacity</li>
+        </ul>
+
+        <div class="price-row">
+          <span class="price">£—</span>
+          <span class="price-note">Live price supplied by Shopify</span>
+        </div>
+
+        <div class="option-block">
+          <div class="option-label"><span>Choose size</span><span>Digital capacity is the same</span></div>
+          <div class="option-row" id="size-options">
+            <button class="option-button" type="button" aria-pressed="true">A5</button>
+            <button class="option-button" type="button" aria-pressed="false">A6</button>
+          </div>
+        </div>
+
+        <div class="option-block">
+          <div class="option-label"><span>Complimentary embossing</span><span>Optional</span></div>
+          <div class="personalization-grid">
+            <input type="text" maxlength="24" placeholder="Name to emboss">
+            <select aria-label="Embossing finish">
+              <option>Gold</option>
+              <option>Silver</option>
+              <option>Blind</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="primary-cta" type="button" data-prototype-cart>Add Amber Momento to bag</button>
+        <p class="cta-reassurance">Handmade · Gift-ready · Complimentary embossing</p>
+
+        <div class="purchase-details">
+          <details open>
+            <summary><span><span class="summary-title">What’s included</span><span class="summary-hint">Physical Journal + Momento experience</span></span></summary>
+            <div class="details-content">
+              <ul>
+                <li>Amber handmade leather Journal and cotton fabric folio</li>
+                <li>Three replaceable 30-page inserts and three elastic bands</li>
+                <li>All Amber hardware and decorative charms shown</li>
+                <li>Journal pouch, leather care guide, gift packaging, and name embossing</li>
+                <li>Built-in touch access and one Recovery Card</li>
+                <li>365 Daily Memory Stamps with photos, text, and Voice Notes</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary><span><span class="summary-title">How does Momento work?</span><span class="summary-hint">Write · Touch · Seal · Return</span></span></summary>
+            <div class="details-content"><p>Write in the physical Journal, touch it with your phone or scan the Recovery Card, choose today or a past date, and create a Daily Memory Stamp. No app download is required.</p></div>
+          </details>
+          <details>
+            <summary><span><span class="summary-title">Can someone see it just by touching?</span><span class="summary-hint">No · Owner PIN required</span></span></summary>
+            <div class="details-content"><p>No. An unauthorised device reaches the PIN screen, not your memories. Anyone who receives the Owner PIN gains full Journal access, so keep it private.</p></div>
+          </details>
+          <details>
+            <summary><span><span class="summary-title">App, subscription, and compatibility</span><span class="summary-hint">Browser-based · Internet required</span></span></summary>
+            <div class="details-content"><p>Momento opens in a current mobile browser and needs an internet connection. There is no app or subscription for the included capacity. QR access provides the same experience when touch access is unavailable.</p></div>
+          </details>
+          <details>
+            <summary><span><span class="summary-title">Shipping & returns</span><span class="summary-hint">Store policy</span></span></summary>
+            <div class="details-content"><p><strong>Shipping:</strong> Approved shipping summary inserted from store policy.</p><p><strong>Returns:</strong> Approved personalised-product policy inserted here.</p></div>
+          </details>
+        </div>
+      </aside>
+    </section>
+
+    <section class="trust-strip review-wrap" aria-label="Purchase reassurance">
+      <span class="review-label">P0 · Immediate reassurance</span>
+      <div class="trust-item"><strong>No app</strong><span>Opens in your phone’s browser</span></div>
+      <div class="trust-item"><strong>No battery</strong><span>No charging or Bluetooth pairing</span></div>
+      <div class="trust-item"><strong>Private entry</strong><span>Protected by your Owner PIN</span></div>
+      <div class="trust-item"><strong>Past days welcome</strong><span>Record today or return to an earlier date</span></div>
+    </section>
+
+    <section class="page-section review-wrap" id="physical-journal">
+      <span class="review-label">P0 · The physical Journal</span>
+      <div class="design-story">
+        <div class="design-story-media"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" alt="Closed Amber Journal with floral panel and gold-toned charms" loading="lazy"></div>
+        <div class="design-story-copy">
+          <p class="eyebrow">Amber design note</p>
+          <h2 data-copy data-pretext>Where the afternoon turns golden.</h2>
+          <p data-copy>Amber carries the warmth of worn leather, sunlit paper, and keepsakes gathered far from home. Its floral folio brings together rust, muted rose, blue-grey, and green, softened into something that already feels storied.</p>
+          <p data-copy>The folio includes an interior pocket and zippered pouch for tickets, notes, photographs, stickers, and the fragments that make a Journal feel lived in.</p>
+          <div class="material-list">
+            <div><strong>Made by hand</strong><span>Cut, assembled, and finished one at a time</span></div>
+            <div><strong>Refillable</strong><span>Three replaceable 30-page inserts included</span></div>
+            <div><strong>Natural leather</strong><span>Small variations make each one distinct</span></div>
+            <div><strong>Amber details</strong><span>Fabric, hardware, and charms as pictured</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page-section review-wrap" id="two-layers">
+      <span class="review-label">P1 · Product understanding</span>
+      <div class="section-heading">
+        <div><p class="eyebrow">One moment, two layers</p><h2 data-copy data-pretext>Keep what the page held. Keep what the camera saw.</h2></div>
+        <p class="section-intro" data-copy>The physical Journal holds handwriting and tactile pieces. The Daily Memory Stamp holds the photographs, extra words, and voice that complete the same dated memory.</p>
+      </div>
+      <div class="two-layers">
+        <article class="layer-panel">
+          <img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" alt="Amber Journal open to paper insert and fabric pocket" loading="lazy">
+          <div class="layer-caption"><span>The paper layer</span><h3>How it felt.</h3><p>Write, collect, tape in, sketch, and keep the things you can hold.</p></div>
+        </article>
+        <article class="layer-panel">
+          <img src="../../how-it-works/04-memory-stamp.png" alt="Momento Daily Memory Stamp shown on a phone" loading="lazy">
+          <div class="layer-caption"><span>The Memory Stamp</span><h3>How it looked and sounded.</h3><p>Add photographs, a few more words, and one Voice Note to the same day.</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="page-section review-wrap" id="how-it-works">
+      <span class="review-label">P1 · How it works</span>
+      <div class="section-heading">
+        <div><p class="eyebrow">A simple ritual</p><h2 data-copy data-pretext>From the page to a Daily Memory Stamp.</h2></div>
+        <p class="section-intro" data-copy>Momento keeps the technology quiet. Use the Journal as a Journal. Open the digital layer only when a day is worth sealing.</p>
+      </div>
+      <div class="how-grid">
+        <article class="how-card"><div class="how-image"><img src="../../how-it-works/01-write.png" alt="Writing in a handmade Journal" loading="lazy"></div><div class="how-copy"><span class="step-number">01</span><div><h3>Write and collect.</h3><p>Journal the feeling and keep the paper pieces of the day inside the page and folio.</p></div></div></article>
+        <article class="how-card"><div class="how-image"><img src="../../how-it-works/02-tap.png" alt="Opening Momento by touching the Journal with a phone" loading="lazy"></div><div class="how-copy"><span class="step-number">02</span><div><h3>Touch or scan.</h3><p>Touch the Journal with your phone, or scan the Recovery Card. Unlock with your Owner PIN when required.</p></div></div></article>
+        <article class="how-card"><div class="how-image"><img src="../../how-it-works/03-curate.png" alt="Choosing photographs for a Daily Memory Stamp" loading="lazy"></div><div class="how-copy"><span class="step-number">03</span><div><h3>Seal the day.</h3><p>Choose today or a past date. Add one line, a Cover Scrap, optional photos, extra text, and a Voice Note.</p></div></div></article>
+        <article class="how-card"><div class="how-image"><img src="../../how-it-works/04-memory-stamp.png" alt="Finished Daily Memory Stamp on a phone" loading="lazy"></div><div class="how-copy"><span class="step-number">04</span><div><h3>Return when you want.</h3><p>Your saved day appears in its Month Sheet, ready to revisit, edit, save, or share as an image.</p></div></div></article>
+      </div>
+    </section>
+
+    <section class="page-section stamp-section review-wrap" id="stamp-anatomy">
+      <span class="review-label">P1 · Daily Memory Stamp</span>
+      <div class="stamp-visual"><img src="../../how-it-works/04-memory-stamp.png" alt="A completed Daily Memory Stamp with photographs" loading="lazy"></div>
+      <div class="stamp-copy">
+        <p class="eyebrow">Inside each Stamp</p>
+        <h2 data-copy data-pretext>A day, kept in just enough detail.</h2>
+        <p data-copy>Every Stamp begins with one line and one photograph. Add more only when the memory asks for it.</p>
+        <div class="stamp-anatomy">
+          <div class="anatomy-row"><b>01</b><strong>One line to keep</strong><span>Required · up to 200 characters</span></div>
+          <div class="anatomy-row"><b>02</b><strong>Cover Scrap</strong><span>Required · the photo shown in Month Sheet</span></div>
+          <div class="anatomy-row"><b>03</b><strong>Up to 8 more photos</strong><span>Optional · 1–9 photos in total</span></div>
+          <div class="anatomy-row"><b>04</b><strong>Additional words</strong><span>Optional · for the part that needs more space</span></div>
+          <div class="anatomy-row"><b>05</b><strong>One Voice Note</strong><span>Optional · recorded live · up to 5 minutes</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page-section capacity-section review-wrap" id="capacity">
+      <span class="review-label">P1 · Capacity and rhythm</span>
+      <div class="capacity-heading">
+        <h2 data-pretext>365<span>dated Daily Memory Stamps</span></h2>
+        <p data-copy>Not a streak. Not a demand to document every day. Choose the dates that matter, record them when you are ready, and let the Month Sheet show only the memories you chose to keep.</p>
+      </div>
+      <div class="capacity-stats">
+        <div class="capacity-stat"><strong>1–9</strong><span>photos inside each Daily Memory Stamp</span></div>
+        <div class="capacity-stat"><strong>3,285</strong><span>maximum photographs across a full Journal</span></div>
+        <div class="capacity-stat"><strong>Any pace</strong><span>today or a past date · no missed-day pressure</span></div>
+      </div>
+      <div class="month-sheet">
+        <div class="month-copy"><p class="eyebrow" style="color:#d7b18e">Your Month Sheet</p><h3>Only the days you sealed.</h3><p>One Stamp can be created for each local calendar date. At 365, your existing memories remain viewable and editable. Delete one to release a place.</p></div>
+        <div class="month-grid" aria-label="Illustrative Month Sheet">
+          <div class="month-stamp"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/1.jpg" alt=""><span>03</span></div>
+          <div class="month-stamp"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/4.jpg" alt=""><span>08</span></div>
+          <div class="month-stamp"><img src="../../how-it-works/01-write.png" alt=""><span>12</span></div>
+          <div class="month-stamp"><img src="../../how-it-works/03-curate.png" alt=""><span>18</span></div>
+          <div class="month-stamp"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/8.jpg" alt=""><span>21</span></div>
+          <div class="month-stamp"><img src="../../how-it-works/04-memory-stamp.png" alt=""><span>24</span></div>
+          <div class="month-stamp"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" alt=""><span>27</span></div>
+          <div class="month-stamp"><img src="../../how-it-works/02-tap.png" alt=""><span>30</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page-section review-wrap" id="privacy-sharing">
+      <span class="review-label">P2 · Privacy and sharing</span>
+      <div class="section-heading">
+        <div><p class="eyebrow">Private access, intentional sharing</p><h2 data-copy data-pretext>Your Journal does not open itself to the room.</h2></div>
+        <p class="section-intro" data-copy>Touch and QR are entrances, not storage. Your photographs, words, and Voice Notes live behind the Owner PIN in the Journal’s private digital space.</p>
+      </div>
+      <div class="trust-section-grid">
+        <article class="trust-card">
+          <p class="eyebrow">Owner PIN</p>
+          <h3 data-copy>Touching alone does not reveal your memories.</h3>
+          <p>An unauthorised device reaches the PIN screen. An unlocked device can view, create, edit, delete, and export, so the Owner PIN should remain private.</p>
+          <ul class="truth-list">
+            <li>No public Journal page</li>
+            <li>No visitor or read-only PIN</li>
+            <li>Inactive devices relock after about one hour</li>
+            <li>Recovery Passcode can reset a forgotten PIN</li>
+          </ul>
+          <div class="warning-note">Anyone given the Owner PIN receives full Journal access, not view-only access.</div>
+        </article>
+        <article class="trust-card alt">
+          <p class="eyebrow">Save or Share</p>
+          <h3 data-copy>Share one Stamp, not the whole Journal.</h3>
+          <p>Export a Daily Memory Stamp as a 1080 × 1920 PNG. The image can contain its date, photographs, One line to keep, and additional words.</p>
+          <ul class="truth-list">
+            <li>Voice Note stays inside the unlocked Journal</li>
+            <li>No Owner PIN, QR, or Recovery Passcode appears in the image</li>
+            <li>No public link or full-Journal export is created</li>
+            <li>Customer content is not sold, used for ads, or used to train AI models</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="page-section compatibility review-wrap" id="access-recovery">
+      <span class="review-label">P2 · Access and recovery</span>
+      <div><p class="eyebrow">Quiet technology</p><h2 data-copy data-pretext>Nothing to charge. Nothing to install.</h2></div>
+      <div class="compat-list">
+        <div class="compat-row"><b>01</b><div><strong>Use a current mobile browser</strong><span>Safari is recommended on iPhone and Chrome on Android. An internet connection is required.</span></div></div>
+        <div class="compat-row"><b>02</b><div><strong>Touch or scan</strong><span>Touch access requires a supported and enabled NFC phone. The Recovery Card QR opens the same Journal when touch is unavailable.</span></div></div>
+        <div class="compat-row"><b>03</b><div><strong>No battery or Bluetooth</strong><span>The Journal entry is passive. It does not need charging or pairing.</span></div></div>
+        <div class="compat-row"><b>04</b><div><strong>Change phones without moving memories</strong><span>Open the Journal on the new phone and enter the Owner PIN. The memories remain with the Journal’s digital space.</span></div></div>
+        <div class="compat-row"><b>05</b><div><strong>Recover a forgotten PIN</strong><span>Use the Recovery Passcode on the Recovery Card. Resetting the PIN removes prior device access.</span></div></div>
+        <div class="compat-row"><b>06</b><div><strong>Support when entry fails</strong><span>If the card, touch entry, and saved Journal address are unavailable, use the approved customer support contact.</span></div></div>
+      </div>
+    </section>
+
+    <section class="page-section review-wrap" id="comparison">
+      <span class="review-label">P3 · Edition choice</span>
+      <div class="section-heading">
+        <div><p class="eyebrow">Choose your edition</p><h2 data-copy data-pretext>The same handmade Journal. A different way to remember.</h2></div>
+        <p class="section-intro">Classic keeps the complete physical experience. Momento adds the private digital layer from the beginning.</p>
+      </div>
+      <div class="comparison-wrap">
+        <table class="comparison">
+          <thead><tr><th>What you receive</th><th>Classic Edition</th><th>Momento Edition</th></tr></thead>
+          <tbody>
+            <tr><td>Handmade leather Journal, fabric folio, inserts, pouch, gift packaging, embossing</td><td>Included</td><td class="momento-cell">Included</td></tr>
+            <tr><td>Built-in touch entry and dedicated digital Journal</td><td>Not included today</td><td class="momento-cell">Included</td></tr>
+            <tr><td>365 Daily Memory Stamps</td><td>Not included today</td><td class="momento-cell">Included</td></tr>
+            <tr><td>Photos, additional text, and five-minute Voice Notes</td><td>Not included today</td><td class="momento-cell">Included</td></tr>
+            <tr><td>Owner PIN and Recovery Card</td><td>Not included today</td><td class="momento-cell">Included</td></tr>
+            <tr><td>Future upgrade path</td><td>Planned · not currently open</td><td class="momento-cell">Momento-ready from purchase</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="page-section use-cases review-wrap" id="gifting">
+      <span class="review-label">P3 · Use cases and gifting</span>
+      <div class="use-copy">
+        <p class="eyebrow">For chapters worth keeping</p>
+        <h2 data-copy data-pretext>A Journal to open now and fill over time.</h2>
+        <p data-copy>Amber makes room for ordinary days, long-awaited journeys, and the chapters that arrive with a before and after. It comes gift-ready, with complimentary name embossing.</p>
+        <div class="occasion-list"><span>Everyday life</span><span>Travel</span><span>A year of growth</span><span>Graduation</span><span>New chapter</span><span>Self-gift</span></div>
+      </div>
+      <div class="use-media"><img src="../../product%20pics/%E5%8D%A1%E5%85%B6%E8%89%B2/Desktop%20Creative%20Assets/2.jpg" alt="Amber Journal opened to its floral fabric folio" loading="lazy"></div>
+    </section>
+
+    <section class="page-section faq-section review-wrap" id="faq">
+      <span class="review-label">P3 · Detailed FAQ</span>
+      <div class="faq-heading"><p class="eyebrow">Questions, answered</p><h2 data-copy data-pretext>Everything else, when you need it.</h2><p>Purchase-critical answers appear near the top. Lower-frequency limits and recovery details stay here.</p></div>
+      <div class="faq-list">
+        <details><summary>Do I need an app or subscription?</summary><div class="details-content"><p>No app is required. Momento opens in your phone’s browser. No subscription is required for the included capacity. Internet access is required.</p></div></details>
+        <details><summary>Can anyone see my Journal by touching it?</summary><div class="details-content"><p>No. An unauthorised device sees the PIN screen. A person who knows the Owner PIN receives full access, so do not share it with anyone you do not want to view or change the Journal.</p></div></details>
+        <details><summary>Can I record a day from the past?</summary><div class="details-content"><p>Yes. Choose “Seal Another Day” and select a past date. Future dates are not available, and each local calendar date can hold one Daily Memory Stamp.</p></div></details>
+        <details><summary>What happens when I reach 365 Stamps?</summary><div class="details-content"><p>Your existing Stamps remain available to view and edit. A 366th Stamp cannot be created. Deleting an existing Stamp releases one place, but the deleted content cannot be recovered.</p></div></details>
+        <details><summary>Can I edit or delete a saved Stamp?</summary><div class="details-content"><p>Yes. You can edit its date, line, additional words, photographs, order, Cover Scrap, and Voice Note. Deletion is permanent and currently has no recovery bin.</p></div></details>
+        <details><summary>What exactly can I share?</summary><div class="details-content"><p>You can save or share one Stamp as a 1080 × 1920 PNG containing its visual and written content. Voice Note audio, public links, and full-Journal export are not currently included.</p></div></details>
+        <details><summary>What if I change or lose my phone?</summary><div class="details-content"><p>On a new phone, touch or scan and enter your Owner PIN. An inactive lost phone relocks after about one hour. Reset the PIN with the Recovery Passcode if you are concerned the old device or PIN may be compromised.</p></div></details>
+        <details><summary>What if I lose the Recovery Card?</summary><div class="details-content"><p>You can continue using the Journal through touch access while you still know the Owner PIN. Contact support for the next recovery step if the card is lost and you later forget the PIN.</p></div></details>
+        <details><summary>Does the Journal need charging?</summary><div class="details-content"><p>No. The built-in entry is passive and needs no battery, charging, or Bluetooth pairing. Your phone must have power and an internet connection.</p></div></details>
+        <details><summary>Can a Classic Journal be upgraded later?</summary><div class="details-content"><p>A Classic-to-Momento upgrade is planned but is not currently open. Timing, pricing, and the upgrade method have not yet been announced.</p></div></details>
+      </div>
+    </section>
+
+    <section class="final-cta review-wrap" aria-labelledby="final-title">
+      <span class="review-label">P3 · Final purchase action</span>
+      <h2 id="final-title" data-copy data-pretext>Keep the page. Keep the picture. Keep the day.</h2>
+      <p data-copy>Choose Amber in Momento Edition and give the next 365 days somewhere beautiful to belong.</p>
+      <button class="primary-cta" type="button" data-prototype-cart>Choose Amber Momento</button>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>Modern Goddess Patina</span><span>Handmade · Refillable · Journal-first</span></footer>
+
+  <div class="mobile-sticky" aria-label="Sticky purchase bar">
+    <div><strong>Amber Momento</strong><span>A5 · £— · No subscription for included capacity</span></div>
+    <button class="primary-cta" type="button" data-prototype-cart>Add to bag</button>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const thumbs = [...document.querySelectorAll('.thumb')];
+    const mainImage = document.getElementById('main-image');
+    const mediaCount = document.getElementById('media-count');
+    const toast = document.getElementById('toast');
+    let toastTimer;
+
+    thumbs.forEach((thumb, index) => {
+      thumb.addEventListener('click', () => {
+        mainImage.style.opacity = '0.35';
+        window.setTimeout(() => {
+          mainImage.src = thumb.dataset.image;
+          mainImage.alt = `Amber Momento Journal product view ${index + 1}`;
+          mainImage.style.opacity = '1';
+          mediaCount.textContent = `${index + 1} / ${thumbs.length}`;
+          thumbs.forEach(item => item.setAttribute('aria-current', String(item === thumb)));
+        }, 90);
+      });
+    });
+
+    document.querySelectorAll('#size-options .option-button').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('#size-options .option-button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        document.querySelector('.mobile-sticky span').textContent = `${button.textContent} · £— · No subscription for included capacity`;
+      });
+    });
+
+    function showToast() {
+      window.clearTimeout(toastTimer);
+      toast.textContent = 'Prototype only. Connect this CTA to the Amber Momento Shopify product form.';
+      toast.classList.add('show');
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+
+    document.querySelectorAll('[data-prototype-cart]').forEach(button => button.addEventListener('click', showToast));
+
+    const labelToggle = document.getElementById('toggle-labels');
+    labelToggle.addEventListener('click', () => {
+      const hiding = !document.body.classList.contains('hide-review-labels');
+      document.body.classList.toggle('hide-review-labels', hiding);
+      labelToggle.setAttribute('aria-pressed', String(!hiding));
+    });
+
+    const editToggle = document.getElementById('toggle-edit');
+    const editableElements = [...document.querySelectorAll('[data-copy]')];
+    editToggle.addEventListener('click', () => {
+      const editing = !document.body.classList.contains('editing');
+      document.body.classList.toggle('editing', editing);
+      editToggle.setAttribute('aria-pressed', String(editing));
+      editableElements.forEach(element => { element.contentEditable = String(editing); });
+      if (editing && editableElements[0]) editableElements[0].focus();
+    });
+
+    // FALLBACK: vendor/pretext.js missing, using CDN as a progressive enhancement.
+    (async () => {
+      try {
+        const { prepare, layout } = await import('https://esm.sh/@chenglou/pretext');
+        await document.fonts.ready;
+        const textElements = [...document.querySelectorAll('[data-pretext]')];
+        const prepared = new Map();
+
+        function prepareAll() {
+          textElements.forEach(element => prepared.set(element, prepare(element.textContent, getComputedStyle(element).font)));
+        }
+
+        function relayout() {
+          prepared.forEach((handle, element) => {
+            const styles = getComputedStyle(element);
+            const lineHeight = parseFloat(styles.lineHeight);
+            if (!Number.isFinite(lineHeight) || !element.clientWidth) return;
+            const result = layout(handle, element.clientWidth, lineHeight);
+            element.style.minHeight = `${Math.ceil(result.height)}px`;
+          });
+        }
+
+        prepareAll();
+        relayout();
+        new ResizeObserver(relayout).observe(document.body);
+
+        textElements.forEach(element => {
+          new MutationObserver(() => {
+            prepared.set(element, prepare(element.textContent, getComputedStyle(element).font));
+            relayout();
+          }).observe(element, { characterData: true, subtree: true, childList: true });
+        });
+      } catch (error) {
+        document.documentElement.dataset.pretext = 'native-flow';
+      }
+    })();
+  </script>
+</body>
+</html>

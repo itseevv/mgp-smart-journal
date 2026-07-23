@@ -109,6 +109,21 @@ test("journal theme style derives Seal the Day tray colors from the active theme
   assert.doesNotMatch(String(style["--journal-home-cta-tray-bg"]), /#421819/i);
 });
 
+test("teal leather journal names use the same full Warm Ivory contrast as the month title", () => {
+  const style = journalThemeStyle(
+    resolveJournalTheme({
+      slug: "teal",
+      name: "Teal leather",
+      fallbackBackgroundColor: "#124f4d",
+      textPrimary: "#edf6f3",
+      logoVariant: "light",
+    }),
+  );
+
+  assert.equal(style["--journal-home-title"], "#E8DBCC");
+  assert.equal(style["--journal-home-month-title"], "#E8DBCC");
+});
+
 test("blush journal titles use the same dark title color as cream without changing blush controls", () => {
   const blushStyle = journalThemeStyle(
     resolveJournalTheme({
