@@ -13,6 +13,8 @@ import {
   MONTHLY_MEMORY_EDITION_WIDTH,
   monthlyMemoryEditionLayout,
   monthlyMemoryEditionModel,
+  monthlyMemoryEditionSurfaceLayerOpacity,
+  monthlyMemoryEditionVisualSpec,
 } from "./monthly-memory-sheet-export.ts";
 
 type LoadedImage = {
@@ -28,6 +30,7 @@ type RenderInput = {
   stamps: JournalMemorySummary[];
   thumbnailUrls: Record<string, string>;
   theme?: JournalTheme;
+  signal?: AbortSignal;
 };
 
 const brand = {
@@ -76,13 +79,26 @@ function monthlyThemeColors(theme: JournalTheme) {
   };
 }
 
-async function loadImage(source: string): Promise<LoadedImage> {
-  const response = await fetch(source, { cache: "no-store" });
+function throwIfAborted(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+}
+
+async function loadImage(
+  source: string,
+  signal?: AbortSignal,
+): Promise<LoadedImage> {
+  throwIfAborted(signal);
+  const response = await fetch(source, { cache: "no-store", signal });
   if (!response.ok) throw new Error("Monthly export image could not be loaded.");
   const blob = await response.blob();
+  throwIfAborted(signal);
 
   if (typeof createImageBitmap === "function") {
     const bitmap = await createImageBitmap(blob);
+    if (signal?.aborted) {
+      bitmap.close();
+      signal.throwIfAborted();
+    }
     return {
       image: bitmap,
       width: bitmap.width,
@@ -95,9 +111,27 @@ async function loadImage(source: string): Promise<LoadedImage> {
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const element = new Image();
-      element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error("Monthly export image failed."));
+      const cleanup = () => {
+        signal?.removeEventListener("abort", onAbort);
+        element.onload = null;
+        element.onerror = null;
+      };
+      const onAbort = () => {
+        cleanup();
+        element.src = "";
+        reject(new DOMException("Monthly export aborted.", "AbortError"));
+      };
+      element.onload = () => {
+        cleanup();
+        resolve(element);
+      };
+      element.onerror = () => {
+        cleanup();
+        reject(new Error("Monthly export image failed."));
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
       element.src = objectUrl;
+      if (signal?.aborted) onAbort();
     });
     return {
       image,
@@ -214,20 +248,72 @@ function wrapTitle(
   ].filter(Boolean);
 }
 
+function drawCenteredLetterSpacedText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  centerY: number,
+  letterSpacing: number,
+) {
+  const graphemes = Array.from(
+    new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
+    ({ segment }) => segment,
+  );
+  const width =
+    graphemes.reduce(
+      (total, grapheme) => total + context.measureText(grapheme).width,
+      0,
+    ) + Math.max(0, graphemes.length - 1) * letterSpacing;
+  let x = centerX - width / 2;
+  context.save();
+  context.textAlign = "left";
+  for (const grapheme of graphemes) {
+    context.fillText(grapheme, x, centerY);
+    x += context.measureText(grapheme).width + letterSpacing;
+  }
+  context.restore();
+}
+
 function drawLeatherGrain(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
+  opacity: number,
 ) {
+  context.save();
+  context.globalAlpha = opacity;
+  const grain = monthlyMemoryEditionVisualSpec.grain;
   const patternCanvas = document.createElement("canvas");
-  patternCanvas.width = 8;
-  patternCanvas.height = 9;
+  patternCanvas.width = grain.patternWidth;
+  patternCanvas.height = grain.patternHeight;
   const patternContext = patternCanvas.getContext("2d");
   if (patternContext) {
-    patternContext.fillStyle = "rgba(255,255,255,0.06)";
-    patternContext.fillRect(1, 2, 1, 1);
-    patternContext.fillStyle = "rgba(20,10,12,0.18)";
-    patternContext.fillRect(6, 6, 1, 1);
+    patternContext.fillStyle = rgbaFromHex(
+      grain.lightDot.color,
+      grain.lightDot.alpha,
+    );
+    patternContext.beginPath();
+    patternContext.arc(
+      grain.lightDot.x,
+      grain.lightDot.y,
+      grain.lightDot.radius,
+      0,
+      Math.PI * 2,
+    );
+    patternContext.fill();
+    patternContext.fillStyle = rgbaFromHex(
+      grain.darkDot.color,
+      grain.darkDot.alpha,
+    );
+    patternContext.beginPath();
+    patternContext.arc(
+      grain.darkDot.x,
+      grain.darkDot.y,
+      grain.darkDot.radius,
+      0,
+      Math.PI * 2,
+    );
+    patternContext.fill();
     const pattern = context.createPattern(patternCanvas, "repeat");
     if (pattern) {
       context.fillStyle = pattern;
@@ -236,11 +322,15 @@ function drawLeatherGrain(
   }
 
   const sheen = context.createLinearGradient(0, 0, width, height);
-  sheen.addColorStop(0, "rgba(255,255,255,0.055)");
+  sheen.addColorStop(
+    0,
+    `rgba(255,255,255,${grain.sheenStartAlpha})`,
+  );
   sheen.addColorStop(0.38, "rgba(255,255,255,0)");
-  sheen.addColorStop(1, "rgba(0,0,0,0.13)");
+  sheen.addColorStop(1, `rgba(0,0,0,${grain.sheenEndAlpha})`);
   context.fillStyle = sheen;
   context.fillRect(0, 0, width, height);
+  context.restore();
 }
 
 async function drawBrandLogo({
@@ -249,15 +339,20 @@ async function drawBrandLogo({
   x,
   y,
   size,
+  signal,
 }: {
   context: CanvasRenderingContext2D;
   theme: JournalTheme;
   x: number;
   y: number;
   size: number;
+  signal?: AbortSignal;
 }) {
   try {
-    const logo = await loadImage("/brand/mgp-full-logo-transparent.png");
+    const logo = await loadImage(
+      "/brand/mgp-full-logo-transparent.png",
+      signal,
+    );
     try {
       const scale = Math.min(size / logo.width, size / logo.height);
       const width = logo.width * scale;
@@ -309,7 +404,9 @@ export async function renderMonthlyMemorySheetExport({
   stamps,
   thumbnailUrls,
   theme = defaultJournalTheme,
+  signal,
 }: RenderInput) {
+  throwIfAborted(signal);
   const resolvedTheme = resolveJournalTheme(theme);
   const model = monthlyMemoryEditionModel({ journalTitle, monthKey, stamps });
   const layout = monthlyMemoryEditionLayout;
@@ -318,6 +415,7 @@ export async function renderMonthlyMemorySheetExport({
     document.fonts.load(`500 ${layout.monthTitleFontSize}px ${displayFont}`),
     document.fonts.load(`600 ${layout.dateFontSize}px ${utilityFont}`),
   ]).catch(() => undefined);
+  throwIfAborted(signal);
 
   const canvas = document.createElement("canvas");
   canvas.width = MONTHLY_MEMORY_EDITION_WIDTH;
@@ -329,11 +427,13 @@ export async function renderMonthlyMemorySheetExport({
 
   context.fillStyle = resolvedTheme.journalBackground;
   context.fillRect(0, 0, canvas.width, canvas.height);
+  let hasRenderedTexture = false;
   if (resolvedTheme.textureUrl) {
     try {
-      const texture = await loadImage(resolvedTheme.textureUrl);
+      const texture = await loadImage(resolvedTheme.textureUrl, signal);
       try {
         drawImageCover(context, texture, 0, 0, canvas.width, canvas.height);
+        hasRenderedTexture = true;
       } finally {
         texture.close();
       }
@@ -342,7 +442,12 @@ export async function renderMonthlyMemorySheetExport({
       // uploaded texture is unavailable.
     }
   }
-  drawLeatherGrain(context, canvas.width, canvas.height);
+  drawLeatherGrain(
+    context,
+    canvas.width,
+    canvas.height,
+    monthlyMemoryEditionSurfaceLayerOpacity(hasRenderedTexture),
+  );
   if (resolvedTheme.overlayColor && resolvedTheme.overlayOpacity > 0) {
     context.save();
     context.globalAlpha = resolvedTheme.overlayOpacity;
@@ -430,19 +535,23 @@ export async function renderMonthlyMemorySheetExport({
   );
   context.fillStyle = colors.subheader;
   context.font = `500 ${layout.monthSubheaderFontSize}px ${utilityFont}`;
-  context.fillText(
+  drawCenteredLetterSpacedText(
+    context,
     model.subheader,
     canvas.width / 2,
     groupTop +
       layout.monthTitleFontSize * 1.1 +
       12 +
       (layout.monthSubheaderFontSize * 1.25) / 2,
+    layout.monthSubheaderFontSize *
+      monthlyMemoryEditionVisualSpec.subheaderTrackingEm,
   );
 
   const gridX = layout.outerPaddingX + layout.sheetPaddingX;
   const gridTop =
     sheetHeaderTop + layout.sheetHeaderHeight + layout.sheetHeaderGap;
   for (let row = 0; row < model.rows; row += 1) {
+    throwIfAborted(signal);
     const rowStamps = model.stamps.slice(
       row * model.columns,
       (row + 1) * model.columns,
@@ -470,7 +579,7 @@ export async function renderMonthlyMemorySheetExport({
       const sourceUrl = thumbnailUrls[stamp.memory.id];
       if (sourceUrl) {
         try {
-          const image = await loadImage(sourceUrl);
+          const image = await loadImage(sourceUrl, signal);
           try {
             drawStampImage(
               context,
@@ -508,7 +617,9 @@ export async function renderMonthlyMemorySheetExport({
     x: (canvas.width - layout.logoSize) / 2,
     y: footerTop,
     size: layout.logoSize,
+    signal,
   });
 
+  throwIfAborted(signal);
   return canvasToBlob(canvas);
 }

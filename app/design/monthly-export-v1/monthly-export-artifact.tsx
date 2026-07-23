@@ -7,6 +7,7 @@ import {
   rubyJournalTheme,
 } from "@/data/journal-themes";
 import { CroppedStampImage } from "@/components/stamp/cropped-stamp-image";
+import { monthlyMemoryEditionArtifactTextureStyle } from "@/lib/export/monthly-memory-sheet-export";
 
 import styles from "./monthly-export-v1.module.css";
 
@@ -97,7 +98,10 @@ export function MonthlyExportArtifact() {
       data-monthly-export-completeness="31-of-31"
       data-monthly-export-rows={MONTHLY_EXPORT_ROWS}
       data-monthly-export-texture="single-cover-no-repeat"
-      style={journalThemeStyle(monthlyExportPlaygroundTheme)}
+      style={{
+        ...journalThemeStyle(monthlyExportPlaygroundTheme),
+        ...monthlyMemoryEditionArtifactTextureStyle(),
+      }}
     >
       <header className={styles.artifactHeader}>
         <p className={styles.journalTitle}>Margot&apos;s Journal</p>

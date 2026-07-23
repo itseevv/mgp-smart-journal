@@ -137,7 +137,10 @@ test("production Monthly Sheet uses the approved quiet download entry and blob p
   );
   assert.match(composerSource, /data-monthly-stamp-export-preview-source="generated-blob"/);
   assert.match(composerSource, /src=\{composerState\.previewUrl\}/);
-  assert.match(composerSource, /<DownloadIcon \/>[\s\S]*\n\s*Save\s*\n/);
+  assert.match(
+    composerSource,
+    /<DownloadIcon \/>[\s\S]*"Retry" : "Save"/,
+  );
   assert.doesNotMatch(composerSource, /Save July Memory Edition|Complete preview/);
   assert.match(composerSource, />\s*Share\s*</);
   assert.match(composerSource, /Sharing isn’t supported here\. The image was saved instead\./);
@@ -153,11 +156,20 @@ test("production Monthly Sheet uses the approved quiet download entry and blob p
 });
 
 test("persisted monthly export is authenticated, private, and viewport-independent", async () => {
-  const [routeSource, rendererSource, nextConfigSource] = await Promise.all([
-    source("app/api/export/monthly-sheet/route.ts"),
-    source("lib/export/monthly-memory-sheet-server.ts"),
-    source("next.config.ts"),
-  ]);
+  const [
+    routeSource,
+    routeCoreSource,
+    dataSource,
+    rendererSource,
+    nextConfigSource,
+  ] =
+    await Promise.all([
+      source("app/api/export/monthly-sheet/route.ts"),
+      source("lib/export/monthly-memory-sheet-route-core.ts"),
+      source("lib/export/monthly-memory-sheet-data.ts"),
+      source("lib/export/monthly-memory-sheet-server.ts"),
+      source("next.config.ts"),
+    ]);
 
   assert.match(routeSource, /runtime = "nodejs"/);
   assert.match(routeSource, /Authorization: `Bearer \$\{token\}`/);
@@ -165,16 +177,24 @@ test("persisted monthly export is authenticated, private, and viewport-independe
   assert.match(routeSource, /getAdminSupabaseClient/);
   assert.match(routeSource, /thumbnail_storage_path/);
   assert.match(routeSource, /crop_metadata/);
-  assert.match(routeSource, /Cache-Control": "private, no-store"/);
-  assert.match(routeSource, /Content-Type": "image\/png"/);
-  assert.match(routeSource, /MAX_TOTAL_SOURCE_BYTES/);
-  assert.match(routeSource, /MAX_PNG_RESPONSE_BYTES/);
-  assert.doesNotMatch(routeSource, /publicToken|ownerPin|signedUrl/i);
+  assert.match(routeCoreSource, /Cache-Control": "private, no-store"/);
+  assert.match(routeCoreSource, /Content-Type": "image\/png"/);
+  assert.match(routeSource, /MAX_COVER_SOURCE_BYTES/);
+  assert.match(routeCoreSource, /MONTHLY_MEMORY_EDITION_SAFE_PNG_BYTES/);
+  assert.match(routeSource, /\.in\("id", selectedIds\)/);
+  assert.match(routeSource, /\.eq\("order_index", 0\)/);
+  assert.match(dataSource, /mapWithConcurrency/);
+  assert.match(routeSource, /COVER_CONCURRENCY/);
+  assert.match(routeSource, /DECODE_CONCURRENCY/);
+  assert.match(routeSource, /is_capsule_fulfillment_disabled/);
+  assert.match(routeSource, /createSignedUrl/);
+  assert.match(routeSource, /EXPORT_ADMISSION_TTL_MS/);
+  assert.doesNotMatch(routeSource, /publicToken|ownerPin/i);
 
   assert.match(rendererSource, /resize\(MONTHLY_MEMORY_EDITION_WIDTH, height/);
   assert.match(rendererSource, /fit: "cover"/);
   assert.match(rendererSource, /stamps\.forEach/);
-  assert.match(rendererSource, /rowCount === 3/);
+  assert.match(rendererSource, /rowCount === MONTHLY_MEMORY_EDITION_COLUMNS/);
   assert.match(rendererSource, /fullGridWidth - rowWidth/);
   assert.match(rendererSource, /journalTitleUsesDarkInk/);
   assert.match(rendererSource, /theme\.logoVariant === "dark"/);

@@ -16,6 +16,8 @@
     "qa:journal:smoke": "JOURNAL_QA_SMOKE=1 node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa-journal-route.mjs",
     "qa:journal:mobile": "node scripts/qa-journal-mobile-browser.mjs",
     "qa:journal:mobile:smoke": "JOURNAL_QA_SMOKE=1 node scripts/qa-journal-mobile-browser.mjs",
+    "qa:monthly-export": "node scripts/qa-monthly-export-browser.mjs",
+    "qa:monthly-export:authenticated": "node scripts/qa-monthly-export-authenticated.mjs",
     "seed:capsule": "node scripts/seed-capsule.mjs",
     "seed:batch": "node scripts/seed-admin-batch.mjs",
     "issue:recovery": "node scripts/issue-recovery-code.mjs"

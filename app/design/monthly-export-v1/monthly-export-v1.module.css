@@ -244,21 +244,21 @@
 
 .artifact::before {
   background-image:
-    var(--journal-mobile-background-image, var(--journal-texture-url)),
-    var(--journal-texture),
-    linear-gradient(110deg, rgba(255, 255, 255, 0.055), transparent 38%, rgba(0, 0, 0, 0.13));
+    var(--monthly-export-sheen),
+    var(--monthly-export-grain),
+    var(--journal-mobile-background-image, var(--journal-texture-url));
   background-position:
-    var(--journal-mobile-background-position, 50% 50%),
+    center,
     left top,
-    center;
+    var(--journal-mobile-background-position, 50% 50%);
   background-repeat:
     no-repeat,
     repeat,
     no-repeat;
   background-size:
-    var(--journal-mobile-background-size, cover),
+    auto,
     0.740740741cqw 0.833333333cqw,
-    auto;
+    var(--journal-mobile-background-size, cover);
   content: "";
   inset: 0;
   opacity: var(--journal-mobile-background-opacity, var(--journal-texture-opacity, 0.8));
@@ -670,21 +670,21 @@
   width: 1px;
 }
 
-.headerIconEntry {
-  background: var(--journal-home-control-bg) !important;
+.phoneMonthControls > .headerIconEntry {
+  background: var(--journal-home-control-bg);
   cursor: pointer;
   transition:
     background-color 160ms ease,
     transform 160ms ease;
 }
 
-.headerIconEntry:hover,
-.headerIconEntry:focus-visible {
+.phoneMonthControls > .headerIconEntry:hover,
+.phoneMonthControls > .headerIconEntry:focus-visible {
   background: color-mix(
     in srgb,
     var(--journal-home-control-text) 22%,
     transparent
-  ) !important;
+  );
 }
 
 .headerIconEntry:active {

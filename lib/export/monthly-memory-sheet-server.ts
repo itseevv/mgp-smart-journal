@@ -13,12 +13,16 @@ import {
 import { dailyStampEmojiCodepoint } from "./daily-memory-stamp-export.ts";
 import {
   MONTHLY_MEMORY_EDITION_MAX_STAMPS,
+  MONTHLY_MEMORY_EDITION_COLUMNS,
   MONTHLY_MEMORY_EDITION_WIDTH,
   monthlyMemoryEditionHeight,
+  monthlyMemoryEditionJournalTitle,
   monthlyMemoryEditionLayout,
-  monthlyMemoryEditionMonthName,
+  monthlyMemoryEditionSurfaceLayerOpacity,
+  monthlyMemoryEditionTitle,
+  monthlyMemoryEditionVisualSpec,
 } from "./monthly-memory-sheet-export.ts";
-import { monthTitle } from "../../data/journal-stamps.ts";
+import { isPhotoCropMetadata } from "../scrap/crop-math.ts";
 
 const SERVER_EXPORT_FONT_FILES = [
   path.join(process.cwd(), "public/fonts/CormorantGaramond-Medium.ttf"),
@@ -33,6 +37,10 @@ const TWEMOJI_SVG_DIRECTORY = path.join(
 const TWEMOJI_CODEPOINT_PATTERN = /^[0-9a-f]+(?:-[0-9a-f]+)*$/u;
 const MAX_TEXTURE_INPUT_PIXELS = 24_000_000;
 const MAX_LOGO_INPUT_PIXELS = 4_000_000;
+const COVER_SHARP_TIMEOUT_SECONDS = 2;
+const TEXTURE_SHARP_TIMEOUT_SECONDS = 4;
+const LOGO_SHARP_TIMEOUT_SECONDS = 2;
+const RENDER_SHARP_TIMEOUT_SECONDS = 10;
 
 const brand = {
   deepBurgundy: "#421819",
@@ -57,6 +65,47 @@ export type ServerMonthlyMemoryEditionRenderInput = {
 };
 
 type BrandFamily = "Cormorant Garamond" | "Inter";
+
+function throwIfAborted(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+}
+
+function destroySharpOnAbort(pipeline: sharp.Sharp, signal?: AbortSignal) {
+  if (!signal) return () => undefined;
+  const onAbort = () => {
+    pipeline.destroy(
+      signal.reason instanceof Error
+        ? signal.reason
+        : new DOMException("Monthly export aborted.", "AbortError"),
+    );
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  if (signal.aborted) onAbort();
+  return () => signal.removeEventListener("abort", onAbort);
+}
+
+async function sharpBuffer(pipeline: sharp.Sharp, signal?: AbortSignal) {
+  throwIfAborted(signal);
+  const cleanup = destroySharpOnAbort(pipeline, signal);
+  try {
+    return await pipeline.toBuffer();
+  } finally {
+    cleanup();
+  }
+}
+
+async function sharpBufferWithInfo(
+  pipeline: sharp.Sharp,
+  signal?: AbortSignal,
+) {
+  throwIfAborted(signal);
+  const cleanup = destroySharpOnAbort(pipeline, signal);
+  try {
+    return await pipeline.toBuffer({ resolveWithObject: true });
+  } finally {
+    cleanup();
+  }
+}
 
 function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
@@ -95,47 +144,6 @@ function graphemes(value: string) {
   return Array.from(segmenter.segment(xmlSafeText(value)), ({ segment }) => segment);
 }
 
-function estimatedTextWidth(text: string, fontSize: number) {
-  return graphemes(text).reduce((width, character) => {
-    if (/\s/u.test(character)) return width + fontSize * 0.25;
-    if (/[ilI1'.,:;]/u.test(character)) return width + fontSize * 0.25;
-    if (/[MW@#%&]/u.test(character)) return width + fontSize * 0.78;
-    if (/[A-Z0-9]/u.test(character)) return width + fontSize * 0.58;
-    if (/^[\x00-\x7F]$/u.test(character)) return width + fontSize * 0.48;
-    return width + fontSize;
-  }, 0);
-}
-
-function wrapText(
-  text: string,
-  fontSize: number,
-  maxWidth: number,
-  maxLines: number,
-) {
-  const characters = graphemes(text.replace(/\s+/gu, " ").trim());
-  if (estimatedTextWidth(characters.join(""), fontSize) <= maxWidth) {
-    return [characters.join("")];
-  }
-
-  const lines: string[] = [];
-  let line = "";
-  for (const character of characters) {
-    const candidate = `${line}${character}`;
-    if (!line || estimatedTextWidth(candidate, fontSize) <= maxWidth) {
-      line = candidate;
-    } else {
-      lines.push(line.trim());
-      line = character;
-    }
-  }
-  if (line.trim()) lines.push(line.trim());
-  if (lines.length <= maxLines) return lines;
-  return [
-    ...lines.slice(0, maxLines - 1),
-    `${lines.slice(maxLines - 1).join("").slice(0, -1)}…`,
-  ];
-}
-
 function resvgFontOptions() {
   return {
     font: {
@@ -155,11 +163,7 @@ function textRuns(text: string, brandFamily: BrandFamily) {
       runs.push({ text: grapheme, family: "Twemoji", emojiCodepoint });
       return runs;
     }
-    const isBrandGlyph =
-      /^[\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]+$/u.test(
-        grapheme,
-      );
-    const family = isBrandGlyph ? brandFamily : "Noto Sans CJK SC";
+    const family = `${brandFamily}, Noto Sans CJK SC`;
     const previous = runs.at(-1);
     if (previous?.family === family && !previous.emojiCodepoint) {
       previous.text += grapheme;
@@ -313,6 +317,61 @@ async function renderTextLine({
   };
 }
 
+type RenderedTextLine = Awaited<ReturnType<typeof renderTextLine>>;
+
+async function renderFittedTextLines({
+  text,
+  maxWidth,
+  maxLines,
+  render,
+}: {
+  text: string;
+  maxWidth: number;
+  maxLines: number;
+  render: (line: string) => Promise<RenderedTextLine>;
+}) {
+  const characters = graphemes(text.replace(/\s+/gu, " ").trim());
+  const lines: RenderedTextLine[] = [];
+  let offset = 0;
+
+  for (let lineIndex = 0; lineIndex < maxLines && offset < characters.length; lineIndex += 1) {
+    while (characters[offset] && /\s/u.test(characters[offset])) offset += 1;
+    const remaining = characters.slice(offset);
+    const complete = await render(remaining.join(""));
+    if (complete.width <= maxWidth) {
+      lines.push(complete);
+      break;
+    }
+
+    const finalLine = lineIndex === maxLines - 1;
+    let low = 1;
+    let high = remaining.length;
+    let bestCount = 0;
+    let best: RenderedTextLine | undefined;
+    while (low <= high) {
+      const count = Math.floor((low + high) / 2);
+      const candidateText =
+        remaining.slice(0, count).join("").trimEnd() +
+        (finalLine ? "…" : "");
+      const candidate = await render(candidateText);
+      if (candidate.width <= maxWidth) {
+        bestCount = count;
+        best = candidate;
+        low = count + 1;
+      } else {
+        high = count - 1;
+      }
+    }
+    if (!best || bestCount < 1) {
+      best = await render(finalLine ? "…" : remaining[0]);
+      bestCount = 1;
+    }
+    lines.push(best);
+    offset += bestCount;
+  }
+  return lines;
+}
+
 function themeColors(theme: JournalTheme) {
   const lightTheme = theme.logoVariant === "dark";
   const darkTitle = journalTitleUsesDarkInk(theme);
@@ -343,33 +402,38 @@ function decorationLayer({
   sheetTop,
   sheetHeight,
   includeLeatherGrain,
+  surfaceLayerOpacity,
 }: {
   theme: JournalTheme;
   height: number;
   sheetTop: number;
   sheetHeight: number;
   includeLeatherGrain: boolean;
+  surfaceLayerOpacity: number;
 }) {
   const colors = themeColors(theme);
+  const grainSpec = monthlyMemoryEditionVisualSpec.grain;
   const themeOverlay =
     theme.overlayColor && theme.overlayOpacity > 0
       ? `<rect width="${MONTHLY_MEMORY_EDITION_WIDTH}" height="${height}" fill="${escapeXml(safeCssColor(theme.overlayColor, "transparent"))}" fill-opacity="${clamp(theme.overlayOpacity, 0, 1)}"/>`
       : "";
   const grain = includeLeatherGrain
-    ? `<rect width="${MONTHLY_MEMORY_EDITION_WIDTH}" height="${height}" fill="url(#leather-grain)"/>
-       <rect width="${MONTHLY_MEMORY_EDITION_WIDTH}" height="${height}" fill="url(#artifact-sheen)"/>`
+    ? `<g opacity="${clamp(surfaceLayerOpacity, 0, 1)}">
+         <rect width="${MONTHLY_MEMORY_EDITION_WIDTH}" height="${height}" fill="url(#leather-grain)"/>
+         <rect width="${MONTHLY_MEMORY_EDITION_WIDTH}" height="${height}" fill="url(#artifact-sheen)"/>
+       </g>`
     : "";
   return Buffer.from(`
     <svg width="${MONTHLY_MEMORY_EDITION_WIDTH}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <pattern id="leather-grain" width="8" height="9" patternUnits="userSpaceOnUse">
-          <circle cx="1.5" cy="2.5" r="0.55" fill="#ffffff" fill-opacity="0.06"/>
-          <circle cx="6.5" cy="6.5" r="0.65" fill="#140a0c" fill-opacity="0.18"/>
+        <pattern id="leather-grain" width="${grainSpec.patternWidth}" height="${grainSpec.patternHeight}" patternUnits="userSpaceOnUse">
+          <circle cx="${grainSpec.lightDot.x}" cy="${grainSpec.lightDot.y}" r="${grainSpec.lightDot.radius}" fill="${grainSpec.lightDot.color}" fill-opacity="${grainSpec.lightDot.alpha}"/>
+          <circle cx="${grainSpec.darkDot.x}" cy="${grainSpec.darkDot.y}" r="${grainSpec.darkDot.radius}" fill="${grainSpec.darkDot.color}" fill-opacity="${grainSpec.darkDot.alpha}"/>
         </pattern>
         <linearGradient id="artifact-sheen" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#ffffff" stop-opacity="0.055"/>
+          <stop offset="0" stop-color="#ffffff" stop-opacity="${grainSpec.sheenStartAlpha}"/>
           <stop offset="0.38" stop-color="#ffffff" stop-opacity="0"/>
-          <stop offset="1" stop-color="#000000" stop-opacity="0.13"/>
+          <stop offset="1" stop-color="#000000" stop-opacity="${grainSpec.sheenEndAlpha}"/>
         </linearGradient>
         <linearGradient id="sheet-shade" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="${colors.sheetGradientStart}" stop-opacity="${colors.sheetGradientStartAlpha}"/>
@@ -418,9 +482,9 @@ function fallbackStampLayer({
   `);
 }
 
-function stampPositions(stampCount: number) {
+export function monthlyMemoryEditionStampPositions(stampCount: number) {
   const layout = monthlyMemoryEditionLayout;
-  const rows = Math.ceil(stampCount / 3);
+  const rows = Math.ceil(stampCount / MONTHLY_MEMORY_EDITION_COLUMNS);
   const gridX = layout.outerPaddingX + layout.sheetPaddingX;
   const sheetTop =
     layout.outerTop + layout.journalHeaderHeight + layout.journalHeaderGap;
@@ -430,14 +494,21 @@ function stampPositions(stampCount: number) {
     layout.sheetHeaderHeight +
     layout.sheetHeaderGap;
   const fullGridWidth =
-    3 * layout.stampSize + 2 * layout.stampGap;
+    MONTHLY_MEMORY_EDITION_COLUMNS * layout.stampSize +
+    (MONTHLY_MEMORY_EDITION_COLUMNS - 1) * layout.stampGap;
   return Array.from({ length: stampCount }, (_, index) => {
-    const row = Math.floor(index / 3);
-    const column = index % 3;
-    const rowCount = Math.min(3, stampCount - row * 3);
+    const row = Math.floor(index / MONTHLY_MEMORY_EDITION_COLUMNS);
+    const column = index % MONTHLY_MEMORY_EDITION_COLUMNS;
+    const rowCount = Math.min(
+      MONTHLY_MEMORY_EDITION_COLUMNS,
+      stampCount - row * MONTHLY_MEMORY_EDITION_COLUMNS,
+    );
     const rowWidth =
       rowCount * layout.stampSize + Math.max(0, rowCount - 1) * layout.stampGap;
-    const rowX = rowCount === 3 ? gridX : gridX + (fullGridWidth - rowWidth) / 2;
+    const rowX =
+      rowCount === MONTHLY_MEMORY_EDITION_COLUMNS
+        ? gridX
+        : gridX + (fullGridWidth - rowWidth) / 2;
     return {
       x: Math.round(rowX + column * (layout.stampSize + layout.stampGap)),
       y: Math.round(gridTop + row * (layout.stampSize + layout.stampGap)),
@@ -447,30 +518,117 @@ function stampPositions(stampCount: number) {
   });
 }
 
-async function preparedTexture(texture: Buffer, height: number) {
-  return sharp(texture, {
-    failOn: "error",
-    limitInputPixels: MAX_TEXTURE_INPUT_PIXELS,
-  })
-    .rotate()
-    .resize(MONTHLY_MEMORY_EDITION_WIDTH, height, {
-      fit: "cover",
-      position: "centre",
+export async function prepareServerMonthlyCoverPhoto(
+  input: Buffer,
+  cropMetadata: unknown,
+  maxInputPixels = 20_000_000,
+  signal?: AbortSignal,
+) {
+  const normalized = await sharpBufferWithInfo(
+    sharp(input, {
+      failOn: "error",
+      limitInputPixels: maxInputPixels,
     })
-    .png()
-    .toBuffer();
+      .rotate()
+      .timeout({ seconds: COVER_SHARP_TIMEOUT_SECONDS }),
+    signal,
+  );
+  const sourceWidth = normalized.info.width;
+  const sourceHeight = normalized.info.height;
+  let image = sharp(normalized.data, {
+    failOn: "error",
+    limitInputPixels: maxInputPixels,
+  });
+
+  if (sourceWidth && sourceHeight && isPhotoCropMetadata(cropMetadata)) {
+    const left = Math.min(
+      sourceWidth - 1,
+      Math.floor(clamp(cropMetadata.x, 0, 1) * sourceWidth),
+    );
+    const top = Math.min(
+      sourceHeight - 1,
+      Math.floor(clamp(cropMetadata.y, 0, 1) * sourceHeight),
+    );
+    const right = Math.min(
+      sourceWidth,
+      Math.max(
+        left + 1,
+        Math.ceil(
+          clamp(cropMetadata.x + cropMetadata.width, 0, 1) * sourceWidth,
+        ),
+      ),
+    );
+    const bottom = Math.min(
+      sourceHeight,
+      Math.max(
+        top + 1,
+        Math.ceil(
+          clamp(cropMetadata.y + cropMetadata.height, 0, 1) * sourceHeight,
+        ),
+      ),
+    );
+    image = image.extract({
+      left,
+      top,
+      width: Math.max(1, right - left),
+      height: Math.max(1, bottom - top),
+    });
+  }
+
+  return sharpBuffer(
+    image
+      .resize(
+        monthlyMemoryEditionLayout.stampSize,
+        monthlyMemoryEditionLayout.stampSize,
+        {
+          fit: isPhotoCropMetadata(cropMetadata) ? "fill" : "cover",
+          position: "centre",
+        },
+      )
+      .png()
+      .timeout({ seconds: COVER_SHARP_TIMEOUT_SECONDS }),
+    signal,
+  );
 }
 
-async function preparedLogo(logo: Buffer, theme: JournalTheme) {
+async function preparedTexture(
+  texture: Buffer,
+  height: number,
+  signal?: AbortSignal,
+) {
+  return sharpBuffer(
+    sharp(texture, {
+      failOn: "error",
+      limitInputPixels: MAX_TEXTURE_INPUT_PIXELS,
+    })
+      .rotate()
+      .resize(MONTHLY_MEMORY_EDITION_WIDTH, height, {
+        fit: "cover",
+        position: "centre",
+      })
+      .png()
+      .timeout({ seconds: TEXTURE_SHARP_TIMEOUT_SECONDS }),
+    signal,
+  );
+}
+
+async function preparedLogo(
+  logo: Buffer,
+  theme: JournalTheme,
+  signal?: AbortSignal,
+) {
   const size = monthlyMemoryEditionLayout.logoSize;
-  const resized = await sharp(logo, {
-    failOn: "error",
-    limitInputPixels: MAX_LOGO_INPUT_PIXELS,
-  })
-    .resize(size, size, { fit: "inside" })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+  const resized = await sharpBufferWithInfo(
+    sharp(logo, {
+      failOn: "error",
+      limitInputPixels: MAX_LOGO_INPUT_PIXELS,
+    })
+      .resize(size, size, { fit: "inside" })
+      .ensureAlpha()
+      .raw()
+      .timeout({ seconds: LOGO_SHARP_TIMEOUT_SECONDS }),
+    signal,
+  );
 
   if (theme.logoVariant === "dark") {
     const red = Number.parseInt(brand.deepBurgundy.slice(1, 3), 16);
@@ -489,15 +647,18 @@ async function preparedLogo(logo: Buffer, theme: JournalTheme) {
       resized.data[offset] = Math.round(resized.data[offset] * 0.82);
     }
   }
-  return sharp(resized.data, {
-    raw: {
-      width: resized.info.width,
-      height: resized.info.height,
-      channels: 4,
-    },
-  })
-    .png()
-    .toBuffer({ resolveWithObject: true });
+  return sharpBufferWithInfo(
+    sharp(resized.data, {
+      raw: {
+        width: resized.info.width,
+        height: resized.info.height,
+        channels: 4,
+      },
+    })
+      .png()
+      .timeout({ seconds: LOGO_SHARP_TIMEOUT_SECONDS }),
+    signal,
+  );
 }
 
 async function textLayers({
@@ -517,14 +678,22 @@ async function textLayers({
 }) {
   const layout = monthlyMemoryEditionLayout;
   const colors = themeColors(theme);
-  const journalLines = wrapText(
-    journalTitle,
-    layout.journalTitleFontSize,
-    layout.journalTitleMaxWidth,
-    2,
-  );
+  const journalLines = await renderFittedTextLines({
+    text: monthlyMemoryEditionJournalTitle(journalTitle),
+    maxWidth: layout.journalTitleMaxWidth,
+    maxLines: 2,
+    render: (line) =>
+      renderTextLine({
+        text: line,
+        brandFamily: "Cormorant Garamond",
+        fontSize: layout.journalTitleFontSize,
+        weight: 600,
+        color: colors.journalTitle,
+        alpha: colors.journalTitleAlpha,
+      }),
+  });
   const journalCenterY = layout.outerTop + layout.journalHeaderHeight / 2;
-  const selectedMonthTitle = `${monthTitle(monthKey)} Edition`;
+  const selectedMonthTitle = monthlyMemoryEditionTitle(monthKey);
   const sheetTop =
     layout.outerTop + layout.journalHeaderHeight + layout.journalHeaderGap;
   const sheetHeaderTop = sheetTop + layout.sheetPaddingTop;
@@ -543,15 +712,7 @@ async function textLayers({
     (layout.monthSubheaderFontSize * 1.25) / 2;
 
   const layers: sharp.OverlayOptions[] = [];
-  for (const [index, line] of journalLines.entries()) {
-    const rendered = await renderTextLine({
-      text: line,
-      brandFamily: "Cormorant Garamond",
-      fontSize: layout.journalTitleFontSize,
-      weight: 600,
-      color: colors.journalTitle,
-      alpha: colors.journalTitleAlpha,
-    });
+  for (const [index, rendered] of journalLines.entries()) {
     layers.push({
       input: rendered.input,
       left: Math.round((MONTHLY_MEMORY_EDITION_WIDTH - rendered.width) / 2),
@@ -578,13 +739,15 @@ async function textLayers({
   });
 
   const subheaderLine = await renderTextLine({
-    text: "The whole month, kept together",
+    text: monthlyMemoryEditionVisualSpec.subheader,
     brandFamily: "Inter",
     fontSize: layout.monthSubheaderFontSize,
     weight: 500,
     color: colors.subheader,
     alpha: colors.subheaderAlpha,
-    letterSpacing: 0.56,
+    letterSpacing:
+      layout.monthSubheaderFontSize *
+      monthlyMemoryEditionVisualSpec.subheaderTrackingEm,
   });
   layers.push({
     input: subheaderLine.input,
@@ -624,7 +787,12 @@ export async function renderServerMonthlyMemoryEditionPng({
   stamps,
   texture,
   logo,
-}: ServerMonthlyMemoryEditionRenderInput) {
+}: ServerMonthlyMemoryEditionRenderInput, {
+  signal,
+}: {
+  signal?: AbortSignal;
+} = {}) {
+  throwIfAborted(signal);
   if (!stamps.length) throw new Error("A Monthly Memory Edition needs a stamp.");
   if (stamps.length > MONTHLY_MEMORY_EDITION_MAX_STAMPS) {
     throw new Error("A Monthly Memory Edition supports at most 31 stamps.");
@@ -632,7 +800,7 @@ export async function renderServerMonthlyMemoryEditionPng({
 
   const resolvedTheme = resolveJournalTheme(theme);
   const height = monthlyMemoryEditionHeight(stamps.length);
-  const rows = Math.ceil(stamps.length / 3);
+  const rows = Math.ceil(stamps.length / MONTHLY_MEMORY_EDITION_COLUMNS);
   const layout = monthlyMemoryEditionLayout;
   const sheetTop =
     layout.outerTop + layout.journalHeaderHeight + layout.journalHeaderGap;
@@ -644,7 +812,7 @@ export async function renderServerMonthlyMemoryEditionPng({
     layout.sheetHeaderGap +
     gridHeight +
     layout.sheetPaddingBottom;
-  const positions = stampPositions(stamps.length);
+  const positions = monthlyMemoryEditionStampPositions(stamps.length);
   const base = sharp({
     create: {
       width: MONTHLY_MEMORY_EDITION_WIDTH,
@@ -657,14 +825,19 @@ export async function renderServerMonthlyMemoryEditionPng({
     },
   });
   const layers: sharp.OverlayOptions[] = [];
+  let hasRenderedTexture = false;
 
-  let decodedTexture: Buffer | undefined;
   if (texture) {
     try {
-      decodedTexture = await preparedTexture(texture, height);
-      layers.push({ input: decodedTexture, left: 0, top: 0 });
+      layers.push({
+        input: await preparedTexture(texture, height, signal),
+        left: 0,
+        top: 0,
+      });
+      hasRenderedTexture = true;
     } catch {
-      decodedTexture = undefined;
+      signal?.throwIfAborted();
+      // The resolved theme fill remains behind the always-on grain and sheen.
     }
   }
   layers.push({
@@ -673,7 +846,9 @@ export async function renderServerMonthlyMemoryEditionPng({
       height,
       sheetTop,
       sheetHeight,
-      includeLeatherGrain: !decodedTexture,
+      includeLeatherGrain: true,
+      surfaceLayerOpacity:
+        monthlyMemoryEditionSurfaceLayerOpacity(hasRenderedTexture),
     }),
     left: 0,
     top: 0,
@@ -702,10 +877,11 @@ export async function renderServerMonthlyMemoryEditionPng({
       stamps,
     })),
   );
+  throwIfAborted(signal);
 
   if (logo) {
     try {
-      const prepared = await preparedLogo(logo, resolvedTheme);
+      const prepared = await preparedLogo(logo, resolvedTheme, signal);
       const footerTop = sheetTop + sheetHeight + layout.footerGap;
       layers.push({
         input: prepared.data,
@@ -717,22 +893,27 @@ export async function renderServerMonthlyMemoryEditionPng({
         ),
       });
     } catch {
+      signal?.throwIfAborted();
       // The complete sheet remains exportable if the quiet brand mark fails.
     }
   }
 
-  return base
-    .composite(layers)
-    .flatten({
-      background: safeCssColor(
-        resolvedTheme.journalBackground,
-        defaultJournalTheme.journalBackground,
-      ),
-    })
-    .png({ compressionLevel: 8, adaptiveFiltering: true, effort: 7 })
-    .toBuffer();
-}
-
-export function monthlyMemoryEditionServerLabel(monthKey: string) {
-  return `Your ${monthlyMemoryEditionMonthName(monthKey)} Memory Edition`;
+  throwIfAborted(signal);
+  return sharpBuffer(
+    base
+      .composite(layers)
+      .flatten({
+        background: safeCssColor(
+          resolvedTheme.journalBackground,
+          defaultJournalTheme.journalBackground,
+        ),
+      })
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        effort: 10,
+      })
+      .timeout({ seconds: RENDER_SHARP_TIMEOUT_SECONDS }),
+    signal,
+  );
 }

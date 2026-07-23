@@ -15,6 +15,7 @@ import {
   ShareIcon,
 } from "@/components/memory/memory-icons";
 import type { JournalMemorySummary } from "@/data/journal";
+import { resolvedLocalTimezone } from "@/data/local-date";
 import {
   journalThemeStyle,
   resolveJournalTheme,
@@ -24,9 +25,11 @@ import { renderMonthlyMemorySheetExport } from "@/lib/export/monthly-memory-shee
 import {
   monthlyMemoryEditionFilename,
   monthlyMemoryEditionModel,
+  monthlyMemoryEditionRequestStamps,
   saveMonthlyMemoryEditionBlob,
   shareMonthlyMemoryEditionBlob,
 } from "@/lib/export/monthly-memory-sheet-export";
+import { createMonthlyExportGenerationGate } from "@/lib/export/monthly-memory-sheet-lifecycle";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 import styles from "./monthly-stamp-export-composer.module.css";
@@ -68,10 +71,12 @@ const exportErrorMessage =
 async function renderPersistedMonthlyMemoryEdition({
   capsuleId,
   monthKey,
+  stamps,
   signal,
 }: {
   capsuleId: string;
   monthKey: string;
+  stamps: JournalMemorySummary[];
   signal?: AbortSignal;
 }) {
   const client = getSupabaseBrowserClient();
@@ -86,7 +91,12 @@ async function renderPersistedMonthlyMemoryEdition({
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ capsuleId, monthKey }),
+    body: JSON.stringify({
+      capsuleId,
+      monthKey,
+      timeZone: resolvedLocalTimezone() ?? "UTC",
+      stamps: monthlyMemoryEditionRequestStamps({ monthKey, stamps }),
+    }),
     cache: "no-store",
     signal,
   });
@@ -98,10 +108,63 @@ async function renderPersistedMonthlyMemoryEdition({
       typeof detail?.code === "string" ? detail.code : `HTTP_${response.status}`;
     throw new Error(`Monthly sheet server export failed: ${code}`);
   }
-  if (response.headers.get("content-type")?.split(";")[0] !== "image/png") {
+  const contentType = response.headers.get("content-type")?.split(";")[0];
+  let blob: Blob;
+  if (contentType === "image/png") {
+    blob = await response.blob();
+  } else if (contentType === "application/json") {
+    const delivery = (await response.json()) as unknown;
+    if (
+      !delivery ||
+      typeof delivery !== "object" ||
+      !("delivery" in delivery) ||
+      delivery.delivery !== "signed-url" ||
+      !("artifactId" in delivery) ||
+      typeof delivery.artifactId !== "string" ||
+      !("url" in delivery) ||
+      typeof delivery.url !== "string"
+    ) {
+      throw new Error("Monthly sheet server export returned invalid delivery.");
+    }
+    const artifactUrl = new URL(delivery.url);
+    const configuredStorageOrigin = new URL(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.local",
+    ).origin;
+    if (
+      artifactUrl.protocol !== "https:" ||
+      artifactUrl.origin !== configuredStorageOrigin
+    ) {
+      throw new Error("Monthly sheet server export returned invalid delivery.");
+    }
+    const artifactResponse = await fetch(artifactUrl, {
+      cache: "no-store",
+      credentials: "omit",
+      signal,
+    });
+    if (
+      !artifactResponse.ok ||
+      artifactResponse.headers.get("content-type")?.split(";")[0] !==
+        "image/png"
+    ) {
+      throw new Error("Monthly sheet artifact delivery failed.");
+    }
+    blob = await artifactResponse.blob();
+    void fetch("/api/export/monthly-sheet", {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        capsuleId,
+        artifactId: delivery.artifactId,
+      }),
+      cache: "no-store",
+      keepalive: true,
+    }).catch(() => undefined);
+  } else {
     throw new Error("Monthly sheet server export returned an invalid image.");
   }
-  const blob = await response.blob();
   if (!blob.size) {
     throw new Error("Monthly sheet server export returned an empty image.");
   }
@@ -124,14 +187,8 @@ export function MonthlyStampExportComposer({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const previewUrlRef = useRef<string | undefined>(undefined);
-  const inFlightExportRef = useRef<
-    | {
-        key: string;
-        controller: AbortController;
-        promise: Promise<Blob>;
-      }
-    | undefined
-  >(undefined);
+  const generationGateRef = useRef(createMonthlyExportGenerationGate());
+  const shareGenerationRef = useRef(0);
   const resolvedTheme = useMemo(() => resolveJournalTheme(theme), [theme]);
   const model = useMemo(
     () => monthlyMemoryEditionModel({ journalTitle, monthKey, stamps }),
@@ -149,57 +206,55 @@ export function MonthlyStampExportComposer({
     previewUrlRef.current = undefined;
   }, []);
 
-  const renderExportBlob = useCallback(() => {
-    const key = `${capsuleId ?? "demo"}:${monthKey}:${stamps
-      .map((stamp) => stamp.id)
-      .join(",")}`;
-    const existing = inFlightExportRef.current;
-    if (existing?.key === key) return existing.promise;
-    existing?.controller.abort();
-    const controller = new AbortController();
-    const promise = capsuleId
-      ? renderPersistedMonthlyMemoryEdition({
-          capsuleId,
-          monthKey,
-          signal: controller.signal,
-        })
-      : renderMonthlyMemorySheetExport({
-          journalTitle,
-          monthKey,
-          stamps,
-          thumbnailUrls,
-          theme: resolvedTheme,
-        });
-    inFlightExportRef.current = { key, controller, promise };
-    const clear = () => {
-      if (inFlightExportRef.current?.promise === promise) {
-        inFlightExportRef.current = undefined;
-      }
-    };
-    void promise.then(clear, clear);
-    return promise;
-  }, [
-    capsuleId,
-    journalTitle,
-    monthKey,
-    resolvedTheme,
-    stamps,
-    thumbnailUrls,
-  ]);
+  const renderExportBlob = useCallback(
+    (signal: AbortSignal) =>
+      capsuleId
+        ? renderPersistedMonthlyMemoryEdition({
+            capsuleId,
+            monthKey,
+            stamps,
+            signal,
+          })
+        : renderMonthlyMemorySheetExport({
+            journalTitle,
+            monthKey,
+            stamps,
+            thumbnailUrls,
+            theme: resolvedTheme,
+            signal,
+          }),
+    [
+      capsuleId,
+      journalTitle,
+      monthKey,
+      resolvedTheme,
+      stamps,
+      thumbnailUrls,
+    ],
+  );
 
   const createPreview = useCallback(async () => {
+    shareGenerationRef.current += 1;
+    const generation = generationGateRef.current.begin();
     revokePreview();
     setComposerState({
       status: "generating",
       message: `Preparing your ${model.monthName} Memory Edition...`,
     });
     try {
-      const blob = await renderExportBlob();
+      const blob = await renderExportBlob(generation.signal);
+      if (!generationGateRef.current.isCurrent(generation)) return undefined;
       const previewUrl = URL.createObjectURL(blob);
       previewUrlRef.current = previewUrl;
-      setComposerState({ status: "ready", blob, previewUrl });
+      setComposerState({
+        status: "ready",
+        blob,
+        previewUrl,
+        message: `Your ${model.monthName} Memory Edition is ready.`,
+      });
       return blob;
     } catch (error) {
+      if (!generationGateRef.current.isCurrent(generation)) return undefined;
       if (
         error &&
         typeof error === "object" &&
@@ -212,19 +267,34 @@ export function MonthlyStampExportComposer({
       revokePreview();
       setComposerState({ status: "error", message: exportErrorMessage });
       return undefined;
+    } finally {
+      generationGateRef.current.finish(generation);
     }
   }, [model.monthName, renderExportBlob, revokePreview]);
 
+  const closeComposer = useCallback(() => {
+    shareGenerationRef.current += 1;
+    generationGateRef.current.cancel();
+    revokePreview();
+    setComposerState({ status: "idle" });
+    onClose();
+  }, [onClose, revokePreview]);
+
   useEffect(
-    () => () => {
-      inFlightExportRef.current?.controller.abort();
-      revokePreview();
+    () => {
+      const generationGate = generationGateRef.current;
+      return () => {
+        shareGenerationRef.current += 1;
+        generationGate.cancel();
+        revokePreview();
+      };
     },
     [revokePreview],
   );
 
   useEffect(() => {
     if (!open) return;
+    const generationGate = generationGateRef.current;
     const previousActiveElement = document.activeElement as HTMLElement | null;
     const { body, documentElement } = document;
     const previousBodyOverflow = body.style.overflow;
@@ -240,7 +310,7 @@ export function MonthlyStampExportComposer({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        closeComposer();
         return;
       }
       if (event.key !== "Tab") return;
@@ -270,19 +340,13 @@ export function MonthlyStampExportComposer({
       body.style.overscrollBehavior = previousBodyOverscroll;
       documentElement.style.overflow = previousDocumentOverflow;
       documentElement.style.overscrollBehavior = previousDocumentOverscroll;
-      inFlightExportRef.current?.controller.abort();
+      generationGate.cancel();
+      revokePreview();
       previousActiveElement?.focus();
     };
-  }, [createPreview, onClose, open]);
+  }, [closeComposer, createPreview, open, revokePreview]);
 
   if (!open) return null;
-
-  const closeComposer = () => {
-    inFlightExportRef.current?.controller.abort();
-    revokePreview();
-    setComposerState({ status: "idle" });
-    onClose();
-  };
 
   const ensureExportBlob = async () => {
     if (composerState.status === "ready") return composerState.blob;
@@ -298,12 +362,14 @@ export function MonthlyStampExportComposer({
   const shareImage = async () => {
     const blob = await ensureExportBlob();
     if (!blob) return;
+    const shareGeneration = ++shareGenerationRef.current;
     try {
       const result = await shareMonthlyMemoryEditionBlob(
         blob,
         filename,
         model.editionTitle,
       );
+      if (shareGeneration !== shareGenerationRef.current) return;
       if (!result.shared) {
         saveMonthlyMemoryEditionBlob(blob, filename);
         setComposerState((current) =>
@@ -323,6 +389,7 @@ export function MonthlyStampExportComposer({
           : current,
       );
     } catch (error) {
+      if (shareGeneration !== shareGenerationRef.current) return;
       const name =
         error && typeof error === "object" && "name" in error
           ? String(error.name)
@@ -345,8 +412,7 @@ export function MonthlyStampExportComposer({
     composerState.status === "error"
       ? exportErrorMessage
       : `Preparing your ${model.monthName} Memory Edition...`;
-  const statusMessage =
-    composerState.status === "ready" ? composerState.message ?? "" : "";
+  const statusMessage = composerState.message ?? "";
 
   return (
     <div
@@ -414,11 +480,15 @@ export function MonthlyStampExportComposer({
           <button
             type="button"
             className={styles.primary}
-            onClick={() => void saveImage()}
+            onClick={() =>
+              void (composerState.status === "error"
+                ? createPreview()
+                : saveImage())
+            }
             disabled={isBusy}
           >
             <DownloadIcon />
-            Save
+            {composerState.status === "error" ? "Retry" : "Save"}
           </button>
           <button
             type="button"
@@ -431,7 +501,11 @@ export function MonthlyStampExportComposer({
           </button>
         </div>
 
-        <p className={styles.status} role="status" aria-live="polite">
+        <p
+          className={styles.status}
+          role={composerState.status === "error" ? "alert" : "status"}
+          aria-live={composerState.status === "error" ? "assertive" : "polite"}
+        >
           {statusMessage}
         </p>
       </section>

@@ -29,13 +29,13 @@ type MonthlyStampSheetProps = {
 function emptyStateCopy(status: MonthlyStampArchive["selectedMonthStatus"]) {
   if (status === "past") {
     return {
-      title: "No sealed days here.",
+      title: "No stamps yet.",
       body: "Choose a date to keep one.",
     };
   }
   if (status === "future") {
     return {
-      title: "This sheet is waiting.",
+      title: "No stamps yet.",
       body: "Come back when the month arrives.",
     };
   }

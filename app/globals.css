@@ -487,6 +487,16 @@ a:focus-visible {
   transform: scale(0.96);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .month-sheet-export-button {
+    transition: none;
+  }
+
+  .month-sheet-export-button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 .month-sheet-empty-state {
   color: var(--journal-home-title);
 }
