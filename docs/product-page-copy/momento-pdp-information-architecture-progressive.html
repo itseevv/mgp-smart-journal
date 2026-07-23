@@ -1,0 +1,1680 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A progressive-disclosure reading view for the Momento PDP information architecture.">
+  <title>Momento PDP Information Architecture | Progressive View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4efe8;
+      --paper-deep: #e9dfd2;
+      --surface: #fffdf9;
+      --ink: #241c18;
+      --muted: #746861;
+      --line: rgba(36, 28, 24, 0.16);
+      --line-strong: rgba(36, 28, 24, 0.35);
+      --accent: #8b5635;
+      --accent-dark: #603721;
+      --accent-soft: #ead5c4;
+      --sage: #dfe5da;
+      --sage-ink: #46533f;
+      --gold: #b38a45;
+      --danger-soft: #f0ded8;
+      --serif: "Cormorant Garamond", Iowan Old Style, Baskerville, "Times New Roman", serif;
+      --sans: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --content: 1120px;
+      --rail: 248px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 92px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.65;
+      text-rendering: optimizeLegibility;
+    }
+
+    button,
+    input,
+    summary { font: inherit; }
+
+    button { color: inherit; }
+    a { color: inherit; }
+
+    :focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 55%, white);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 10px;
+      left: 10px;
+      padding: 9px 13px;
+      background: var(--ink);
+      color: white;
+      transform: translateY(-160%);
+      transition: transform 150ms ease;
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .progress-track {
+      position: fixed;
+      z-index: 80;
+      inset: 0 0 auto;
+      height: 3px;
+      background: rgba(36, 28, 24, 0.08);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: var(--accent);
+      transition: width 80ms linear;
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 50;
+      top: 0;
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) auto auto;
+      align-items: center;
+      gap: 20px;
+      min-height: 72px;
+      padding: 12px 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(244, 239, 232, 0.95);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand strong {
+      display: block;
+      overflow: hidden;
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      line-height: 1.05;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .search-wrap {
+      position: relative;
+      width: min(34vw, 330px);
+    }
+
+    .search-wrap label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .search {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 14px 9px 38px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .search-wrap::before {
+      position: absolute;
+      z-index: 1;
+      top: 10px;
+      left: 14px;
+      color: var(--muted);
+      content: "⌕";
+      font-family: var(--serif);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control {
+      min-height: 42px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .control:hover { background: var(--surface); }
+
+    .control.primary {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: white;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--rail) minmax(0, 1fr);
+      align-items: start;
+      gap: 46px;
+      width: min(calc(100% - 48px), calc(var(--content) + var(--rail) + 46px));
+      margin: 0 auto;
+      padding: 42px 0 100px;
+    }
+
+    .rail {
+      position: sticky;
+      top: 104px;
+      max-height: calc(100vh - 126px);
+      overflow: auto;
+      padding: 0 18px 24px 0;
+      border-right: 1px solid var(--line);
+    }
+
+    .rail-label {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .rail nav + .rail-label { margin-top: 28px; }
+
+    .rail a {
+      display: block;
+      padding: 6px 8px;
+      border-left: 2px solid transparent;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-decoration: none;
+    }
+
+    .rail a:hover,
+    .rail a[aria-current="true"] {
+      border-color: var(--accent);
+      color: var(--ink);
+      background: rgba(255, 253, 249, 0.62);
+    }
+
+    .rail-status {
+      margin-top: 24px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .rail-status strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--ink);
+      font-size: 18px;
+    }
+
+    main { min-width: 0; }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(250px, 0.65fr);
+      gap: 34px;
+      padding: 16px 0 52px;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: var(--serif);
+      text-wrap: balance;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(46px, 6vw, 76px);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 0.95;
+    }
+
+    .lede {
+      max-width: 700px;
+      margin: 24px 0 0;
+      color: #544943;
+      font-size: 17px;
+    }
+
+    .hero-note {
+      align-self: end;
+      padding: 22px;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+    }
+
+    .hero-note strong {
+      display: block;
+      margin-bottom: 8px;
+      font-family: var(--serif);
+      font-size: 27px;
+      font-weight: 600;
+      line-height: 1.05;
+    }
+
+    .hero-note p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .section {
+      padding: 48px 0 12px;
+      scroll-margin-top: 94px;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+      align-items: end;
+      gap: 30px;
+      margin-bottom: 22px;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      font-size: clamp(34px, 4vw, 48px);
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+
+    .section-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .principle {
+      min-height: 150px;
+      padding: 22px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 249, 0.48);
+    }
+
+    .principle span {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .principle strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: 25px;
+      line-height: 1.05;
+    }
+
+    .principle p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hierarchy {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      margin-top: 22px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .hierarchy span {
+      padding: 6px 9px;
+      border-bottom: 1px solid var(--accent-soft);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .hierarchy i {
+      color: var(--muted);
+      font-family: var(--serif);
+      font-size: 18px;
+      font-style: normal;
+    }
+
+    .layer-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .layer-card {
+      min-height: 226px;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .layer-code {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      margin-bottom: 22px;
+      border: 1px solid var(--ink);
+      border-radius: 50%;
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .layer-card h3 {
+      margin: 0;
+      font-size: 23px;
+      line-height: 1.05;
+    }
+
+    .layer-card p {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .layer-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 24px 0 18px;
+    }
+
+    .filter {
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .filter[aria-pressed="true"] {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: white;
+    }
+
+    .layer-group {
+      margin: 30px 0 0;
+      scroll-margin-top: 94px;
+    }
+
+    .layer-group[hidden],
+    .module[hidden] { display: none; }
+
+    .layer-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin: 0 0 12px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .layer-title span {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .layer-title strong {
+      font-family: var(--serif);
+      font-size: 25px;
+      font-weight: 600;
+    }
+
+    .module {
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 249, 0.3);
+    }
+
+    .module:first-of-type { border-top: 1px solid var(--line); }
+
+    .module summary {
+      position: relative;
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      min-height: 86px;
+      padding: 14px 18px 14px 8px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .module summary::-webkit-details-marker { display: none; }
+
+    .module summary:hover { background: rgba(255, 253, 249, 0.72); }
+
+    .module-number {
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 31px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .module-title {
+      min-width: 0;
+    }
+
+    .module-title strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: clamp(22px, 2.5vw, 29px);
+      font-weight: 600;
+      line-height: 1.05;
+    }
+
+    .module-title span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .disclosure-icon {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+      text-align: center;
+      line-height: 27px;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .module[open] .disclosure-icon {
+      transform: rotate(45deg);
+      background: var(--accent-soft);
+    }
+
+    .module-body {
+      display: grid;
+      grid-template-columns: minmax(190px, 0.42fr) minmax(0, 1fr);
+      gap: 28px;
+      padding: 0 28px 30px 76px;
+    }
+
+    .purpose {
+      padding: 16px 0;
+      border-top: 1px solid var(--accent);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .purpose strong {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--ink);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .module-content {
+      padding: 15px 20px;
+      border-left: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .module-content h4 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .module-content h4:not(:first-child) { margin-top: 22px; }
+
+    .module-content ul,
+    .module-content ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .module-content li + li { margin-top: 6px; }
+
+    .module-content p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .guardrail {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-left: 3px solid var(--accent);
+      background: var(--danger-soft);
+      font-size: 12px;
+    }
+
+    .supporting details {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .supporting summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 20px;
+      min-height: 66px;
+      padding: 14px 18px;
+      cursor: pointer;
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 600;
+      list-style: none;
+    }
+
+    .supporting summary::-webkit-details-marker { display: none; }
+
+    .supporting summary::after {
+      color: var(--accent);
+      content: "+";
+      font-family: var(--sans);
+      font-size: 20px;
+      font-weight: 400;
+    }
+
+    .supporting details[open] summary::after { content: "−"; }
+
+    .supporting-body {
+      padding: 6px 18px 22px;
+      border-top: 1px solid var(--line);
+    }
+
+    .supporting-body ul,
+    .supporting-body ol {
+      margin: 16px 0 0;
+      padding-left: 21px;
+    }
+
+    .supporting-body li + li { margin-top: 7px; }
+
+    .ownership-table-wrap {
+      overflow-x: auto;
+      margin-top: 18px;
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+
+    th,
+    td {
+      padding: 13px 15px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th:last-child,
+    td:last-child { border-right: 0; }
+
+    tr:last-child td { border-bottom: 0; }
+
+    th {
+      background: var(--paper-deep);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    td { font-size: 12px; }
+
+    td:nth-child(2) {
+      color: var(--accent-dark);
+      font-weight: 600;
+    }
+
+    .decision-columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .decision-card {
+      padding: 18px;
+      background: var(--surface);
+    }
+
+    .decision-card strong {
+      display: block;
+      margin-bottom: 9px;
+      font-family: var(--serif);
+      font-size: 20px;
+      line-height: 1.05;
+    }
+
+    .decision-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .next-stage {
+      margin-top: 14px;
+      padding: 28px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #fbf5ed;
+    }
+
+    .next-stage h3 {
+      margin: 0;
+      font-size: 31px;
+    }
+
+    .next-stage ol {
+      margin: 18px 0 0;
+      padding-left: 22px;
+    }
+
+    .next-stage li + li { margin-top: 8px; }
+
+    .empty-state {
+      display: none;
+      padding: 28px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state[aria-hidden="false"] { display: block; }
+
+    footer {
+      padding: 28px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    [contenteditable="true"] {
+      background: #fff6d8;
+      box-shadow: inset 0 -1px 0 var(--gold);
+    }
+
+    @media (max-width: 1080px) {
+      :root { --rail: 210px; }
+      .layout { gap: 30px; }
+      .layer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .module-body { grid-template-columns: 1fr; }
+      .purpose { padding-bottom: 0; }
+    }
+
+    @media (max-width: 820px) {
+      html { scroll-padding-top: 124px; }
+      .topbar {
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 10px 16px;
+      }
+      .search-wrap {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+      }
+      .toolbar-actions .control:not(.primary) { display: none; }
+      .layout {
+        display: block;
+        width: min(calc(100% - 32px), 760px);
+        padding-top: 24px;
+      }
+      .rail {
+        position: static;
+        max-height: none;
+        margin-bottom: 26px;
+        padding: 0 0 18px;
+        overflow: visible;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .rail nav {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+      }
+      .rail nav + .rail-label,
+      .rail .modules-nav,
+      .rail-status { display: none; }
+      .rail a {
+        flex: 0 0 auto;
+        min-height: 40px;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      .hero { grid-template-columns: 1fr; }
+      .hero-note { max-width: 460px; }
+      .section-heading { grid-template-columns: 1fr; }
+      .decision-columns { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      body { font-size: 14px; }
+      [data-pretext] { min-height: 0 !important; }
+      .brand span { display: none; }
+      .brand strong { font-size: 17px; }
+      .topbar { min-height: 64px; }
+      .control.primary { min-width: 42px; padding-inline: 10px; }
+      .control.primary .long-label { display: none; }
+      .layout { width: min(calc(100% - 24px), 520px); }
+      .hero { padding-top: 6px; }
+      h1 { font-size: 46px; }
+      .principles,
+      .layer-grid { grid-template-columns: 1fr; }
+      .principle { min-height: auto; }
+      .module summary {
+        grid-template-columns: 40px minmax(0, 1fr) 30px;
+        gap: 9px;
+        min-height: 76px;
+        padding-right: 8px;
+      }
+      .module-number { font-size: 25px; }
+      .module-title strong { font-size: 22px; }
+      .module-body { padding: 0 10px 24px 49px; }
+      .module-content { padding: 14px; }
+      .next-stage { padding: 21px; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --paper: #1f1a17;
+        --paper-deep: #302620;
+        --surface: #29221e;
+        --ink: #f2e9df;
+        --muted: #b9aaa0;
+        --line: rgba(242, 233, 223, 0.14);
+        --line-strong: rgba(242, 233, 223, 0.32);
+        --accent: #d69a72;
+        --accent-dark: #f0bc98;
+        --accent-soft: #513726;
+        --danger-soft: #4b302b;
+      }
+      .topbar { background: rgba(31, 26, 23, 0.95); }
+      .hero-note,
+      .module-content,
+      .layer-card,
+      .decision-card,
+      table { background: var(--surface); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media print {
+      .progress-track,
+      .topbar,
+      .rail,
+      .layer-filters,
+      footer { display: none !important; }
+      body { background: white; color: black; }
+      .layout { display: block; width: 100%; padding: 0; }
+      .hero,
+      .section { break-inside: avoid; }
+      .module { break-inside: avoid; }
+      .module-body { display: grid !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to architecture</a>
+  <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <strong>Momento PDP Architecture</strong>
+      <span>Progressive reading view · v1</span>
+    </div>
+    <div class="search-wrap">
+      <label for="module-search">Search the architecture</label>
+      <input class="search" id="module-search" type="search" placeholder="Search modules, privacy, recovery…" autocomplete="off">
+    </div>
+    <div class="toolbar-actions" aria-label="Reading controls">
+      <button class="control" id="collapse-all" type="button">Collapse</button>
+      <button class="control" id="expand-all" type="button">Expand</button>
+      <button class="control primary" id="print-page" type="button"><span class="long-label">Print / </span>PDF</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="rail" aria-label="Page navigation">
+      <p class="rail-label">Read in layers</p>
+      <nav>
+        <a href="#overview">Overview</a>
+        <a href="#layers">P0–P3 layers</a>
+        <a href="#modules">14 modules</a>
+        <a href="#implementation">Implementation</a>
+      </nav>
+      <p class="rail-label">Module index</p>
+      <nav class="modules-nav">
+        <a href="#module-1">01 · Product hero</a>
+        <a href="#module-2">02 · What is included</a>
+        <a href="#module-3">03 · Quick answers</a>
+        <a href="#module-4">04 · Physical Journal</a>
+        <a href="#module-5">05 · Two layers</a>
+        <a href="#module-6">06 · Seal a Day</a>
+        <a href="#module-7">07 · Inside a Stamp</a>
+        <a href="#module-8">08 · 365 days</a>
+        <a href="#module-9">09 · Private access</a>
+        <a href="#module-10">10 · Save or Share</a>
+        <a href="#module-11">11 · Access & recovery</a>
+        <a href="#module-12">12 · Use cases</a>
+        <a href="#module-13">13 · Classic vs Momento</a>
+        <a href="#module-14">14 · Proof & FAQ</a>
+      </nav>
+      <div class="rail-status" aria-live="polite">
+        <strong><span id="open-count">1</span>/14</strong>
+        modules expanded
+      </div>
+    </aside>
+
+    <main id="main">
+      <section class="hero" id="overview">
+        <div>
+          <p class="eyebrow">Information architecture · framework for review</p>
+          <h1 data-pretext>Read the Momento PDP from decision to detail.</h1>
+          <p class="lede">This view keeps the architecture scannable. Start with the page role and four information layers. Open individual modules only when you need their exact responsibilities, guardrails, or future data owner.</p>
+        </div>
+        <aside class="hero-note">
+          <strong>Journal first.</strong>
+          <p>Momento is a handmade Journal with a private digital memory layer. The page explains the experience before it explains NFC.</p>
+        </aside>
+      </section>
+
+      <section class="section" aria-labelledby="role-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Level 1 · Why the page exists</p>
+            <h2 id="role-heading" data-pretext>Four jobs, one product page.</h2>
+          </div>
+          <p>Every one of the ten Momento listings uses the same shared Momento template.</p>
+        </div>
+        <div class="principles">
+          <article class="principle">
+            <span>01 · Sell the object</span>
+            <strong>Lead with the handmade Journal.</strong>
+            <p>Make the selected design, physical package, price, size, and personalization easy to understand.</p>
+          </article>
+          <article class="principle">
+            <span>02 · Explain the layer</span>
+            <strong>Make digital memory feel natural.</strong>
+            <p>Teach the relationship between the paper page, Daily Memory Stamp, and Month Sheet without making Momento feel like a device.</p>
+          </article>
+          <article class="principle">
+            <span>03 · Build trust</span>
+            <strong>Resolve the questions that block purchase.</strong>
+            <p>Answer privacy, access, storage, subscription, compatibility, sharing, recovery, and support clearly.</p>
+          </article>
+          <article class="principle">
+            <span>04 · Help people choose</span>
+            <strong>Separate Classic and Momento.</strong>
+            <p>Show the shared craftsmanship and the added Momento experience without making Classic feel incomplete.</p>
+          </article>
+        </div>
+        <div class="hierarchy" aria-label="Customer-facing terminology hierarchy">
+          <span>Momento Journal</span><i>›</i>
+          <span>Daily Memory Stamp</span><i>›</i>
+          <span>Month Sheet</span><i>›</i>
+          <span>Owner PIN</span><i>›</i>
+          <span>Touch or scan</span><i>›</i>
+          <span>NFC, only when needed</span>
+        </div>
+      </section>
+
+      <section class="section" id="layers" aria-labelledby="layers-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Level 2 · Information priority</p>
+            <h2 id="layers-heading" data-pretext>Expose only what the decision needs.</h2>
+          </div>
+          <p>The page moves from purchase facts to understanding, then trust, then lower-frequency detail.</p>
+        </div>
+        <div class="layer-grid">
+          <article class="layer-card">
+            <span class="layer-code">P0</span>
+            <h3>Purchase decision</h3>
+            <p>Offer, selected design, price, size, package, personalization, add to cart, no app, no subscription, 365 Stamps.</p>
+          </article>
+          <article class="layer-card">
+            <span class="layer-code">P1</span>
+            <h3>Product understanding</h3>
+            <p>Paper plus digital memory, Seal a Day, Stamp anatomy, Month Sheet, backdating, and 365 capacity.</p>
+          </article>
+          <article class="layer-card">
+            <span class="layer-code">P2</span>
+            <h3>Trust and control</h3>
+            <p>PIN access, privacy boundaries, sharing, compatibility, Recovery Card, changing phones, and support.</p>
+          </article>
+          <article class="layer-card">
+            <span class="layer-code">P3</span>
+            <h3>Detailed reassurance</h3>
+            <p>Editing, deletion, the 365 limit, export boundaries, failures, Classic upgrade, returns, and policy links.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="modules" aria-labelledby="modules-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Level 3 · Recommended page sequence</p>
+            <h2 id="modules-heading" data-pretext>Fourteen modules, opened as needed.</h2>
+          </div>
+          <p>Filter by decision layer or search across module titles and requirements.</p>
+        </div>
+
+        <div class="layer-filters" aria-label="Filter modules by information layer">
+          <button class="filter" type="button" data-filter="all" aria-pressed="true">All modules</button>
+          <button class="filter" type="button" data-filter="p0" aria-pressed="false">P0 · Purchase</button>
+          <button class="filter" type="button" data-filter="p1" aria-pressed="false">P1 · Understand</button>
+          <button class="filter" type="button" data-filter="p2" aria-pressed="false">P2 · Trust</button>
+          <button class="filter" type="button" data-filter="p3" aria-pressed="false">P3 · Detail</button>
+        </div>
+
+        <div class="empty-state" id="empty-state" aria-hidden="true">No modules match this search and layer.</div>
+
+        <section class="layer-group" id="group-p0" data-layer="p0" aria-labelledby="p0-title">
+          <h3 class="layer-title" id="p0-title"><span>P0</span><strong>Purchase decision</strong></h3>
+
+          <details class="module" id="module-1" data-layer="p0" open>
+            <summary>
+              <span class="module-number">01</span>
+              <span class="module-title"><strong>Product hero and purchase panel</strong><span>Selected Journal, Momento difference, purchase action</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Establish the selected Journal, the Momento difference, and the purchase action without leading with technology.</div>
+              <div class="module-content">
+                <h4>Customer questions</h4>
+                <ul>
+                  <li>Which Journal am I buying?</li>
+                  <li>What makes this Momento rather than Classic?</li>
+                  <li>What size, price, and personalization options are available?</li>
+                  <li>Is there an app or ongoing subscription?</li>
+                </ul>
+                <h4>Required information</h4>
+                <ul>
+                  <li>Product title and selected design.</li>
+                  <li>Product media showing the physical Journal first.</li>
+                  <li>Short Momento value explanation.</li>
+                  <li>Price, size or variant, availability, quantity, personalization, and add to cart.</li>
+                  <li>Compact facts: no app, no subscription for included capacity, 365 dated Stamps.</li>
+                  <li>Shipping and returns links instead of long policy text.</li>
+                </ul>
+                <div class="guardrail"><strong>Guardrail:</strong> Do not use NFC in the H1 or primary value proposition. Do not use lifetime storage or unsupported privacy absolutes.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-2" data-layer="p0">
+            <summary>
+              <span class="module-number">02</span>
+              <span class="module-title"><strong>What is included</strong><span>Physical package first, digital package second</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Make the complete package and the Momento premium tangible.</div>
+              <div class="module-content">
+                <h4>Physical contents</h4>
+                <ul>
+                  <li>Journal cover and design-specific fabric folio.</li>
+                  <li>Three paper inserts and elastic bands.</li>
+                  <li>Design-specific hardware and charms.</li>
+                  <li>Recovery Card.</li>
+                  <li>Journal pouch, leather care guide, gift packaging, and complimentary embossing.</li>
+                </ul>
+                <h4>Digital contents</h4>
+                <ul>
+                  <li>Included digital Journal and 365 Stamp capacity.</li>
+                  <li>Photo, additional text, and Voice Note capability.</li>
+                  <li>Single-Stamp PNG sharing.</li>
+                </ul>
+                <div class="guardrail"><strong>Sequence:</strong> Physical contents appear before digital contents to preserve the journal-first hierarchy.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-3" data-layer="p0">
+            <summary>
+              <span class="module-number">03</span>
+              <span class="module-title"><strong>Quick purchase answers</strong><span>Five high-risk questions directly below the buy block</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Borrow Memoried’s strongest conversion pattern by resolving purchase objections before the long-form story.</div>
+              <div class="module-content">
+                <h4>Five compact answers</h4>
+                <ol>
+                  <li>How does Momento work?</li>
+                  <li>Can someone see my Journal just by touching it?</li>
+                  <li>Can I add a day from the past?</li>
+                  <li>Do I need an app or subscription?</li>
+                  <li>What if touch access does not work?</li>
+                </ol>
+                <p style="margin-top:16px">Keep answers brief here. Each answer can link or scroll to the full explanation below.</p>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-4" data-layer="p0">
+            <summary>
+              <span class="module-number">04</span>
+              <span class="module-title"><strong>The physical Journal and selected design</strong><span>Craftsmanship and design before digital instruction</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Establish craftsmanship and design value before moving into the digital experience.</div>
+              <div class="module-content">
+                <h4>Required information</h4>
+                <ul>
+                  <li>Design-specific leather colour, fabric pattern, hardware, and charms.</li>
+                  <li>Handmade construction and natural material variation.</li>
+                  <li>Folio pockets and zippered pouch.</li>
+                  <li>Paper insert mix and replaceability.</li>
+                  <li>Selected size and closed dimensions.</li>
+                  <li>A6 pen loop and A5 no pen loop.</li>
+                  <li>Design-specific editorial note.</li>
+                </ul>
+                <div class="guardrail"><strong>Ownership:</strong> This section varies by product listing even though the Momento experience is shared.</div>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="layer-group" id="group-p1" data-layer="p1" aria-labelledby="p1-title">
+          <h3 class="layer-title" id="p1-title"><span>P1</span><strong>Product understanding</strong></h3>
+
+          <details class="module" id="module-5" data-layer="p1">
+            <summary>
+              <span class="module-number">05</span>
+              <span class="module-title"><strong>One moment, two layers</strong><span>Paper page and Daily Memory Stamp as one dated memory</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Explain the product model emotionally and visually before teaching interface details.</div>
+              <div class="module-content">
+                <h4>Information structure</h4>
+                <ul>
+                  <li>The paper Journal holds handwriting and tactile keepsakes.</li>
+                  <li>The Daily Memory Stamp holds photographs, additional words, and a Voice Note.</li>
+                  <li>The two layers belong to the same dated memory.</li>
+                  <li>The technology stays quiet until the customer chooses to open it.</li>
+                </ul>
+                <div class="guardrail"><strong>Visual requirement:</strong> Use a paired visual of a physical page and its corresponding Stamp.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-6" data-layer="p1">
+            <summary>
+              <span class="module-number">06</span>
+              <span class="module-title"><strong>How to Seal a Day</strong><span>The complete everyday flow in customer actions</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Show how Momento fits into an ordinary day without turning the explanation into a technical setup guide.</div>
+              <div class="module-content">
+                <h4>Steps</h4>
+                <ol>
+                  <li>Write and collect in the physical Journal.</li>
+                  <li>Touch the Journal or scan the Recovery Card.</li>
+                  <li>Unlock with the Owner PIN when required.</li>
+                  <li>Choose today or an earlier date.</li>
+                  <li>Add the required line and Cover Scrap, then optional photos, text, and Voice Note.</li>
+                  <li>Seal the day and return to it from Month Sheet.</li>
+                </ol>
+                <div class="guardrail"><strong>Guardrail:</strong> First activation and PIN creation are a short note, not the dominant step in the emotional sequence.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-7" data-layer="p1">
+            <summary>
+              <span class="module-number">07</span>
+              <span class="module-title"><strong>Inside a Daily Memory Stamp</strong><span>Exact contents, editing, and deletion</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Make the digital product concrete and remove uncertainty about what can be saved.</div>
+              <div class="module-content">
+                <h4>Required information</h4>
+                <ul>
+                  <li>One date.</li>
+                  <li>One required “One line to keep,” up to 200 characters.</li>
+                  <li>One required Cover Scrap.</li>
+                  <li>Up to eight additional photos.</li>
+                  <li>Optional additional text.</li>
+                  <li>One optional Voice Note, recorded in the browser, up to five minutes.</li>
+                  <li>Text and Voice Note can be used together.</li>
+                  <li>Saved Stamps can be edited. Deleted Stamps cannot currently be recovered.</li>
+                </ul>
+                <div class="guardrail"><strong>Keep secondary:</strong> Unsupported video, locations, music, links, and uploaded audio belong in FAQ only when customers are likely to expect them.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-8" data-layer="p1">
+            <summary>
+              <span class="module-number">08</span>
+              <span class="module-title"><strong>365 days, used your way</strong><span>Capacity without streak pressure</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Explain capacity without turning Momento into a streak or productivity product.</div>
+              <div class="module-content">
+                <h4>Required information</h4>
+                <ul>
+                  <li>Up to 365 dated Daily Memory Stamps.</li>
+                  <li>Dates do not need to be consecutive.</li>
+                  <li>Customers can record today or a past date, but not a future date.</li>
+                  <li>One Stamp per local calendar date.</li>
+                  <li>Month Sheet displays only saved days and does not show missed-day pressure.</li>
+                  <li>Up to nine photos per Stamp and up to 3,285 photos across a full Journal.</li>
+                  <li>At 365, existing Stamps remain viewable and editable. Deleting one releases a place. No current expansion is available.</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="layer-group" id="group-p2" data-layer="p2" aria-labelledby="p2-title">
+          <h3 class="layer-title" id="p2-title"><span>P2</span><strong>Trust and control</strong></h3>
+
+          <details class="module" id="module-9" data-layer="p2">
+            <summary>
+              <span class="module-number">09</span>
+              <span class="module-title"><strong>Private access and ownership boundaries</strong><span>Who can open, view, and control the Journal</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Answer who can open and control the Journal without overclaiming privacy.</div>
+              <div class="module-content">
+                <h4>Required information</h4>
+                <ul>
+                  <li>Content sits behind the six-digit Owner PIN.</li>
+                  <li>Touching or scanning alone does not reveal Journal content.</li>
+                  <li>An unlocked device has full access, not read-only access.</li>
+                  <li>Anyone given the Owner PIN receives view, create, edit, delete, and export permissions.</li>
+                  <li>There is no visitor mode or public/read-only Journal link.</li>
+                  <li>Photos, text, and Voice Notes are stored in private cloud storage, not on the NFC chip.</li>
+                  <li>Customer content is not sold, used for advertising, or used to train AI models.</li>
+                  <li>Necessary service providers or authorised support may process content under the privacy policy.</li>
+                </ul>
+                <div class="guardrail"><strong>Do not use:</strong> “100% private,” “100% secure,” “only you can ever access it,” or equivalent claims.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-10" data-layer="p2">
+            <summary>
+              <span class="module-number">10</span>
+              <span class="module-title"><strong>Save or Share</strong><span>Share one memory without sharing Journal access</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Separate sharing a single memory from sharing access to the Journal.</div>
+              <div class="module-content">
+                <h4>Required information</h4>
+                <ul>
+                  <li>A single Stamp can be saved or shared as a 1080 × 1920 PNG.</li>
+                  <li>The PNG can contain the Journal name, date, required line, additional text, and all photos.</li>
+                  <li>Voice Note is not included and no audio link is generated.</li>
+                  <li>Sharing the image does not share the Journal, Owner PIN, QR, or Recovery Passcode.</li>
+                  <li>Full-Journal export and public/read-only links are not currently included.</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-11" data-layer="p2">
+            <summary>
+              <span class="module-number">11</span>
+              <span class="module-title"><strong>Access, compatibility, and recovery</strong><span>Practical use, changing phones, and fallback paths</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Resolve the practical questions that make customers hesitate about the digital layer.</div>
+              <div class="module-content">
+                <h4>Required information</h4>
+                <ul>
+                  <li>Momento runs in a current mobile browser and requires no app.</li>
+                  <li>Safari is recommended on iPhone and Chrome on Android.</li>
+                  <li>An internet connection is required.</li>
+                  <li>Voice Note recording requires microphone permission.</li>
+                  <li>Touch access requires a supported or enabled NFC phone, but QR provides the same Journal functionality.</li>
+                  <li>The Journal entry requires no battery, charging, or Bluetooth pairing.</li>
+                  <li>A new phone can access the Journal using the entry point and Owner PIN.</li>
+                  <li>Inactive devices relock after approximately one hour, and users can lock manually.</li>
+                  <li>Recovery Passcode resets a forgotten PIN and invalidates prior device access.</li>
+                  <li>Lost-card and failed-entry cases direct customers to the approved support contact.</li>
+                </ul>
+                <div class="guardrail"><strong>Guardrail:</strong> Do not claim compatibility with every phone or browser.</div>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="layer-group" id="group-p3" data-layer="p3" aria-labelledby="p3-title">
+          <h3 class="layer-title" id="p3-title"><span>P3</span><strong>Detailed reassurance</strong></h3>
+
+          <details class="module" id="module-12" data-layer="p3">
+            <summary>
+              <span class="module-number">12</span>
+              <span class="module-title"><strong>Use cases and gifting</strong><span>Recognise where Momento fits in real life</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Help the customer recognise when Momento fits their life without turning the PDP into an occasion catalogue.</div>
+              <div class="module-content">
+                <h4>Recommended scenario groups</h4>
+                <ul>
+                  <li>Everyday life and a year of growth.</li>
+                  <li>Travel and major life chapters.</li>
+                  <li>Weddings, anniversaries, new babies, graduations, moves, and new jobs.</li>
+                  <li>Gifting to oneself or another person.</li>
+                </ul>
+                <div class="guardrail"><strong>Guardrail:</strong> Use no more than three or four groups on the PDP. Additional occasions belong in campaign or collection content.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-13" data-layer="p3">
+            <summary>
+              <span class="module-number">13</span>
+              <span class="module-title"><strong>Classic versus Momento</strong><span>Choose the edition without devaluing Classic</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Help customers choose while making the current and future upgrade states unambiguous.</div>
+              <div class="module-content">
+                <h4>Comparison dimensions</h4>
+                <ul>
+                  <li>The same core handmade Journal, folio, paper, and craftsmanship.</li>
+                  <li>Classic is the physical journaling experience.</li>
+                  <li>Momento adds built-in touch access, the digital Journal, Owner PIN, Recovery Card, Daily Memory Stamps, and included capacity.</li>
+                  <li>Classic-to-Momento upgrade is a confirmed future direction but is not currently available.</li>
+                </ul>
+                <div class="guardrail"><strong>Placement:</strong> Until timing, price, and method are confirmed, future upgrade appears only as a qualified FAQ answer or note, not a primary comparison benefit.</div>
+              </div>
+            </div>
+          </details>
+
+          <details class="module" id="module-14" data-layer="p3">
+            <summary>
+              <span class="module-number">14</span>
+              <span class="module-title"><strong>Proof, FAQ, and final purchase action</strong><span>Evidence, remaining objections, and the final CTA</span></span>
+              <span class="disclosure-icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="module-body">
+              <div class="purpose"><strong>Purpose</strong>Close remaining objections and return the customer to the currently selected product and variant.</div>
+              <div class="module-content">
+                <h4>Proof structure</h4>
+                <ul>
+                  <li>Use Momento-specific reviews for digital-experience claims.</li>
+                  <li>Classic reviews may support physical craftsmanship only and must not imply review of Momento functions.</li>
+                  <li>Show support, making, delivery, and returns links near the final CTA.</li>
+                </ul>
+                <h4>FAQ topics</h4>
+                <ul>
+                  <li>App, network, battery, and phone access.</li>
+                  <li>Previous dates and future dates.</li>
+                  <li>PIN, visitors, changing phones, forgotten PIN, and lost Recovery Card.</li>
+                  <li>Subscription, 365 capacity, editing, deletion, and export.</li>
+                  <li>Voice Note sharing and unsupported media.</li>
+                  <li>Classic difference and future upgrade.</li>
+                  <li>Personalization, paper refills, care, shipping, returns, and support.</li>
+                </ul>
+                <div class="guardrail"><strong>CTA behavior:</strong> The final CTA uses the selected product and variant. It does not send customers back to a generic Momento landing page.</div>
+              </div>
+            </div>
+          </details>
+        </section>
+      </section>
+
+      <section class="section supporting" id="implementation" aria-labelledby="implementation-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Level 4 · Implementation only when needed</p>
+            <h2 id="implementation-heading" data-pretext>Where each kind of information lives.</h2>
+          </div>
+          <p>These sections matter after the page structure is approved. They stay collapsed during normal content review.</p>
+        </div>
+
+        <details>
+          <summary>Content ownership before field design</summary>
+          <div class="supporting-body">
+            <div class="ownership-table-wrap">
+              <table>
+                <thead><tr><th>Content group</th><th>Recommended owner</th><th>Reason</th></tr></thead>
+                <tbody>
+                  <tr><td>Title, price, variants, inventory, product media, purchase form</td><td>Shopify native product data</td><td>Transactional and different for each listing</td></tr>
+                  <tr><td>Design name, story, leather/fabric/hardware description, design assets</td><td>Product-specific content</td><td>Different across the ten designs</td></tr>
+                  <tr><td>Size, closed dimensions, pen-loop detail, included paper size</td><td>Product or variant-specific content</td><td>Changes by listing or size</td></tr>
+                  <tr><td>Standard physical package structure</td><td>Shared Momento content with limited overrides</td><td>Mostly identical, with design and size variations</td></tr>
+                  <tr><td>Digital package, Stamp anatomy, 365 rules, privacy, Save or Share, compatibility, recovery</td><td>Shared Momento content</td><td>Same across all ten listings and maintained once</td></tr>
+                  <tr><td>How Momento works and educational media</td><td>Shared Momento content</td><td>Consistent product education</td></tr>
+                  <tr><td>Classic versus Momento comparison</td><td>Shared edition-comparison content</td><td>Used across multiple products and pages</td></tr>
+                  <tr><td>Shipping, returns, warranty, privacy, and support</td><td>Store policy or global setting</td><td>Must stay consistent outside the PDP</td></tr>
+                  <tr><td>Module order, layout, labels, and component behaviour</td><td>Momento product template</td><td>Presentation logic, not product content</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Reuse rules for ten Momento listings</summary>
+          <div class="supporting-body">
+            <ul>
+              <li>All ten Momento listings use the same <code>product.momento</code> template.</li>
+              <li>Shared Momento education and trust content is not copied manually into ten product descriptions.</li>
+              <li>Each listing supplies only transactional data, design story, design assets, size and dimensions, and any real package variation.</li>
+              <li>The template renders shared Momento information from one maintained source.</li>
+              <li>Product-specific content overrides shared content only when a real physical or commercial difference exists.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details>
+          <summary>Content that stays out of the main PDP narrative</summary>
+          <div class="supporting-body">
+            <ul>
+              <li>Database, hosting, encryption, internal support, or legal workflow details.</li>
+              <li>NFC as the product identity.</li>
+              <li>Future features presented as currently available.</li>
+              <li>Lifetime or forever-storage claims until formally approved.</li>
+              <li>Full-Journal export, visitor mode, read-only sharing, offline use, or uploaded Voice Notes.</li>
+              <li>All ten design stories on every product listing.</li>
+              <li>Unqualified security or exclusivity promises.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details>
+          <summary>Decisions remaining before final copy</summary>
+          <div class="supporting-body">
+            <div class="decision-columns">
+              <article class="decision-card">
+                <strong>Required for storefront</strong>
+                <ul>
+                  <li>Closed dimensions for each A5/A6 design.</li>
+                  <li>Personalised-product cancellation and returns treatment.</li>
+                  <li>Final support email or contact-form URL.</li>
+                </ul>
+              </article>
+              <article class="decision-card">
+                <strong>Affects copy precision</strong>
+                <ul>
+                  <li>Additional-text character and formatting limit.</li>
+                  <li>Long-text behaviour in the PNG export.</li>
+                </ul>
+              </article>
+              <article class="decision-card">
+                <strong>Optional or future</strong>
+                <ul>
+                  <li>Whether to publish total Voice Note storage detail.</li>
+                  <li>Classic upgrade timing, method, and price.</li>
+                  <li>Whether a defined lifetime-storage promise is ever introduced.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+        </details>
+
+        <div class="next-stage">
+          <p class="eyebrow" style="color:#d9b08d">Gate to the next stage</p>
+          <h3>After the architecture is approved</h3>
+          <ol>
+            <li>Convert each content group into a Shopify ownership model.</li>
+            <li>Define the minimal product metafields and shared metaobject definitions.</li>
+            <li>Identify which existing Classic fields can be reused safely.</li>
+            <li>Build one pilot Momento listing and assign <code>product.momento</code>.</li>
+            <li>Verify the pilot before duplicating the structure across the remaining nine listings.</li>
+            <li>Write final copy only against approved fields and confirmed product facts.</li>
+          </ol>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>Generated from momento-pdp-information-architecture-v1.md · Source copy remains the authority.</footer>
+
+  <script>
+    const modules = [...document.querySelectorAll('.module')];
+    const layerGroups = [...document.querySelectorAll('.layer-group')];
+    const filters = [...document.querySelectorAll('.filter')];
+    const searchInput = document.getElementById('module-search');
+    const openCount = document.getElementById('open-count');
+    const emptyState = document.getElementById('empty-state');
+    let activeFilter = 'all';
+    let printState = [];
+
+    function updateOpenCount() {
+      openCount.textContent = modules.filter(module => module.open).length;
+    }
+
+    function applyFilters() {
+      const query = searchInput.value.trim().toLowerCase();
+      let visibleCount = 0;
+
+      modules.forEach(module => {
+        const matchesLayer = activeFilter === 'all' || module.dataset.layer === activeFilter;
+        const matchesSearch = !query || module.textContent.toLowerCase().includes(query);
+        const visible = matchesLayer && matchesSearch;
+        module.hidden = !visible;
+        if (visible) {
+          visibleCount += 1;
+          if (query) module.open = true;
+        }
+      });
+
+      layerGroups.forEach(group => {
+        group.hidden = ![...group.querySelectorAll('.module')].some(module => !module.hidden);
+      });
+
+      emptyState.setAttribute('aria-hidden', visibleCount ? 'true' : 'false');
+      updateOpenCount();
+    }
+
+    filters.forEach(button => {
+      button.addEventListener('click', () => {
+        activeFilter = button.dataset.filter;
+        filters.forEach(filter => filter.setAttribute('aria-pressed', String(filter === button)));
+        applyFilters();
+      });
+    });
+
+    searchInput.addEventListener('input', applyFilters);
+
+    document.getElementById('expand-all').addEventListener('click', () => {
+      document.querySelectorAll('details:not([hidden])').forEach(detail => { detail.open = true; });
+      updateOpenCount();
+    });
+
+    document.getElementById('collapse-all').addEventListener('click', () => {
+      document.querySelectorAll('details').forEach(detail => { detail.open = false; });
+      updateOpenCount();
+    });
+
+    modules.forEach(module => module.addEventListener('toggle', updateOpenCount));
+
+    document.getElementById('print-page').addEventListener('click', () => window.print());
+
+    window.addEventListener('beforeprint', () => {
+      printState = [...document.querySelectorAll('details')].map(detail => detail.open);
+      document.querySelectorAll('details').forEach(detail => { detail.open = true; });
+    });
+
+    window.addEventListener('afterprint', () => {
+      document.querySelectorAll('details').forEach((detail, index) => { detail.open = printState[index]; });
+      updateOpenCount();
+    });
+
+    function updateProgress() {
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = total > 0 ? Math.min(100, Math.max(0, (window.scrollY / total) * 100)) : 0;
+      document.getElementById('progress-bar').style.width = `${progress}%`;
+    }
+
+    const sectionLinks = [...document.querySelectorAll('.rail a')];
+    const observedSections = sectionLinks
+      .map(link => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+
+    const sectionObserver = new IntersectionObserver(entries => {
+      const visible = entries
+        .filter(entry => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      sectionLinks.forEach(link => {
+        if (link.getAttribute('href') === `#${visible.target.id}`) {
+          link.setAttribute('aria-current', 'true');
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      });
+    }, { rootMargin: '-20% 0px -65%', threshold: [0, 0.2, 0.6] });
+
+    observedSections.forEach(section => sectionObserver.observe(section));
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    updateProgress();
+    updateOpenCount();
+
+    // Pretext is a progressive enhancement. Native document flow remains the fallback.
+    (async () => {
+      try {
+        const { prepare, layout } = await import('https://esm.sh/@chenglou/pretext');
+        await document.fonts.ready;
+        const prepared = new Map();
+        const textElements = document.querySelectorAll('[data-pretext]');
+
+        function prepareAll() {
+          textElements.forEach(element => {
+            prepared.set(element, prepare(element.textContent, getComputedStyle(element).font));
+          });
+        }
+
+        function relayout() {
+          prepared.forEach((handle, element) => {
+            const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+            const result = layout(handle, element.clientWidth, lineHeight);
+            element.style.minHeight = `${Math.ceil(result.height)}px`;
+          });
+        }
+
+        prepareAll();
+        relayout();
+        new ResizeObserver(relayout).observe(document.body);
+
+        textElements.forEach(element => {
+          element.contentEditable = 'false';
+          new MutationObserver(() => {
+            prepared.set(element, prepare(element.textContent, getComputedStyle(element).font));
+            relayout();
+          }).observe(element, { characterData: true, subtree: true, childList: true });
+        });
+      } catch (error) {
+        document.documentElement.dataset.pretext = 'fallback';
+      }
+    })();
+  </script>
+</body>
+</html>
