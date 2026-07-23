@@ -8,6 +8,7 @@ import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
 
 import {
+  GET as getDailyStampEmoji,
   POST as postDailyStampExport,
   prepareStoredPhotoInput,
   renderServerDailyStampPng,
@@ -22,10 +23,13 @@ import {
   DAILY_STAMP_EXPORT_MIME_TYPE,
   DAILY_STAMP_EXPORT_WIDTH,
   canShareDailyStampExport,
+  dailyStampEmojiAssetUrl,
+  dailyStampEmojiCodepoint,
   dailyStampExportArtifactModel,
   dailyStampExportFilename,
   dailyStampExportImageStrategy,
   dailyStampExportPhotoItems,
+  dailyStampTextParts,
   defaultDailyStampExportBrandMark,
 } from "../lib/export/daily-memory-stamp-export.ts";
 
@@ -374,6 +378,7 @@ test("persisted daily stamp export is authenticated and rendered on the server",
   assert.match(nextConfigSource, /CormorantGaramond-SemiBold\.ttf/);
   assert.match(nextConfigSource, /Inter-SemiBold\.ttf/);
   assert.match(nextConfigSource, /NotoSansCJKsc-Regular\.otf/);
+  assert.match(nextConfigSource, /@twemoji\/api\/assets\/svg\/\*\.svg/);
 
   assert.match(composerSource, /fetch\("\/api\/export\/daily-stamp"/);
   assert.match(composerSource, /persistentMemoryId\(memory\)/);
@@ -514,15 +519,100 @@ test("bundled server export uses the Journal Home brand font families", async ()
   );
   assert.deepEqual(
     serverTextRuns("My own lil space♥", "Cormorant Garamond"),
-    [
-      { text: "My own lil space", family: "Cormorant Garamond" },
-      { text: "♥", family: "Noto Sans CJK SC" },
-    ],
+    [{ text: "My own lil space♥", family: "Cormorant Garamond" }],
   );
   assert.deepEqual(serverTextRuns("我的 lil space", "Cormorant Garamond"), [
     { text: "我的", family: "Noto Sans CJK SC" },
     { text: " lil space", family: "Cormorant Garamond" },
   ]);
+  assert.deepEqual(
+    serverTextRuns("Me time in Kyoto 🌧️", "Cormorant Garamond"),
+    [
+      { text: "Me time in Kyoto ", family: "Cormorant Garamond" },
+      { text: "🌧️", family: "Twemoji", emojiCodepoint: "1f327" },
+    ],
+  );
+});
+
+test("daily stamp emoji segmentation preserves every RGI sequence as one image", () => {
+  const input = "Rain 🌧️ coder 👩🏽‍💻 Japan 🇯🇵 family 👨‍👩‍👧‍👦 key 1️⃣ new 🫩 ♥ ♥️";
+  const emojiParts = dailyStampTextParts(input).filter(
+    (part) => part.kind === "emoji",
+  );
+
+  assert.deepEqual(
+    emojiParts.map(({ text, codepoint }) => ({ text, codepoint })),
+    [
+      { text: "🌧️", codepoint: "1f327" },
+      { text: "👩🏽‍💻", codepoint: "1f469-1f3fd-200d-1f4bb" },
+      { text: "🇯🇵", codepoint: "1f1ef-1f1f5" },
+      {
+        text: "👨‍👩‍👧‍👦",
+        codepoint: "1f468-200d-1f469-200d-1f467-200d-1f466",
+      },
+      { text: "1️⃣", codepoint: "31-20e3" },
+      { text: "🫩", codepoint: "1fae9" },
+      { text: "♥️", codepoint: "2665" },
+    ],
+  );
+  assert.equal(dailyStampEmojiCodepoint("♥"), undefined);
+  assert.equal(dailyStampEmojiAssetUrl("1f327"), "/api/export/daily-stamp?emoji=1f327");
+
+  const dailyStampSource = readSource(
+    "components/stamp/daily-memory-stamp.tsx",
+  );
+  const journalHeaderSource = readSource(
+    "components/journal/journal-identity-header.tsx",
+  );
+  assert.match(dailyStampSource, /DailyStampEmojiText value=\{memory\.title\}/);
+  assert.match(journalHeaderSource, /DailyStampEmojiText value=\{displayTitle\}/);
+});
+
+test("daily stamp emoji endpoint serves only bundled SVG assets", async () => {
+  const response = await getDailyStampEmoji(
+    new Request("http://localhost/api/export/daily-stamp?emoji=1f327"),
+  );
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^image\/svg\+xml/u);
+  assert.match(await response.text(), /fill="#5DADEC"/u);
+
+  const invalid = await getDailyStampEmoji(
+    new Request(
+      "http://localhost/api/export/daily-stamp?emoji=..%2F..%2Fpackage",
+    ),
+  );
+  assert.equal(invalid.status, 404);
+});
+
+test("server export renders the real color emoji instead of a replacement dot", async () => {
+  const png = await renderServerDailyStampPng({
+    memory: {
+      ...memory,
+      title: "Me time in Kyoto 🌧️",
+      photos: [],
+    },
+    journalTitle: "My own lil space♥",
+    photos: [],
+  });
+  const rendered = await sharp(png)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let rainBluePixels = 0;
+  for (let index = 0; index < rendered.data.length; index += 4) {
+    if (
+      rendered.data[index] === 0x5d &&
+      rendered.data[index + 1] === 0xad &&
+      rendered.data[index + 2] === 0xec &&
+      rendered.data[index + 3] === 0xff
+    ) {
+      rainBluePixels += 1;
+    }
+  }
+  assert.ok(
+    rainBluePixels > 20,
+    `expected Twemoji rain pixels, received ${rainBluePixels}`,
+  );
 });
 
 test("server daily stamp renderer handles 9 photos and applies normalized cover crop", async () => {

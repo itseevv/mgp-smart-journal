@@ -1,4 +1,5 @@
 import type { JournalTheme } from "../../data/journal-themes.ts";
+import { parse as parseTwemoji } from "@twemoji/parser";
 import {
   defaultJournalTheme,
   journalTitleUsesDarkInk,
@@ -27,6 +28,7 @@ export const DAILY_STAMP_EXPORT_ASPECT_RATIO =
 export const DAILY_STAMP_EXPORT_MIME_TYPE = "image/png";
 export const DAILY_STAMP_EXPORT_LOGO_SRC =
   "/brand/mgp-full-logo-transparent.png";
+export const DAILY_STAMP_EMOJI_ASSET_ENDPOINT = "/api/export/daily-stamp";
 
 const DAILY_STAMP_EXPORT_THUMBNAIL_PHOTO_COUNT = 5;
 const DAILY_STAMP_EXPORT_MAX_TEXTURE_PIXELS = 2_500_000;
@@ -137,6 +139,17 @@ type DrawnPhoto = DailyStampExportPhotoItem & {
   source: LoadedCanvasImage;
 };
 
+export type DailyStampTextPart =
+  | {
+      kind: "text";
+      text: string;
+    }
+  | {
+      kind: "emoji";
+      text: string;
+      codepoint: string;
+    };
+
 type ShareNavigator = {
   canShare?: (data: ShareData) => boolean;
   share?: (data: ShareData) => Promise<void>;
@@ -145,6 +158,56 @@ type ShareNavigator = {
 function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(Math.max(value, min), max);
+}
+
+export function dailyStampGraphemes(value: string) {
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return Array.from(
+    segmenter.segment(value.normalize("NFC")),
+    ({ segment }) => segment,
+  );
+}
+
+export function dailyStampEmojiCodepoint(grapheme: string) {
+  const [entity, ...extraEntities] = parseTwemoji(grapheme, {
+    assetType: "svg",
+    buildUrl: (codepoint) => codepoint,
+  });
+  if (
+    !entity ||
+    extraEntities.length > 0 ||
+    entity.text !== grapheme ||
+    entity.indices[0] !== 0 ||
+    entity.indices[1] !== grapheme.length
+  ) {
+    return undefined;
+  }
+  return entity.url;
+}
+
+export function dailyStampTextParts(value: string): DailyStampTextPart[] {
+  return dailyStampGraphemes(value).reduce<DailyStampTextPart[]>(
+    (parts, grapheme) => {
+      const codepoint = dailyStampEmojiCodepoint(grapheme);
+      if (codepoint) {
+        parts.push({ kind: "emoji", text: grapheme, codepoint });
+        return parts;
+      }
+
+      const previous = parts.at(-1);
+      if (previous?.kind === "text") {
+        previous.text += grapheme;
+      } else {
+        parts.push({ kind: "text", text: grapheme });
+      }
+      return parts;
+    },
+    [],
+  );
+}
+
+export function dailyStampEmojiAssetUrl(codepoint: string) {
+  return `${DAILY_STAMP_EMOJI_ASSET_ENDPOINT}?emoji=${encodeURIComponent(codepoint)}`;
 }
 
 function localDateParts(localDate: string) {
@@ -429,32 +492,127 @@ function drawLeatherBackground(
   }
 }
 
+function dailyStampTextWidth(
+  context: CanvasRenderingContext2D,
+  text: string,
+  emojiSize: number,
+) {
+  return dailyStampTextParts(text).reduce(
+    (width, part) =>
+      width +
+      (part.kind === "emoji"
+        ? emojiSize
+        : context.measureText(part.text).width),
+    0,
+  );
+}
+
+function emojiTopForCanvasBaseline(
+  baseline: CanvasTextBaseline,
+  y: number,
+  emojiSize: number,
+) {
+  if (baseline === "middle") return y - emojiSize / 2;
+  if (baseline === "top" || baseline === "hanging") return y;
+  if (baseline === "bottom" || baseline === "ideographic") {
+    return y - emojiSize;
+  }
+  return y - emojiSize * 0.84;
+}
+
+function drawDailyStampTextLine({
+  context,
+  text,
+  x,
+  y,
+  emojiSize,
+  emojiImages,
+}: {
+  context: CanvasRenderingContext2D;
+  text: string;
+  x: number;
+  y: number;
+  emojiSize: number;
+  emojiImages: Map<string, LoadedCanvasImage>;
+}) {
+  const textAlign = context.textAlign;
+  const width = dailyStampTextWidth(context, text, emojiSize);
+  let cursor =
+    textAlign === "center"
+      ? x - width / 2
+      : textAlign === "right" || textAlign === "end"
+        ? x - width
+        : x;
+
+  context.textAlign = "left";
+  for (const part of dailyStampTextParts(text)) {
+    if (part.kind === "text") {
+      context.fillText(part.text, cursor, y);
+      cursor += context.measureText(part.text).width;
+      continue;
+    }
+
+    const emoji = emojiImages.get(part.codepoint);
+    if (emoji) {
+      context.drawImage(
+        emoji.image,
+        cursor,
+        emojiTopForCanvasBaseline(context.textBaseline, y, emojiSize),
+        emojiSize,
+        emojiSize,
+      );
+    } else {
+      context.fillText(part.text, cursor, y);
+    }
+    cursor += emojiSize;
+  }
+  context.textAlign = textAlign;
+}
+
 function drawSingleLineText({
   context,
   text,
   x,
   y,
   maxWidth,
+  emojiSize,
+  emojiImages,
 }: {
   context: CanvasRenderingContext2D;
   text: string;
   x: number;
   y: number;
   maxWidth: number;
+  emojiSize: number;
+  emojiImages: Map<string, LoadedCanvasImage>;
 }) {
-  let line = text.replace(/\s+/g, " ").trim();
+  const characters = dailyStampGraphemes(text.replace(/\s+/g, " ").trim());
 
-  if (context.measureText(line).width > maxWidth) {
+  if (dailyStampTextWidth(context, characters.join(""), emojiSize) > maxWidth) {
     while (
-      line.length > 1 &&
-      context.measureText(`${line.trimEnd()}...`).width > maxWidth
+      characters.length > 1 &&
+      dailyStampTextWidth(
+        context,
+        `${characters.join("").trimEnd()}...`,
+        emojiSize,
+      ) > maxWidth
     ) {
-      line = line.slice(0, -1);
+      characters.pop();
     }
-    line = `${line.trimEnd()}...`;
+    characters.splice(0, characters.length, ...dailyStampGraphemes(
+      `${characters.join("").trimEnd()}...`,
+    ));
   }
 
-  context.fillText(line, x, y, maxWidth);
+  const line = characters.join("");
+  drawDailyStampTextLine({
+    context,
+    text: line,
+    x,
+    y,
+    emojiSize,
+    emojiImages,
+  });
 
   return {
     line,
@@ -466,13 +624,17 @@ function wrapUnbrokenText(
   context: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
+  emojiSize: number,
 ) {
   const lines: string[] = [];
   let line = "";
 
-  for (const character of Array.from(text)) {
+  for (const character of dailyStampGraphemes(text)) {
     const candidate = `${line}${character}`;
-    if (!line || context.measureText(candidate).width <= maxWidth) {
+    if (
+      !line ||
+      dailyStampTextWidth(context, candidate, emojiSize) <= maxWidth
+    ) {
       line = candidate;
       continue;
     }
@@ -489,6 +651,7 @@ function wrapText(
   context: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
+  emojiSize: number,
 ) {
   const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const lines: string[] = [];
@@ -496,7 +659,7 @@ function wrapText(
 
   words.forEach((word) => {
     const candidate = line ? `${line} ${word}` : word;
-    if (context.measureText(candidate).width <= maxWidth) {
+    if (dailyStampTextWidth(context, candidate, emojiSize) <= maxWidth) {
       line = candidate;
       return;
     }
@@ -506,12 +669,17 @@ function wrapText(
       line = "";
     }
 
-    if (context.measureText(word).width <= maxWidth) {
+    if (dailyStampTextWidth(context, word, emojiSize) <= maxWidth) {
       line = word;
       return;
     }
 
-    const wrappedWord = wrapUnbrokenText(context, word, maxWidth);
+    const wrappedWord = wrapUnbrokenText(
+      context,
+      word,
+      maxWidth,
+      emojiSize,
+    );
     lines.push(...wrappedWord.slice(0, -1));
     line = wrappedWord[wrappedWord.length - 1] ?? "";
   });
@@ -525,17 +693,22 @@ function clampWrappedLines(
   lines: string[],
   maxLines: number,
   maxWidth: number,
+  emojiSize: number,
 ) {
   if (lines.length <= maxLines) return lines;
 
   const nextLines = lines.slice(0, maxLines);
-  let lastLine = `${nextLines[nextLines.length - 1] ?? ""}...`;
+  const lastCharacters = dailyStampGraphemes(
+    nextLines[nextLines.length - 1] ?? "",
+  );
+  let lastLine = `${lastCharacters.join("").trimEnd()}...`;
 
   while (
-    lastLine.length > 3 &&
-    context.measureText(lastLine).width > maxWidth
+    lastCharacters.length > 0 &&
+    dailyStampTextWidth(context, lastLine, emojiSize) > maxWidth
   ) {
-    lastLine = `${lastLine.slice(0, -4).trimEnd()}...`;
+    lastCharacters.pop();
+    lastLine = `${lastCharacters.join("").trimEnd()}...`;
   }
 
   nextLines[nextLines.length - 1] = lastLine;
@@ -550,6 +723,8 @@ function drawCenteredWrappedText({
   maxWidth,
   lineHeight,
   maxLines,
+  emojiSize,
+  emojiImages,
 }: {
   context: CanvasRenderingContext2D;
   text: string;
@@ -558,17 +733,27 @@ function drawCenteredWrappedText({
   maxWidth: number;
   lineHeight: number;
   maxLines: number;
+  emojiSize: number;
+  emojiImages: Map<string, LoadedCanvasImage>;
 }) {
   const wrappedLines = clampWrappedLines(
     context,
-    wrapText(context, text, maxWidth),
+    wrapText(context, text, maxWidth, emojiSize),
     maxLines,
     maxWidth,
+    emojiSize,
   );
   const firstLineY = centerY - ((wrappedLines.length - 1) * lineHeight) / 2;
 
   wrappedLines.forEach((line, index) => {
-    context.fillText(line, x, firstLineY + index * lineHeight, maxWidth);
+    drawDailyStampTextLine({
+      context,
+      text: line,
+      x,
+      y: firstLineY + index * lineHeight,
+      emojiSize,
+      emojiImages,
+    });
   });
 
   return {
@@ -826,6 +1011,40 @@ async function imageFromUrl(url: string): Promise<LoadedCanvasImage> {
   }
 }
 
+async function loadDailyStampEmojiImages(...values: string[]) {
+  const codepoints = Array.from(
+    new Set(
+      values.flatMap((value) =>
+        dailyStampTextParts(value)
+          .filter(
+            (
+              part,
+            ): part is Extract<DailyStampTextPart, { kind: "emoji" }> =>
+              part.kind === "emoji",
+          )
+          .map((part) => part.codepoint),
+      ),
+    ),
+  );
+  const loaded = await Promise.all(
+    codepoints.map(async (codepoint) => {
+      try {
+        const image = await imageFromUrl(dailyStampEmojiAssetUrl(codepoint));
+        return [codepoint, image] as const;
+      } catch {
+        return undefined;
+      }
+    }),
+  );
+  return new Map(
+    loaded.filter(
+      (
+        item,
+      ): item is readonly [string, LoadedCanvasImage] => Boolean(item),
+    ),
+  );
+}
+
 async function photoUrlForExport(
   photo: MemoryPhoto,
   resolvePhotoUrl?: DailyStampExportRenderInput["resolvePhotoUrl"],
@@ -949,6 +1168,10 @@ export async function renderDailyMemoryStampExport({
   const overlayPadding = layout.overlayPadding;
   const overlayInnerX = overlayX + overlayPadding;
   const overlayInnerWidth = overlayWidth - overlayPadding * 2;
+  const emojiImages = await loadDailyStampEmojiImages(
+    model.journalTitle,
+    model.title,
+  );
 
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -962,6 +1185,8 @@ export async function renderDailyMemoryStampExport({
     maxWidth: layout.journalTitleMaxWidth,
     lineHeight: layout.journalTitleLineHeight,
     maxLines: 2,
+    emojiSize: layout.journalTitleFontSize,
+    emojiImages,
   });
 
   context.textAlign = "left";
@@ -1013,7 +1238,10 @@ export async function renderDailyMemoryStampExport({
     x: overlayInnerX,
     y: titleBaseline,
     maxWidth: overlayInnerWidth,
+    emojiSize: layout.titleFontSize,
+    emojiImages,
   });
+  for (const emojiImage of emojiImages.values()) emojiImage.close();
 
   await drawPhotoGrid({
     context,

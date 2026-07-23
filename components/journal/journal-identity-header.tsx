@@ -17,6 +17,7 @@ import {
   MoreIcon,
   PencilIcon,
 } from "@/components/memory/memory-icons";
+import { DailyStampEmojiText } from "@/components/stamp/daily-stamp-emoji-text";
 import { journalConfig } from "@/data/journal";
 
 type JournalIdentityHeaderProps = {
@@ -230,7 +231,7 @@ export function JournalIdentityHeader({
             data-journal-title-lines="2"
             title={title}
           >
-            {displayTitle}
+            <DailyStampEmojiText value={displayTitle} />
           </h1>
           {showSettings ? (
             <div

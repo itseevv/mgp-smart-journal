@@ -25,6 +25,8 @@
     "@dnd-kit/react": "^0.4.0",
     "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "^2.108.1",
+    "@twemoji/api": "https://github.com/jdecked/twemoji/archive/refs/tags/v17.0.3.tar.gz",
+    "@twemoji/parser": "17.0.2",
     "next": "^16.0.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
