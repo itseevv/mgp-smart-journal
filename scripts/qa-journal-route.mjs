@@ -29,11 +29,11 @@ const oldStrings = [
   "Save memory",
 ];
 const createStrings = [
-  "New Daily Scrap",
+  "New Memory Stamp",
   "One line to keep",
   "What would you call today?",
   "Cover Scrap",
-  "Choose today's scrap",
+  "Choose today’s Cover Scrap",
   "One photo is enough to seal the day.",
   "Seal this day",
 ];
@@ -45,7 +45,7 @@ const sealingStrings = [
   "Seal this day",
 ];
 const cropStrings = [
-  "Find today's scrap",
+  "Find Your Cover Scrap",
   "Move the photo under the finder.",
   "Use this scrap",
   "Reset",

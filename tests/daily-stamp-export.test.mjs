@@ -112,7 +112,7 @@ test("daily stamp export artifact model includes only the approved content", () 
 
   const serialized = JSON.stringify(model);
   assert.doesNotMatch(serialized, /Private by nature/);
-  assert.doesNotMatch(serialized, /Edit stamp/);
+  assert.doesNotMatch(serialized, /Edit Memory Stamp/);
   assert.doesNotMatch(serialized, /photo count/i);
   assert.doesNotMatch(serialized, /voice memo/i);
   assert.doesNotMatch(serialized, /powered by/i);
@@ -260,8 +260,8 @@ test("daily detail demo exposes the Phase 5A export composer entry point", () =>
 
   assert.match(stampDetailSource, /DailyStampExportComposer/);
   assert.match(stampDetailSource, /data-daily-stamp-export-action="true"/);
-  assert.match(stampDetailSource, /Save \/ Share/);
-  assert.match(composerSource, /Save or share/);
+  assert.match(stampDetailSource, /Keep or Share/);
+  assert.match(composerSource, /Your Memory Stamp/);
   assert.match(composerSource, /data-daily-stamp-export-preview/);
   assert.match(composerSource, /data-save-share-modal-surface="edit-stamp-beige-overlay"/);
   assert.match(composerSource, /data-save-share-modal-position="fixed-viewport-centered"/);
@@ -271,7 +271,7 @@ test("daily detail demo exposes the Phase 5A export composer entry point", () =>
   assert.match(composerSource, /data-export-artifact-loading-treatment="quiet-leather-only"/);
   assert.match(composerSource, /data-save-share-modal-primary-color="journal-theme"/);
   assert.match(composerSource, /data-save-share-modal-secondary-color="previous-primary-control"/);
-  assert.match(composerSource, /Save Image/);
+  assert.match(composerSource, /Save Your Stamp/);
   assert.match(composerSource, /Share/);
   assert.match(composerSource, /Sharing isn’t supported here/);
   assert.doesNotMatch(composerSource, /items-end/);
