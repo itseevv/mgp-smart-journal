@@ -28,7 +28,7 @@ test("phase 7.2A daily export v2 playground stays isolated from production expor
   assert.match(playgroundSource, /Your Memory Stamp/);
   assert.match(playgroundSource, /Save Your Stamp/);
   assert.match(playgroundSource, /Share/);
-  assert.match(playgroundSource, /Creating image\.\.\./);
+  assert.match(playgroundSource, /Preparing your Memory Stamp\.\.\./);
   assert.doesNotMatch(playgroundSource, /Image ready\./);
   assert.match(playgroundSource, /data-save-share-modal-preview-scale="proportional-artifact"/);
   assert.match(playgroundSource, /data-save-share-modal-preview-scale-source="full-artifact"/);

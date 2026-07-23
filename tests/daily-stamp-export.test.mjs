@@ -269,6 +269,7 @@ test("daily detail demo exposes the Phase 5A export composer entry point", () =>
   assert.match(composerSource, /src=\{composerState\.previewUrl\}/);
   assert.match(composerSource, /object-contain/);
   assert.match(composerSource, /data-export-artifact-loading-treatment="quiet-leather-only"/);
+  assert.match(composerSource, /Preparing your Memory Stamp\.\.\./);
   assert.match(composerSource, /data-save-share-modal-primary-color="journal-theme"/);
   assert.match(composerSource, /data-save-share-modal-secondary-color="previous-primary-control"/);
   assert.match(composerSource, /Save Your Stamp/);

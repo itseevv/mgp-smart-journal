@@ -361,7 +361,7 @@ function LoadingArtifactPreview({ theme }: { theme: ExportTheme }) {
           fontFamily: displayFont,
         }}
       >
-        Creating image...
+        Preparing your Memory Stamp...
       </p>
     </div>
   );

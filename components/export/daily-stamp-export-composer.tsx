@@ -310,7 +310,10 @@ export function DailyStampExportComposer({
 
     const createPreview = async () => {
       revokePreview();
-      setComposerState({ status: "generating", message: "Creating image..." });
+      setComposerState({
+        status: "generating",
+        message: "Preparing your Memory Stamp...",
+      });
       try {
         const blob = await renderExportBlob();
         if (!active) return;
@@ -351,7 +354,10 @@ export function DailyStampExportComposer({
 
   const ensureExportBlob = async () => {
     if (composerState.status === "ready") return composerState.blob;
-    setComposerState({ status: "generating", message: "Creating image..." });
+    setComposerState({
+      status: "generating",
+      message: "Preparing your Memory Stamp...",
+    });
     try {
       const blob = await renderExportBlob();
       revokePreview();
@@ -504,7 +510,7 @@ export function DailyStampExportComposer({
               >
                 {composerState.status === "error"
                   ? exportErrorMessage
-                  : "Creating image..."}
+                  : "Preparing your Memory Stamp..."}
               </p>
             </div>
           )}
