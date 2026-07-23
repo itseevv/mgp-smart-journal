@@ -4,12 +4,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
 
 import {
   POST as postDailyStampExport,
   prepareStoredPhotoInput,
   renderServerDailyStampPng,
+  serverTextRuns,
 } from "../app/api/export/daily-stamp/route.ts";
 import { defaultJournalTheme } from "../data/journal-themes.ts";
 
@@ -299,12 +301,13 @@ test("daily stamp export canvas uses dedicated 9:16 scale tokens", () => {
   assert.match(exportSource, /journalTitleUsesDarkInk/);
   assert.match(exportSource, /journalTitleUsesDarkInk\(theme\)/);
   assert.match(exportSource, /const dailyStampExportLayout = \{/);
-  assert.match(exportSource, /"Iowan Old Style"/);
+  assert.match(exportSource, /"Cormorant Garamond"/);
+  assert.match(exportSource, /Inter/);
   assert.match(exportSource, /"Songti SC"/);
   assert.match(exportSource, /"PingFang SC"/);
   assert.match(exportSource, /"Microsoft YaHei"/);
-  assert.doesNotMatch(exportSource, /--font-brand-(?:display|interface)/);
-  assert.doesNotMatch(exportSource, /document\.fonts/);
+  assert.match(exportSource, /ensureDailyStampExportBrandFonts/);
+  assert.match(exportSource, /document\.fonts\.load/);
   assert.match(exportSource, /journalTitleCenterY: 202/);
   assert.match(exportSource, /journalTitleFontSize: 62/);
   assert.match(exportSource, /journalTitleLineHeight: 68/);
@@ -350,8 +353,14 @@ test("persisted daily stamp export is authenticated and rendered on the server",
   assert.match(routeSource, /Cache-Control": "private, no-store"/);
   assert.match(routeSource, /MAX_PNG_RESPONSE_BYTES = 4 \* 1024 \* 1024/);
   assert.match(routeSource, /MAX_TOTAL_SOURCE_BYTES/);
+  assert.match(routeSource, /CormorantGaramond-Medium\.ttf/);
+  assert.match(routeSource, /CormorantGaramond-SemiBold\.ttf/);
+  assert.match(routeSource, /Inter-SemiBold\.ttf/);
   assert.match(routeSource, /NotoSansCJKsc-Regular\.otf/);
-  assert.match(routeSource, /fontfile: SERVER_EXPORT_FONT_PATH/);
+  assert.match(routeSource, /new Resvg/);
+  assert.match(routeSource, /loadSystemFonts:\s*false/);
+  assert.match(routeSource, /serverTextRuns/);
+  assert.match(routeSource, /renderResvgTextLine/);
   assert.doesNotMatch(
     routeSource,
     /font-family="(?:Georgia|Arial)|Times New Roman/,
@@ -359,7 +368,11 @@ test("persisted daily stamp export is authenticated and rendered on the server",
   assert.doesNotMatch(routeSource, /photos\.map[\s\S]*Promise\.all/);
   assert.doesNotMatch(routeSource, /fetch\(theme\.texture/i);
   assert.match(nextConfigSource, /outputFileTracingIncludes/);
+  assert.match(nextConfigSource, /serverExternalPackages:\s*\["@resvg\/resvg-js"\]/);
   assert.match(nextConfigSource, /"\/api\/export\/daily-stamp"/);
+  assert.match(nextConfigSource, /CormorantGaramond-Medium\.ttf/);
+  assert.match(nextConfigSource, /CormorantGaramond-SemiBold\.ttf/);
+  assert.match(nextConfigSource, /Inter-SemiBold\.ttf/);
   assert.match(nextConfigSource, /NotoSansCJKsc-Regular\.otf/);
 
   assert.match(composerSource, /fetch\("\/api\/export\/daily-stamp"/);
@@ -416,14 +429,16 @@ test("bundled server export font contains distinct CJK glyphs", async () => {
   assert.ok(font.byteLength > 10_000_000);
 
   const sample = "京都咖啡散步";
-  const rendered = await sharp({
-    text: {
-      text: sample,
-      font: "Noto Sans CJK SC 62",
-      fontfile: fileURLToPath(fontUrl),
-      rgba: true,
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="80"><text x="0" y="62" font-family="Noto Sans CJK SC" font-size="62">${sample}</text></svg>`;
+  const png = new Resvg(svg, {
+    font: {
+      fontFiles: [fileURLToPath(fontUrl)],
+      loadSystemFonts: false,
     },
   })
+    .render()
+    .asPng();
+  const rendered = await sharp(png)
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -446,6 +461,68 @@ test("bundled server export font contains distinct CJK glyphs", async () => {
     new Set(glyphHashes).size >= sample.length - 1,
     "expected distinct CJK glyphs instead of repeated missing-glyph boxes",
   );
+});
+
+test("bundled server export uses the Journal Home brand font families", async () => {
+  const displayMediumFontUrl = new URL(
+    "../public/fonts/CormorantGaramond-Medium.ttf",
+    import.meta.url,
+  );
+  const displayFontUrl = new URL(
+    "../public/fonts/CormorantGaramond-SemiBold.ttf",
+    import.meta.url,
+  );
+  const interfaceFontUrl = new URL(
+    "../public/fonts/Inter-SemiBold.ttf",
+    import.meta.url,
+  );
+
+  for (const fontUrl of [
+    displayMediumFontUrl,
+    displayFontUrl,
+    interfaceFontUrl,
+  ]) {
+    const font = readFileSync(fontUrl);
+    assert.deepEqual(Array.from(font.subarray(0, 4)), [0, 1, 0, 0]);
+    assert.ok(font.byteLength > 300_000);
+  }
+
+  const text = "My own lil space";
+  const fontFiles = [
+    fileURLToPath(displayMediumFontUrl),
+    fileURLToPath(displayFontUrl),
+    fileURLToPath(interfaceFontUrl),
+  ];
+  const renderFontSample = (fontFamily) =>
+    new Resvg(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="620" height="90"><text x="0" y="70" font-family="${fontFamily}" font-size="62" font-weight="600">${text}</text></svg>`,
+      {
+        font: {
+          fontFiles,
+          loadSystemFonts: false,
+        },
+      },
+    )
+      .render()
+      .asPng();
+  const display = renderFontSample("Cormorant Garamond");
+  const utility = renderFontSample("Inter");
+
+  assert.notEqual(
+    createHash("sha256").update(display).digest("hex"),
+    createHash("sha256").update(utility).digest("hex"),
+  );
+  assert.deepEqual(
+    serverTextRuns("My own lil space♥", "Cormorant Garamond"),
+    [
+      { text: "My own lil space", family: "Cormorant Garamond" },
+      { text: "♥", family: "Noto Sans CJK SC" },
+    ],
+  );
+  assert.deepEqual(serverTextRuns("我的 lil space", "Cormorant Garamond"), [
+    { text: "我的", family: "Noto Sans CJK SC" },
+    { text: " lil space", family: "Cormorant Garamond" },
+  ]);
 });
 
 test("server daily stamp renderer handles 9 photos and applies normalized cover crop", async () => {

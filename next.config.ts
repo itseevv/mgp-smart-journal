@@ -26,8 +26,12 @@ function allowedDevOrigins() {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: allowedDevOrigins(),
+  serverExternalPackages: ["@resvg/resvg-js"],
   outputFileTracingIncludes: {
     "/api/export/daily-stamp": [
+      "./public/fonts/CormorantGaramond-Medium.ttf",
+      "./public/fonts/CormorantGaramond-SemiBold.ttf",
+      "./public/fonts/Inter-SemiBold.ttf",
       "./public/fonts/NotoSansCJKsc-Regular.otf",
     ],
   },
