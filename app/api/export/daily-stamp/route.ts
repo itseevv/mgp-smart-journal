@@ -21,6 +21,7 @@ import {
   DAILY_STAMP_EXPORT_HEIGHT,
   DAILY_STAMP_EXPORT_MIME_TYPE,
   DAILY_STAMP_EXPORT_WIDTH,
+  dailyStampEmojiCodepoint,
   dailyStampExportArtifactModel,
 } from "../../../../lib/export/daily-memory-stamp-export.ts";
 import { isPhotoCropMetadata } from "../../../../lib/scrap/crop-math.ts";
@@ -47,6 +48,12 @@ const SERVER_EXPORT_FONT_FILES = [
   path.join(process.cwd(), "public/fonts/Inter-SemiBold.ttf"),
   path.join(process.cwd(), "public/fonts/NotoSansCJKsc-Regular.otf"),
 ];
+const TWEMOJI_SVG_DIRECTORY = path.join(
+  process.cwd(),
+  "node_modules/@twemoji/api/assets/svg",
+);
+const TWEMOJI_CODEPOINT_PATTERN =
+  /^[0-9a-f]+(?:-[0-9a-f]+)*$/u;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -172,16 +179,7 @@ function graphemes(value: string) {
 }
 
 function serverSafeText(value: string) {
-  return graphemes(value)
-    .map((grapheme) => {
-      if (/^[\uFE0E\uFE0F]$/u.test(grapheme)) return "";
-      if (/^[❤♥♡💕💖💗💓💞💛🧡💚💙💜🖤🤍🤎]\uFE0F?$/u.test(grapheme)) {
-        return "♥";
-      }
-      if (/\p{Extended_Pictographic}/u.test(grapheme)) return "•";
-      return grapheme;
-    })
-    .join("");
+  return xmlSafeText(value).normalize("NFC");
 }
 
 function estimatedTextWidth(text: string, fontSize: number) {
@@ -433,15 +431,29 @@ export function serverTextRuns(
   brandFamily: ServerExportBrandFamily,
 ) {
   const runs = graphemes(text).reduce<
-    Array<{ text: string; family: string }>
+    Array<{
+      text: string;
+      family: string;
+      emojiCodepoint?: string;
+    }>
   >((result, grapheme) => {
+    const emojiCodepoint = dailyStampEmojiCodepoint(grapheme);
+    if (emojiCodepoint) {
+      result.push({
+        text: grapheme,
+        family: "Twemoji",
+        emojiCodepoint,
+      });
+      return result;
+    }
+
     const isBrandGlyph =
       /^[\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]+$/u.test(
         grapheme,
-      ) && !/^[♥•]$/u.test(grapheme);
+      );
     const family = isBrandGlyph ? brandFamily : "Noto Sans CJK SC";
     const previous = result.at(-1);
-    if (previous?.family === family) {
+    if (previous?.family === family && !previous.emojiCodepoint) {
       previous.text += grapheme;
     } else {
       result.push({ text: grapheme, family });
@@ -450,6 +462,31 @@ export function serverTextRuns(
   }, []);
 
   return runs;
+}
+
+function twemojiSvgPath(codepoint: string) {
+  if (
+    codepoint.length > 128 ||
+    !TWEMOJI_CODEPOINT_PATTERN.test(codepoint)
+  ) {
+    return undefined;
+  }
+  return path.join(TWEMOJI_SVG_DIRECTORY, `${codepoint}.svg`);
+}
+
+const twemojiSvgCache = new Map<string, Promise<Buffer>>();
+
+function readTwemojiSvg(codepoint: string) {
+  const assetPath = twemojiSvgPath(codepoint);
+  if (!assetPath) throw new Error("Invalid emoji codepoint.");
+  const cached = twemojiSvgCache.get(codepoint);
+  if (cached) return cached;
+  const pending = readFile(assetPath).catch((error) => {
+    twemojiSvgCache.delete(codepoint);
+    throw error;
+  });
+  twemojiSvgCache.set(codepoint, pending);
+  return pending;
 }
 
 function resvgFontOptions() {
@@ -462,7 +499,7 @@ function resvgFontOptions() {
   } as const;
 }
 
-function renderResvgTextLine({
+async function renderResvgTextLine({
   text,
   brandFamily,
   fontSize,
@@ -481,46 +518,81 @@ function renderResvgTextLine({
 }) {
   const baseline = fontSize * 1.25;
   const spaceAdvance = fontSize * 0.25 + letterSpacing;
+  const emojiSize = fontSize;
+  const emojiTop = baseline - emojiSize * 0.84;
   let cursor = 0;
-  const measuredRuns = serverTextRuns(text, brandFamily)
-    .map((run) => {
-      const leadingSpaces = run.text.match(/^ +/u)?.[0].length ?? 0;
-      const trailingSpaces = run.text.match(/ +$/u)?.[0].length ?? 0;
-      const visibleEnd = trailingSpaces
-        ? run.text.length - trailingSpaces
-        : run.text.length;
-      const visibleText = run.text.slice(leadingSpaces, visibleEnd);
-      const leadingWidth = leadingSpaces * spaceAdvance;
-      const trailingWidth = trailingSpaces * spaceAdvance;
-
-      if (!visibleText) {
-        cursor += leadingWidth + trailingWidth;
-        return undefined;
+  const measuredRuns: Array<
+    | {
+        kind: "emoji";
+        text: string;
+        svg: Buffer;
+        x: number;
+        bbox: { x: number; y: number; width: number; height: number };
       }
+    | {
+        kind: "text";
+        family: string;
+        text: string;
+        x: number;
+        bbox: { x: number; y: number; width: number; height: number };
+      }
+  > = [];
 
-      const measureSvg = `
-        <svg width="4096" height="${fontSize * 2}" xmlns="http://www.w3.org/2000/svg">
-          <text x="0" y="${baseline}" font-family="${run.family}" font-size="${fontSize}" font-weight="${weight}" letter-spacing="${letterSpacing}">${escapeXml(visibleText)}</text>
-        </svg>
-      `;
-      const bbox = new Resvg(measureSvg, resvgFontOptions()).getBBox();
-      if (!bbox) return undefined;
-
-      const measured = {
-        family: run.family,
-        text: visibleText,
-        x: cursor + leadingWidth - bbox.x,
+  for (const run of serverTextRuns(text, brandFamily)) {
+    if (run.emojiCodepoint) {
+      const svg = await readTwemojiSvg(run.emojiCodepoint);
+      measuredRuns.push({
+        kind: "emoji",
+        text: run.text,
+        svg,
+        x: cursor,
         bbox: {
-          x: cursor + leadingWidth,
-          y: bbox.y,
-          width: bbox.width,
-          height: bbox.height,
+          x: cursor,
+          y: emojiTop,
+          width: emojiSize,
+          height: emojiSize,
         },
-      };
-      cursor += leadingWidth + bbox.width + trailingWidth;
-      return measured;
-    })
-    .filter((run): run is NonNullable<typeof run> => Boolean(run));
+      });
+      cursor += emojiSize + letterSpacing;
+      continue;
+    }
+
+    const leadingSpaces = run.text.match(/^ +/u)?.[0].length ?? 0;
+    const trailingSpaces = run.text.match(/ +$/u)?.[0].length ?? 0;
+    const visibleEnd = trailingSpaces
+      ? run.text.length - trailingSpaces
+      : run.text.length;
+    const visibleText = run.text.slice(leadingSpaces, visibleEnd);
+    const leadingWidth = leadingSpaces * spaceAdvance;
+    const trailingWidth = trailingSpaces * spaceAdvance;
+
+    if (!visibleText) {
+      cursor += leadingWidth + trailingWidth;
+      continue;
+    }
+
+    const measureSvg = `
+      <svg width="4096" height="${fontSize * 2}" xmlns="http://www.w3.org/2000/svg">
+        <text x="0" y="${baseline}" font-family="${run.family}" font-size="${fontSize}" font-weight="${weight}" letter-spacing="${letterSpacing}">${escapeXml(visibleText)}</text>
+      </svg>
+    `;
+    const bbox = new Resvg(measureSvg, resvgFontOptions()).getBBox();
+    if (!bbox) continue;
+
+    measuredRuns.push({
+      kind: "text",
+      family: run.family,
+      text: visibleText,
+      x: cursor + leadingWidth - bbox.x,
+      bbox: {
+        x: cursor + leadingWidth,
+        y: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+      },
+    });
+    cursor += leadingWidth + bbox.width + trailingWidth;
+  }
 
   if (!measuredRuns.length) {
     const rendered = new Resvg(
@@ -538,10 +610,12 @@ function renderResvgTextLine({
   const width = Math.max(1, Math.ceil(cursor));
   const height = Math.max(1, maxY - minY);
   const runElements = measuredRuns
-    .map(
-      (run) =>
-        `<text x="${run.x}" y="${baseline}" font-family="${run.family}" font-size="${fontSize}" font-weight="${weight}" letter-spacing="${letterSpacing}" fill="${escapeXml(color)}" fill-opacity="${clamp(alpha, 0, 1)}">${escapeXml(run.text)}</text>`,
-    )
+    .map((run) => {
+      if (run.kind === "emoji") {
+        return `<image x="${run.x}" y="${emojiTop}" width="${emojiSize}" height="${emojiSize}" opacity="${clamp(alpha, 0, 1)}" href="data:image/svg+xml;base64,${run.svg.toString("base64")}"/>`;
+      }
+      return `<text x="${run.x}" y="${baseline}" font-family="${run.family}" font-size="${fontSize}" font-weight="${weight}" letter-spacing="${letterSpacing}" fill="${escapeXml(color)}" fill-opacity="${clamp(alpha, 0, 1)}">${escapeXml(run.text)}</text>`;
+    })
     .join("");
   const lineSvg = `
     <svg width="${width}" height="${height}" viewBox="0 ${minY} ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -593,41 +667,47 @@ async function artifactTextLayers({
   const firstJournalLineY =
     layout.journalTitleCenterY -
     ((journalLines.length - 1) * layout.journalTitleLineHeight) / 2;
-  const journalLayers = journalLines.map((line, index) => {
-    const rendered = renderResvgTextLine({
-      text: line,
-      brandFamily: "Cormorant Garamond",
-      fontSize: layout.journalTitleFontSize,
+  const [journalLayers, dateLayer, titleLayer] = await Promise.all([
+    Promise.all(
+      journalLines.map(async (line, index) => {
+        const rendered = await renderResvgTextLine({
+          text: line,
+          brandFamily: "Cormorant Garamond",
+          fontSize: layout.journalTitleFontSize,
+          weight: 600,
+          color: journalTitleColor,
+          alpha: journalTitleAlpha,
+        });
+        return {
+          input: rendered.input,
+          left: Math.round(
+            (DAILY_STAMP_EXPORT_WIDTH - rendered.width) / 2,
+          ),
+          top: Math.round(
+            firstJournalLineY +
+              index * layout.journalTitleLineHeight -
+              rendered.height / 2,
+          ),
+        };
+      }),
+    ),
+    renderResvgTextLine({
+      text: serverSafeText(dateLabel),
+      brandFamily: "Inter",
+      fontSize: layout.dateFontSize,
       weight: 600,
-      color: journalTitleColor,
-      alpha: journalTitleAlpha,
-    });
-    return {
-      input: rendered.input,
-      left: Math.round((DAILY_STAMP_EXPORT_WIDTH - rendered.width) / 2),
-      top: Math.round(
-        firstJournalLineY +
-          index * layout.journalTitleLineHeight -
-          rendered.height / 2,
-      ),
-    };
-  });
-  const dateLayer = renderResvgTextLine({
-    text: serverSafeText(dateLabel),
-    brandFamily: "Inter",
-    fontSize: layout.dateFontSize,
-    weight: 600,
-    color: utilityColor,
-    alpha: utilityAlpha,
-    letterSpacing: layout.dateLetterSpacing,
-  });
-  const titleLayer = renderResvgTextLine({
-    text: memoryTitle,
-    brandFamily: "Cormorant Garamond",
-    fontSize: layout.titleFontSize,
-    weight: 500,
-    color: titleColor,
-  });
+      color: utilityColor,
+      alpha: utilityAlpha,
+      letterSpacing: layout.dateLetterSpacing,
+    }),
+    renderResvgTextLine({
+      text: memoryTitle,
+      brandFamily: "Cormorant Garamond",
+      fontSize: layout.titleFontSize,
+      weight: 500,
+      color: titleColor,
+    }),
+  ]);
   return [
     ...journalLayers,
     {
@@ -1031,6 +1111,23 @@ function jsonError(code: string, status: number) {
     { ok: false, code },
     { status, headers: { "Cache-Control": "private, no-store" } },
   );
+}
+
+export async function GET(request: Request) {
+  const codepoint = new URL(request.url).searchParams.get("emoji") ?? "";
+  try {
+    const svg = await readTwemojiSvg(codepoint);
+    return new Response(new Uint8Array(svg), {
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "Content-Type": "image/svg+xml; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch {
+    return jsonError("NOT_FOUND", 404);
+  }
 }
 
 async function parseRequestBody(request: Request) {

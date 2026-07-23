@@ -1,0 +1,10 @@
+Twemoji graphics
+Copyright 2022-present Jason Sofonia and Justine De Caires
+Copyright 2014-2021 Twitter
+
+The Twemoji graphics used by Daily Memory Stamp are licensed under
+Creative Commons Attribution 4.0 International (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Source: https://github.com/jdecked/twemoji
+Bundled version: 17.0.3

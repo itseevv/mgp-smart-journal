@@ -10,6 +10,7 @@ import {
   JournalStageOverlay,
 } from "@/components/journal/journal-visual-primitives";
 import { JournalIdentityHeader } from "@/components/journal/journal-identity-header";
+import { DailyStampEmojiText } from "@/components/stamp/daily-stamp-emoji-text";
 import { StampGrid } from "@/components/stamp/stamp-grid";
 import { journalConfig } from "@/data/journal";
 import {
@@ -131,7 +132,7 @@ export function DailyMemoryStamp({
               id="daily-memory-stamp-title"
               className="daily-detail-title mt-2 max-w-full font-serif text-[1.48rem] leading-none"
             >
-              {memory.title}
+              <DailyStampEmojiText value={memory.title} />
             </h1>
           </div>
           <button
