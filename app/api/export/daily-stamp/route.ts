@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { Resvg } from "@resvg/resvg-js";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
@@ -40,10 +41,12 @@ const MAX_DISPLAY_INPUT_PIXELS = 20_000_000;
 const MAX_TEXTURE_INPUT_PIXELS = 12_000_000;
 const MAX_LOGO_INPUT_PIXELS = 4_000_000;
 const MAX_PNG_RESPONSE_BYTES = 4 * 1024 * 1024;
-const SERVER_EXPORT_FONT_PATH = path.join(
-  process.cwd(),
-  "public/fonts/NotoSansCJKsc-Regular.otf",
-);
+const SERVER_EXPORT_FONT_FILES = [
+  path.join(process.cwd(), "public/fonts/CormorantGaramond-Medium.ttf"),
+  path.join(process.cwd(), "public/fonts/CormorantGaramond-SemiBold.ttf"),
+  path.join(process.cwd(), "public/fonts/Inter-SemiBold.ttf"),
+  path.join(process.cwd(), "public/fonts/NotoSansCJKsc-Regular.otf"),
+];
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -423,68 +426,134 @@ function artifactSvg({
   `);
 }
 
-async function renderTextLayer({
+type ServerExportBrandFamily = "Cormorant Garamond" | "Inter";
+
+export function serverTextRuns(
+  text: string,
+  brandFamily: ServerExportBrandFamily,
+) {
+  const runs = graphemes(text).reduce<
+    Array<{ text: string; family: string }>
+  >((result, grapheme) => {
+    const isBrandGlyph =
+      /^[\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]+$/u.test(
+        grapheme,
+      ) && !/^[♥•]$/u.test(grapheme);
+    const family = isBrandGlyph ? brandFamily : "Noto Sans CJK SC";
+    const previous = result.at(-1);
+    if (previous?.family === family) {
+      previous.text += grapheme;
+    } else {
+      result.push({ text: grapheme, family });
+    }
+    return result;
+  }, []);
+
+  return runs;
+}
+
+function resvgFontOptions() {
+  return {
+    font: {
+      fontFiles: SERVER_EXPORT_FONT_FILES,
+      loadSystemFonts: false,
+      defaultFontFamily: "Noto Sans CJK SC",
+    },
+  } as const;
+}
+
+function renderResvgTextLine({
   text,
+  brandFamily,
   fontSize,
+  weight,
   color,
   alpha = 1,
-  weight,
-  maxWidth = 0,
-  align = "left",
-  lineHeight = 0,
   letterSpacing = 0,
 }: {
   text: string;
+  brandFamily: ServerExportBrandFamily;
   fontSize: number;
+  weight: number;
   color: string;
   alpha?: number;
-  weight: number;
-  maxWidth?: number;
-  align?: "left" | "centre";
-  lineHeight?: number;
   letterSpacing?: number;
 }) {
-  if (!text) {
-    return {
-      input: await sharp({
-        create: {
-          width: 1,
-          height: 1,
-          channels: 4,
-          background: { r: 0, g: 0, b: 0, alpha: 0 },
+  const baseline = fontSize * 1.25;
+  const spaceAdvance = fontSize * 0.25 + letterSpacing;
+  let cursor = 0;
+  const measuredRuns = serverTextRuns(text, brandFamily)
+    .map((run) => {
+      const leadingSpaces = run.text.match(/^ +/u)?.[0].length ?? 0;
+      const trailingSpaces = run.text.match(/ +$/u)?.[0].length ?? 0;
+      const visibleEnd = trailingSpaces
+        ? run.text.length - trailingSpaces
+        : run.text.length;
+      const visibleText = run.text.slice(leadingSpaces, visibleEnd);
+      const leadingWidth = leadingSpaces * spaceAdvance;
+      const trailingWidth = trailingSpaces * spaceAdvance;
+
+      if (!visibleText) {
+        cursor += leadingWidth + trailingWidth;
+        return undefined;
+      }
+
+      const measureSvg = `
+        <svg width="4096" height="${fontSize * 2}" xmlns="http://www.w3.org/2000/svg">
+          <text x="0" y="${baseline}" font-family="${run.family}" font-size="${fontSize}" font-weight="${weight}" letter-spacing="${letterSpacing}">${escapeXml(visibleText)}</text>
+        </svg>
+      `;
+      const bbox = new Resvg(measureSvg, resvgFontOptions()).getBBox();
+      if (!bbox) return undefined;
+
+      const measured = {
+        family: run.family,
+        text: visibleText,
+        x: cursor + leadingWidth - bbox.x,
+        bbox: {
+          x: cursor + leadingWidth,
+          y: bbox.y,
+          width: bbox.width,
+          height: bbox.height,
         },
-      })
-        .png()
-        .toBuffer(),
-      width: 1,
-      height: 1,
-    };
+      };
+      cursor += leadingWidth + bbox.width + trailingWidth;
+      return measured;
+    })
+    .filter((run): run is NonNullable<typeof run> => Boolean(run));
+
+  if (!measuredRuns.length) {
+    const rendered = new Resvg(
+      '<svg width="1" height="1" xmlns="http://www.w3.org/2000/svg"/>',
+    )
+      .render()
+      .asPng();
+    return { input: Buffer.from(rendered), width: 1, height: 1, baseline: 1 };
   }
-  const letterSpacingMarkup =
-    letterSpacing > 0
-      ? ` letter_spacing="${Math.round(letterSpacing * 1024)}"`
-      : "";
-  const markup =
-    `<span foreground="${escapeXml(color)}" alpha="${Math.round(clamp(alpha, 0, 1) * 100)}%" weight="${weight}"${letterSpacingMarkup}>` +
-    `${escapeXml(text)}</span>`;
-  const rendered = await sharp({
-    text: {
-      text: markup,
-      font: `Noto Sans CJK SC ${fontSize}`,
-      fontfile: SERVER_EXPORT_FONT_PATH,
-      ...(maxWidth > 0 ? { width: maxWidth } : {}),
-      align,
-      ...(lineHeight > 0 ? { spacing: lineHeight } : {}),
-      wrap: "none",
-      rgba: true,
-    },
-  })
-    .png()
-    .toBuffer({ resolveWithObject: true });
+
+  const minY = Math.floor(Math.min(...measuredRuns.map((run) => run.bbox.y)));
+  const maxY = Math.ceil(
+    Math.max(...measuredRuns.map((run) => run.bbox.y + run.bbox.height)),
+  );
+  const width = Math.max(1, Math.ceil(cursor));
+  const height = Math.max(1, maxY - minY);
+  const runElements = measuredRuns
+    .map(
+      (run) =>
+        `<text x="${run.x}" y="${baseline}" font-family="${run.family}" font-size="${fontSize}" font-weight="${weight}" letter-spacing="${letterSpacing}" fill="${escapeXml(color)}" fill-opacity="${clamp(alpha, 0, 1)}">${escapeXml(run.text)}</text>`,
+    )
+    .join("");
+  const lineSvg = `
+    <svg width="${width}" height="${height}" viewBox="0 ${minY} ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      ${runElements}
+    </svg>
+  `;
+  const rendered = new Resvg(lineSvg, resvgFontOptions()).render().asPng();
   return {
-    input: rendered.data,
-    width: rendered.info.width,
-    height: rendered.info.height,
+    input: Buffer.from(rendered),
+    width,
+    height,
+    baseline: baseline - minY,
   };
 }
 
@@ -509,60 +578,71 @@ async function artifactTextLayers({
   const titleColor = lightTheme ? brand.deepBurgundy : brand.warmIvory;
   const utilityColor = lightTheme ? brand.cocoaTaupe : brand.champagnePeach;
   const utilityAlpha = lightTheme ? 0.76 : 0.78;
-  const journalText = wrapText(
+  const journalLines = wrapText(
     serverSafeText(journalTitle),
     layout.journalTitleFontSize,
     layout.journalTitleMaxWidth,
     2,
-  ).join("\n");
+  );
   const memoryTitle = truncateLine(
     serverSafeText(title),
     layout.titleFontSize,
     layout.overlayWidth - layout.overlayPadding * 2,
   );
-  const [journalLayer, dateLayer, titleLayer] = await Promise.all([
-    renderTextLayer({
-      text: journalText,
+  const textLeft = layout.overlayX + layout.overlayPadding;
+  const firstJournalLineY =
+    layout.journalTitleCenterY -
+    ((journalLines.length - 1) * layout.journalTitleLineHeight) / 2;
+  const journalLayers = journalLines.map((line, index) => {
+    const rendered = renderResvgTextLine({
+      text: line,
+      brandFamily: "Cormorant Garamond",
       fontSize: layout.journalTitleFontSize,
+      weight: 600,
       color: journalTitleColor,
       alpha: journalTitleAlpha,
-      weight: 600,
-      maxWidth: layout.journalTitleMaxWidth,
-      align: "centre",
-      lineHeight: layout.journalTitleLineHeight,
-    }),
-    renderTextLayer({
-      text: serverSafeText(dateLabel),
-      fontSize: layout.dateFontSize,
-      color: utilityColor,
-      alpha: utilityAlpha,
-      weight: 600,
-      letterSpacing: layout.dateLetterSpacing,
-    }),
-    renderTextLayer({
-      text: memoryTitle,
-      fontSize: layout.titleFontSize,
-      color: titleColor,
-      weight: 500,
-      maxWidth: layout.overlayWidth - layout.overlayPadding * 2,
-    }),
-  ]);
-  const textLeft = layout.overlayX + layout.overlayPadding;
+    });
+    return {
+      input: rendered.input,
+      left: Math.round((DAILY_STAMP_EXPORT_WIDTH - rendered.width) / 2),
+      top: Math.round(
+        firstJournalLineY +
+          index * layout.journalTitleLineHeight -
+          rendered.height / 2,
+      ),
+    };
+  });
+  const dateLayer = renderResvgTextLine({
+    text: serverSafeText(dateLabel),
+    brandFamily: "Inter",
+    fontSize: layout.dateFontSize,
+    weight: 600,
+    color: utilityColor,
+    alpha: utilityAlpha,
+    letterSpacing: layout.dateLetterSpacing,
+  });
+  const titleLayer = renderResvgTextLine({
+    text: memoryTitle,
+    brandFamily: "Cormorant Garamond",
+    fontSize: layout.titleFontSize,
+    weight: 500,
+    color: titleColor,
+  });
   return [
-    {
-      input: journalLayer.input,
-      left: Math.round((DAILY_STAMP_EXPORT_WIDTH - journalLayer.width) / 2),
-      top: Math.round(layout.journalTitleCenterY - journalLayer.height / 2),
-    },
+    ...journalLayers,
     {
       input: dateLayer.input,
       left: textLeft,
-      top: Math.round(overlayTop + layout.dateBaselineOffset - dateLayer.height),
+      top: Math.round(
+        overlayTop + layout.dateBaselineOffset - dateLayer.baseline,
+      ),
     },
     {
       input: titleLayer.input,
       left: textLeft,
-      top: Math.round(overlayTop + layout.titleBaselineOffset - titleLayer.height),
+      top: Math.round(
+        overlayTop + layout.titleBaselineOffset - titleLayer.baseline,
+      ),
     },
   ];
 }

@@ -27,7 +27,7 @@ test("brand fonts are loaded through Next and exposed as shared CSS variables", 
   assert.doesNotMatch(globalStyles, /Avenir Next|Iowan Old Style|Palatino Linotype/);
 });
 
-test("page keeps brand typography while canvas export uses native fallbacks", () => {
+test("page and canvas export use the same brand typography with CJK fallbacks", () => {
   const globalStyles = readSource("app/globals.css");
   const composerSource = readSource(
     "components/export/daily-stamp-export-composer.tsx",
@@ -38,10 +38,11 @@ test("page keeps brand typography while canvas export uses native fallbacks", ()
   assert.match(globalStyles, /--mgp-utility-font:\s*var\(--font-ui\)/);
   assert.match(composerSource, /var\(--font-display\)/);
   assert.match(composerSource, /var\(--font-ui\)/);
-  assert.match(exportSource, /"Iowan Old Style"/);
+  assert.match(exportSource, /"Cormorant Garamond"/);
+  assert.match(exportSource, /Inter/);
   assert.match(exportSource, /"Songti SC"/);
   assert.match(exportSource, /"PingFang SC"/);
   assert.match(exportSource, /"Microsoft YaHei"/);
-  assert.doesNotMatch(exportSource, /--font-brand-(?:display|interface)/);
-  assert.doesNotMatch(exportSource, /document\.fonts/);
+  assert.match(exportSource, /ensureDailyStampExportBrandFonts/);
+  assert.match(exportSource, /document\.fonts\.load/);
 });

@@ -41,14 +41,19 @@ const brand = {
   cocoaTaupe: "#62453A",
 };
 
-// Canvas exports must not depend on next/font web fonts. Some WebKit and
-// embedded-browser builds can report a web font as loaded while fillText()
-// still resolves its glyphs to tofu. Native stacks keep exported text
-// readable offline and include explicit CJK fallbacks.
 const displayFont =
-  '"Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", STSong, SimSun, Georgia, serif';
+  '"Cormorant Garamond", "Songti SC", STSong, SimSun, Georgia, serif';
 const utilityFont =
-  '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif';
+  'Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif';
+
+async function ensureDailyStampExportBrandFonts() {
+  if (typeof document === "undefined" || !document.fonts) return;
+  await Promise.allSettled([
+    document.fonts.load('600 62px "Cormorant Garamond"', "My Journal"),
+    document.fonts.load('500 53px "Cormorant Garamond"', "Memory title"),
+    document.fonts.load('600 22px "Inter"', "JULY 13, 2026"),
+  ]);
+}
 
 const dailyStampExportLayout = {
   journalTitleCenterY: 202,
@@ -914,6 +919,7 @@ export async function renderDailyMemoryStampExport({
 }: DailyStampExportRenderInput): Promise<Blob> {
   const resolvedTheme = resolveJournalTheme(theme);
   const model = dailyStampExportArtifactModel({ memory, brandMark, journalTitle });
+  await ensureDailyStampExportBrandFonts();
   const imageStrategy = dailyStampExportImageStrategy({
     photoCount: model.photos.length,
     textureUrl: resolvedTheme.textureUrl,
