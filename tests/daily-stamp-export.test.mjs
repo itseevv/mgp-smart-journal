@@ -259,11 +259,12 @@ test("daily stamp export canvas uses dedicated 9:16 scale tokens", () => {
   assert.match(exportSource, /journalTitleUsesDarkInk/);
   assert.match(exportSource, /journalTitleUsesDarkInk\(theme\)/);
   assert.match(exportSource, /const dailyStampExportLayout = \{/);
-  assert.match(exportSource, /"Cormorant Garamond"/);
-  assert.match(exportSource, /Inter/);
-  assert.match(exportSource, /document\.fonts\.load/);
-  assert.match(exportSource, /await loadDailyStampExportFonts/);
-  assert.doesNotMatch(exportSource, /"Avenir Next"|"Helvetica Neue"/);
+  assert.match(exportSource, /"Iowan Old Style"/);
+  assert.match(exportSource, /"Songti SC"/);
+  assert.match(exportSource, /"PingFang SC"/);
+  assert.match(exportSource, /"Microsoft YaHei"/);
+  assert.doesNotMatch(exportSource, /--font-brand-(?:display|interface)/);
+  assert.doesNotMatch(exportSource, /document\.fonts/);
   assert.match(exportSource, /journalTitleCenterY: 202/);
   assert.match(exportSource, /journalTitleFontSize: 62/);
   assert.match(exportSource, /journalTitleLineHeight: 68/);
