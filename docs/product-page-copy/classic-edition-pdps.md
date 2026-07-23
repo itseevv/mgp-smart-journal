@@ -106,19 +106,19 @@ Amber is especially suited to birthdays, graduation, travel, a move, or the begi
 
 ## FAQ
 
-**What paper is included?**  
+**What paper is included?**
 Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages.
 
-**Can I use my own refills?**  
+**Can I use my own refills?**
 Yes. Amber is compatible with standard refills in the same size as the Journal.
 
-**Can you personalize it?**  
+**Can you personalize it?**
 Yes. Complimentary name embossing is available in gold, silver, or blind embossing. Add the details to your order note at checkout.
 
-**Will mine look exactly like the photographs?**  
+**Will mine look exactly like the photographs?**
 The leather color, fabric, hardware, and decorative charms will match the design shown. Small variations in natural leather and hand-finishing make each Journal unique.
 
-**What is the difference between Classic and Momento Edition?**  
+**What is the difference between Classic and Momento Edition?**
 Classic Edition is the complete physical Journal. Momento Edition adds a built-in NFC entry point, a private PIN-protected digital memory space, and a QR/recovery card.
 
 ---
@@ -225,19 +225,19 @@ Royale makes a considered gift for an anniversary, wedding, graduation, Mother�
 
 ## FAQ
 
-**What paper is included?**  
+**What paper is included?**
 Three replaceable, 30-page inserts in a curated mix of dotted, grid, lined, and blank pages.
 
-**Can I use standard refills?**  
+**Can I use standard refills?**
 Yes. Choose standard refills that match Royale’s Journal size.
 
-**Is personalization included?**  
+**Is personalization included?**
 Yes. Add the name and your choice of gold, silver, or blind embossing to the order note at checkout.
 
-**Will each Journal be identical?**  
+**Will each Journal be identical?**
 The design elements arrive as pictured, while natural leather grain and hand-finishing create subtle differences from piece to piece.
 
-**Classic or Momento?**  
+**Classic or Momento?**
 Choose Classic for the physical Journal alone. Choose Momento for the same handmade Journal experience plus its built-in NFC entry point, private digital memory space, and QR/recovery card.
 
 ---
@@ -344,19 +344,19 @@ Bloom is made for birthdays, friendship gifts, graduation, travel, a new home, o
 
 ## FAQ
 
-**What comes inside the Journal?**  
+**What comes inside the Journal?**
 Three replaceable 30-page inserts, three elastic bands, and a fabric folio with an interior pocket and zippered pouch.
 
-**Are the charms included?**  
+**Are the charms included?**
 Yes. All decorative charms shown with Bloom are included.
 
-**Can I personalize the cover?**  
+**Can I personalize the cover?**
 Yes. Complimentary name embossing is available in gold, silver, or blind embossing. Add your request to the order note at checkout.
 
-**Can I replace the paper?**  
+**Can I replace the paper?**
 Yes. Bloom accepts standard refills in the same size as the Journal.
 
-**How is Momento Edition different?**  
+**How is Momento Edition different?**
 Momento includes the same physical Journal plus a built-in NFC entry point, private PIN-protected digital memory space, and QR/recovery card.
 
 ---
@@ -463,19 +463,19 @@ Porcelain makes a particularly meaningful wedding, anniversary, Mother’s Day, 
 
 ## FAQ
 
-**Is the paper replaceable?**  
+**Is the paper replaceable?**
 Yes. The supplied inserts can be replaced with standard refills in Porcelain’s size.
 
-**What layouts are included?**  
+**What layouts are included?**
 The three 30-page inserts arrive in a curated mix of dotted, grid, lined, and blank pages.
 
-**Are the pictured decorations included?**  
+**Are the pictured decorations included?**
 Yes. Porcelain includes the decorative charms shown in its product photographs.
 
-**Can you emboss a name?**  
+**Can you emboss a name?**
 Yes. Complimentary embossing is available in gold, silver, or blind finish. Add the exact name and finish to the order note.
 
-**What does Momento Edition add?**  
+**What does Momento Edition add?**
 Momento adds a built-in NFC entry point, private PIN-protected digital memory space, and QR/recovery card to the physical Journal.
 
 ---
@@ -582,19 +582,19 @@ Blush is a natural choice for birthdays, friendship, graduation, Mother’s Day,
 
 ## FAQ
 
-**What is included?**  
+**What is included?**
 The complete Journal shown, including its fabric folio, pictured charms, three inserts, three elastic bands, pouch, care guide, and gift-ready packaging.
 
-**Can I replace the inserts?**  
+**Can I replace the inserts?**
 Yes. Blush is compatible with standard refills in the same size.
 
-**How do I request embossing?**  
+**How do I request embossing?**
 Enter the name and choose gold, silver, or blind embossing in the order note at checkout.
 
-**Will personalization delay my order?**  
+**Will personalization delay my order?**
 No. Complimentary name embossing does not add to the standard making time.
 
-**Is this the NFC version?**  
+**Is this the NFC version?**
 No. This is Classic Edition. Momento Edition adds the built-in NFC entry point and private digital memory space.
 
 ---
@@ -701,19 +701,19 @@ Flame makes a striking birthday, anniversary, graduation, wedding, travel, or ne
 
 ## FAQ
 
-**Are the pictured charms included?**  
+**Are the pictured charms included?**
 Yes. Flame arrives with the decorative charms shown in its photographs.
 
-**What paper comes with it?**  
+**What paper comes with it?**
 Three replaceable, 30-page inserts in a mix of dotted, grid, lined, and blank pages.
 
-**Can I add a name to the cover?**  
+**Can I add a name to the cover?**
 Yes. Complimentary name embossing is available in gold, silver, or blind finish. Add your request to the order note.
 
-**Can it hold more than three inserts?**  
+**Can it hold more than three inserts?**
 It is supplied with three. If you prefer a bulkier setup, request extra elastic bands in your order note.
 
-**Does Classic Edition include digital storage?**  
+**Does Classic Edition include digital storage?**
 No. Choose Momento Edition for the built-in NFC entry point and private PIN-protected digital memory space.
 
 ---
@@ -820,19 +820,19 @@ Eden is a thoughtful choice for graduation, Mother’s Day, a new baby, a move, 
 
 ## FAQ
 
-**Can I use Eden for junk journaling?**  
+**Can I use Eden for junk journaling?**
 Yes. Its three inserts, interior pocket, and zippered pouch make it easy to combine writing with tickets, notes, photographs, stickers, and other flat keepsakes.
 
-**Can I replace the paper?**  
+**Can I replace the paper?**
 Yes. Use standard refills that match Eden’s size.
 
-**Is embossing free?**  
+**Is embossing free?**
 Yes. Add the name and choose gold, silver, or blind embossing in the order note at checkout.
 
-**Will my Journal be unique?**  
+**Will my Journal be unique?**
 Yes. The design arrives as pictured, while natural leather and hand-finishing create slight differences in every piece.
 
-**What does Momento Edition include?**  
+**What does Momento Edition include?**
 Momento includes the same handmade Journal experience plus a built-in NFC entry point, a private digital memory space protected by an Owner PIN, and a QR/recovery card.
 
 ---
@@ -939,19 +939,19 @@ Aurora is made for graduation, travel, a move, a creative beginning, friendship,
 
 ## FAQ
 
-**Is Aurora refillable?**  
+**Is Aurora refillable?**
 Yes. Replace the supplied inserts with standard refills in Aurora’s size.
 
-**What page styles are included?**  
+**What page styles are included?**
 The three 30-page inserts arrive in a curated mix of dotted, grid, lined, and blank pages.
 
-**Do all the pictured charms come with it?**  
+**Do all the pictured charms come with it?**
 Yes. The decorative charms shown with Aurora are included.
 
-**How do I personalize it?**  
+**How do I personalize it?**
 Add the name and choose gold, silver, or blind embossing in the order note at checkout.
 
-**Does it have the Momento digital feature?**  
+**Does it have the Momento digital feature?**
 This Classic Edition does not. Momento Edition adds NFC access to a private, PIN-protected digital memory space and includes a QR/recovery card.
 
 ---
@@ -1058,19 +1058,19 @@ Eclipse makes a memorable birthday, graduation, anniversary, friendship, new-cha
 
 ## FAQ
 
-**What comes with Eclipse?**  
+**What comes with Eclipse?**
 The Journal cover, pictured folio and charms, three paper inserts, three elastic bands, pouch, care guide, gift-ready packaging, and complimentary name embossing.
 
-**Can I replace the paper inserts?**  
+**Can I replace the paper inserts?**
 Yes. Eclipse is compatible with standard refills in the same size.
 
-**Can I request more elastic bands?**  
+**Can I request more elastic bands?**
 Yes. Leave a note with your order if you prefer a fuller setup.
 
-**Is every Eclipse Journal exactly the same?**  
+**Is every Eclipse Journal exactly the same?**
 The design elements match the photographs. Natural variations in leather and hand-finishing make each finished Journal slightly different.
 
-**How is Momento Edition different?**  
+**How is Momento Edition different?**
 Momento Edition adds a built-in NFC entry point, a private PIN-protected digital memory space, and a QR/recovery card to the physical Journal.
 
 ---

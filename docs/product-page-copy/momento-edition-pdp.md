@@ -175,9 +175,9 @@ Momento is designed for up to 365 dated Daily Memory Stamps. Each Stamp holds up
 
 You can begin with today or return to a date in the past. There is no pressure to journal in a perfect uninterrupted streak; the dates are there to help you remember your life as it was lived.
 
-**365 dated Memory Stamps**  
-**Up to 9 photos per day**  
-**Up to 3,285 photos in total**  
+**365 dated Memory Stamps**
+**Up to 9 photos per day**
+**Up to 3,285 photos in total**
 **No subscription required for included storage**
 
 ### Private by default.
