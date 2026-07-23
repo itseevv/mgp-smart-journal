@@ -25,6 +25,7 @@ import {
   CAPSULE_OPEN_TIMEOUT_MS,
   CapsuleOpenError,
   mapCapsuleAccessInvokeError,
+  withCapsuleOpenRetry,
   withTimeout,
 } from "@/lib/capsule/opening";
 import { optimisePhotoForUpload } from "@/lib/media/photo-optimisation";
@@ -180,31 +181,40 @@ export async function callCapsuleAccess(
   memoryId?: string,
   timeoutMs = CAPSULE_OPEN_TIMEOUT_MS,
 ) {
-  let result;
-  try {
-    result = await withTimeout(
-      client.functions.invoke("capsule-access", {
-        body: { action, publicToken, pin, memoryId },
-      }),
+  return withCapsuleOpenRetry(
+    async (remainingMs) => {
+      let result;
+      try {
+        result = await withTimeout(
+          client.functions.invoke("capsule-access", {
+            body: { action, publicToken, pin, memoryId },
+          }),
+          remainingMs,
+          () =>
+            new CapsuleOpenError(
+              "INSPECT_TIMEOUT",
+              "inspect",
+              "Opening this capsule took too long. Please retry.",
+              { retryable: true },
+            ),
+        );
+      } catch (error) {
+        if (error instanceof CapsuleOpenError) throw error;
+        throw mapCapsuleAccessInvokeError(error);
+      }
+      const { data, error } = result;
+      if (error) throw mapCapsuleAccessInvokeError(error);
+      return data as CapsuleInspection & {
+        ok?: boolean;
+        code?: "ACCESS_DENIED" | "TEMPORARILY_LOCKED" | "INVALID_REQUEST" | "UNAVAILABLE";
+        retryAfterSeconds?: number;
+      };
+    },
+    {
       timeoutMs,
-      () =>
-        new CapsuleOpenError(
-          "INSPECT_TIMEOUT",
-          "inspect",
-          "Opening this capsule took too long. Please retry.",
-        ),
-    );
-  } catch (error) {
-    if (error instanceof CapsuleOpenError) throw error;
-    throw mapCapsuleAccessInvokeError(error);
-  }
-  const { data, error } = result;
-  if (error) throw mapCapsuleAccessInvokeError(error);
-  return data as CapsuleInspection & {
-    ok?: boolean;
-    code?: "ACCESS_DENIED" | "TEMPORARILY_LOCKED" | "INVALID_REQUEST" | "UNAVAILABLE";
-    retryAfterSeconds?: number;
-  };
+      maxAttempts: action === "inspect" ? 2 : 1,
+    },
+  );
 }
 
 export type RecoveryAccessResult = {

@@ -5,7 +5,9 @@ import test from "node:test";
 import {
   CAPSULE_OPEN_TIMEOUT_MS,
   CapsuleOpenError,
+  isRetryableCapsuleOpenError,
   mapCapsuleAccessInvokeError,
+  withCapsuleOpenRetry,
   withTimeout,
 } from "../lib/capsule/opening.ts";
 
@@ -36,6 +38,50 @@ test("capsule opening maps fetch failures to a retryable network or CORS message
   assert.equal(mapped instanceof CapsuleOpenError, true);
   assert.equal(mapped.code, "NETWORK_OR_CORS");
   assert.match(mapped.message, /origin configuration|connection/i);
+  assert.equal(isRetryableCapsuleOpenError(mapped), true);
+});
+
+test("capsule opening retries one transient inspect failure inside the original timeout budget", async () => {
+  let calls = 0;
+  const result = await withCapsuleOpenRetry(
+    async () => {
+      calls += 1;
+      if (calls === 1) {
+        throw mapCapsuleAccessInvokeError({
+          name: "FunctionsHttpError",
+          message: "Edge Function returned a non-2xx status code",
+          context: { status: 503 },
+        });
+      }
+      return { state: "locked" };
+    },
+    { timeoutMs: 1_000, maxAttempts: 2, retryDelayMs: 1 },
+  );
+
+  assert.deepEqual(result, { state: "locked" });
+  assert.equal(calls, 2);
+});
+
+test("capsule opening does not retry deterministic client errors", async () => {
+  let calls = 0;
+  await assert.rejects(
+    withCapsuleOpenRetry(
+      async () => {
+        calls += 1;
+        throw mapCapsuleAccessInvokeError({
+          name: "FunctionsHttpError",
+          message: "Edge Function returned a non-2xx status code",
+          context: { status: 400 },
+        });
+      },
+      { timeoutMs: 1_000, maxAttempts: 2, retryDelayMs: 1 },
+    ),
+    (error) =>
+      error instanceof CapsuleOpenError &&
+      error.httpStatus === 400 &&
+      !error.retryable,
+  );
+  assert.equal(calls, 1);
 });
 
 test("capsule access function allows configured origins instead of a single wildcard origin", async () => {
@@ -61,6 +107,8 @@ test("capsule bootstrap times out both session lookup and access inspection", as
   assert.match(capsuleApi, /withTimeout\(\s*client\.auth\.signInAnonymously\(\)/);
   assert.match(capsuleApi, /client\.functions\.invoke\("capsule-access"/);
   assert.match(capsuleApi, /INSPECT_TIMEOUT/);
+  assert.match(capsuleApi, /withCapsuleOpenRetry/);
+  assert.match(capsuleApi, /maxAttempts:\s*action === "inspect" \? 2 : 1/);
 });
 
 test("customer capsule routes provide a server-side initial gate before hydration", async () => {
