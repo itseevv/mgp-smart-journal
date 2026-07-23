@@ -336,6 +336,7 @@ test("daily stamp export canvas uses dedicated 9:16 scale tokens", () => {
 
 test("persisted daily stamp export is authenticated and rendered on the server", async () => {
   const routeSource = readSource("app/api/export/daily-stamp/route.ts");
+  const nextConfigSource = readSource("next.config.ts");
   const composerSource = readSource(
     "components/export/daily-stamp-export-composer.tsx",
   );
@@ -357,6 +358,9 @@ test("persisted daily stamp export is authenticated and rendered on the server",
   );
   assert.doesNotMatch(routeSource, /photos\.map[\s\S]*Promise\.all/);
   assert.doesNotMatch(routeSource, /fetch\(theme\.texture/i);
+  assert.match(nextConfigSource, /outputFileTracingIncludes/);
+  assert.match(nextConfigSource, /"\/api\/export\/daily-stamp"/);
+  assert.match(nextConfigSource, /NotoSansCJKsc-Regular\.otf/);
 
   assert.match(composerSource, /fetch\("\/api\/export\/daily-stamp"/);
   assert.match(composerSource, /persistentMemoryId\(memory\)/);

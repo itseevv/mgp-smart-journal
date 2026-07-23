@@ -26,6 +26,11 @@ function allowedDevOrigins() {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: allowedDevOrigins(),
+  outputFileTracingIncludes: {
+    "/api/export/daily-stamp": [
+      "./public/fonts/NotoSansCJKsc-Regular.otf",
+    ],
+  },
   turbopack: {
     root: process.cwd(),
   },
