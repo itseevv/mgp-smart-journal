@@ -247,7 +247,7 @@ export function ScrapTable({
                 id="scrap-table-title"
                 className="scrap-finder-title font-serif text-[1.72rem] leading-none text-[var(--journal-home-month-title)]"
               >
-                Find today&apos;s scrap
+                Find Your Cover Scrap
               </h1>
               <p className="scrap-finder-helper mt-2 font-sans text-xs leading-relaxed text-[var(--journal-muted)]">
                 Move the photo under the finder.

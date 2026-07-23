@@ -27,13 +27,23 @@ const oldStrings = [
   "Voice memos",
   "Record a voice memo",
   "Save memory",
+  "New Daily Scrap",
+  "Edit stamp",
+  "Save stamp",
+  "Choose today's scrap",
+  "Find today's scrap",
+  "Save / Share",
+  "Save or share",
+  "Save Image",
+  "Creating image...",
+  "No scraps yet.",
 ];
 const createStrings = [
-  "New Daily Scrap",
+  "New Memory Stamp",
   "One line to keep",
   "What would you call today?",
   "Cover Scrap",
-  "Choose today's scrap",
+  "Choose today’s Cover Scrap",
   "One photo is enough to seal the day.",
   "Seal this day",
 ];
@@ -45,7 +55,7 @@ const sealingStrings = [
   "Seal this day",
 ];
 const cropStrings = [
-  "Find today's scrap",
+  "Find Your Cover Scrap",
   "Move the photo under the finder.",
   "Use this scrap",
   "Reset",

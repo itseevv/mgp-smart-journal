@@ -37,7 +37,7 @@ function emptyStateCopy(status: MonthlyStampArchive["selectedMonthStatus"]) {
     };
   }
   return {
-    title: "No scraps yet.",
+    title: "No stamps yet.",
     body: "Find one little piece of today.",
   };
 }
