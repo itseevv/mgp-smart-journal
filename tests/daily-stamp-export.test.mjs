@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import sharp from "sharp";
 
@@ -348,6 +349,12 @@ test("persisted daily stamp export is authenticated and rendered on the server",
   assert.match(routeSource, /Cache-Control": "private, no-store"/);
   assert.match(routeSource, /MAX_PNG_RESPONSE_BYTES = 4 \* 1024 \* 1024/);
   assert.match(routeSource, /MAX_TOTAL_SOURCE_BYTES/);
+  assert.match(routeSource, /NotoSansCJKsc-Regular\.otf/);
+  assert.match(routeSource, /fontfile: SERVER_EXPORT_FONT_PATH/);
+  assert.doesNotMatch(
+    routeSource,
+    /font-family="(?:Georgia|Arial)|Times New Roman/,
+  );
   assert.doesNotMatch(routeSource, /photos\.map[\s\S]*Promise\.all/);
   assert.doesNotMatch(routeSource, /fetch\(theme\.texture/i);
 
@@ -393,6 +400,48 @@ test("persisted daily stamp export is authenticated and rendered on the server",
     ok: false,
     code: "REQUEST_TOO_LARGE",
   });
+});
+
+test("bundled server export font contains distinct CJK glyphs", async () => {
+  const fontUrl = new URL(
+    "../public/fonts/NotoSansCJKsc-Regular.otf",
+    import.meta.url,
+  );
+  const font = readFileSync(fontUrl);
+  assert.equal(font.subarray(0, 4).toString("ascii"), "OTTO");
+  assert.ok(font.byteLength > 10_000_000);
+
+  const sample = "京都咖啡散步";
+  const rendered = await sharp({
+    text: {
+      text: sample,
+      font: "Noto Sans CJK SC 62",
+      fontfile: fileURLToPath(fontUrl),
+      rgba: true,
+    },
+  })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const glyphWidth = Math.floor(rendered.info.width / sample.length);
+  const glyphHashes = Array.from({ length: sample.length }, (_, index) => {
+    const left = index * glyphWidth;
+    const right =
+      index === sample.length - 1
+        ? rendered.info.width
+        : (index + 1) * glyphWidth;
+    const hash = createHash("sha256");
+    for (let y = 0; y < rendered.info.height; y += 1) {
+      const rowStart = (y * rendered.info.width + left) * 4;
+      const rowEnd = (y * rendered.info.width + right) * 4;
+      hash.update(rendered.data.subarray(rowStart, rowEnd));
+    }
+    return hash.digest("hex");
+  });
+  assert.ok(
+    new Set(glyphHashes).size >= sample.length - 1,
+    "expected distinct CJK glyphs instead of repeated missing-glyph boxes",
+  );
 });
 
 test("server daily stamp renderer handles 9 photos and applies normalized cover crop", async () => {
