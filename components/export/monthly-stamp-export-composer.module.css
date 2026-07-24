@@ -1,0 +1,185 @@
+.overlay {
+  align-items: center;
+  background: rgba(31, 18, 17, 0.56);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding:
+    max(0.75rem, env(safe-area-inset-top))
+    0.75rem
+    max(0.75rem, env(safe-area-inset-bottom));
+  position: fixed;
+  z-index: 80;
+}
+
+.dialog {
+  background:
+    linear-gradient(180deg, rgba(228, 180, 143, 0.12), rgba(98, 69, 58, 0.06)),
+    rgba(232, 219, 204, 0.96);
+  border: 1px solid rgba(66, 24, 25, 0.12);
+  border-radius: 0.375rem;
+  box-shadow: 0 1rem 2.4rem rgba(66, 24, 25, 0.26);
+  color: #421819;
+  max-height: calc(100dvh - 1.5rem);
+  max-width: 19.125rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.header {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.header h2 {
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  font-weight: 500;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.closeButton {
+  align-items: center;
+  background: rgba(66, 24, 25, 0.08);
+  border: 0;
+  border-radius: 999px;
+  color: #421819;
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 auto;
+  height: 2.25rem;
+  justify-content: center;
+  padding: 0;
+  width: 2.25rem;
+}
+
+.closeButton svg {
+  height: 1rem;
+  width: 1rem;
+}
+
+.artifactViewport {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.artifactFrame,
+.loadingFrame {
+  box-shadow: 0 0.5rem 1.4rem rgba(35, 17, 18, 0.22);
+  flex: 0 0 auto;
+  width: 9.5rem;
+}
+
+.artifactFrame {
+  overflow: hidden;
+}
+
+.artifactFrame img {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  width: 100%;
+}
+
+.loadingFrame {
+  align-items: center;
+  background-color: var(--journal-background);
+  background-image:
+    var(--journal-texture-url),
+    var(--journal-texture),
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.055),
+      transparent 38%,
+      rgba(0, 0, 0, 0.13)
+    );
+  background-position:
+    center,
+    left top,
+    center;
+  background-repeat:
+    no-repeat,
+    repeat,
+    no-repeat;
+  background-size:
+    cover,
+    8px 9px,
+    auto;
+  color: var(--journal-home-title);
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.loadingFrame p {
+  font-family: var(--mgp-display-font);
+  font-size: 0.78rem;
+  line-height: 1.25;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.actions button {
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.actions button:disabled {
+  cursor: wait;
+}
+
+.actions svg {
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+.primary {
+  background: var(--journal-background);
+  color: var(--journal-text);
+}
+
+.secondary {
+  background: var(--journal-home-cta-bg);
+  color: var(--journal-home-cta-text);
+}
+
+.status {
+  color: rgba(66, 24, 25, 0.58);
+  font-size: 0.58rem;
+  line-height: 1.4;
+  margin: 0.5rem 0 0;
+  min-height: 0.85rem;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actions button {
+    scroll-behavior: auto;
+  }
+}

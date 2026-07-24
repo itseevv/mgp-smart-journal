@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/monthly-export-cleanup",
+      "schedule": "17 3 * * *"
+    }
+  ]
+}

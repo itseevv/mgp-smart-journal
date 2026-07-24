@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -29,6 +30,14 @@ type JournalHomeProps = {
   initialMonth?: string;
   onLock: () => Promise<void>;
 };
+
+const MonthlyStampExportComposer = dynamic(
+  () =>
+    import("@/components/export/monthly-stamp-export-composer").then(
+      (module) => module.MonthlyStampExportComposer,
+    ),
+  { ssr: false },
+);
 
 function coverStoragePath(memory: JournalHomeData["memories"][number]) {
   return memory.firstThumbnailStoragePath ?? memory.firstPhotoStoragePath;
@@ -68,6 +77,7 @@ export function JournalHome({
   const [navigationBusy, setNavigationBusy] = useState(false);
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupError, setCleanupError] = useState("");
+  const [monthlyExportOpen, setMonthlyExportOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -268,6 +278,7 @@ export function JournalHome({
           thumbnailUrls={thumbnailUrls}
           onOpen={(memory) => router.push(`/c/${publicToken}/m/${memory.id}`)}
           onSelectMonth={selectMonth}
+          onExport={() => setMonthlyExportOpen(true)}
         />
 
         <BottomRitualAction
@@ -279,6 +290,16 @@ export function JournalHome({
           onBackfillAction={sealAnotherDay}
         />
       </article>
+      <MonthlyStampExportComposer
+        open={monthlyExportOpen}
+        capsuleId={capsuleId}
+        journalTitle={journal.title}
+        monthKey={archive.selectedMonthKey}
+        stamps={archive.selectedSheet.stamps}
+        thumbnailUrls={thumbnailUrls}
+        theme={theme}
+        onClose={() => setMonthlyExportOpen(false)}
+      />
     </div>
   );
 }

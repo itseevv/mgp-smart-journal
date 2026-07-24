@@ -35,6 +35,14 @@ const nextConfig: NextConfig = {
       "./public/fonts/NotoSansCJKsc-Regular.otf",
       "./node_modules/@twemoji/api/assets/svg/*.svg",
     ],
+    "/api/export/monthly-sheet": [
+      "./public/fonts/CormorantGaramond-Medium.ttf",
+      "./public/fonts/CormorantGaramond-SemiBold.ttf",
+      "./public/fonts/Inter-SemiBold.ttf",
+      "./public/fonts/NotoSansCJKsc-Regular.otf",
+      "./public/brand/mgp-full-logo-transparent.png",
+      "./node_modules/@twemoji/api/assets/svg/*.svg",
+    ],
   },
   turbopack: {
     root: process.cwd(),

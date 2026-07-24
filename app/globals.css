@@ -457,6 +457,46 @@ a:focus-visible {
   width: 2.75rem;
 }
 
+.month-sheet-export-divider {
+  background: color-mix(
+    in srgb,
+    var(--journal-home-control-text) 18%,
+    transparent
+  );
+  height: 1.4rem;
+  margin-inline: 0.1rem;
+  width: 1px;
+}
+
+.month-sheet-export-button {
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.month-sheet-export-button:hover:not(:disabled),
+.month-sheet-export-button:focus-visible:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--journal-home-control-text) 22%,
+    transparent
+  );
+}
+
+.month-sheet-export-button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .month-sheet-export-button {
+    transition: none;
+  }
+
+  .month-sheet-export-button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 .month-sheet-empty-state {
   color: var(--journal-home-title);
 }
