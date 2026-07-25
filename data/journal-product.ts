@@ -5,7 +5,7 @@ export const DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS =
 export const JOURNAL_YEAR_DAYS = 365;
 export const JOURNAL_YEAR_PHOTO_CAPACITY =
   JOURNAL_YEAR_DAYS * DAILY_MEMORY_STAMP_MAX_PHOTOS;
-export const JOURNAL_VOICE_MEMOS_ENABLED = false;
+export const JOURNAL_VOICE_MEMOS_ENABLED = true;
 
 export function dailyStampAdditionalMomentCapacity(
   currentPhotoCount: number,

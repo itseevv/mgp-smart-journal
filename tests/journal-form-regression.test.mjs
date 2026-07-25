@@ -15,9 +15,9 @@ test("journal form product rules use Scrap the Day constraints and copy", () => 
   const rules = getMemoryFormProductRules("journal");
 
   assert.equal(DAILY_MEMORY_STAMP_MAX_PHOTOS, 9);
-  assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, false);
+  assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, true);
   assert.equal(rules.maxPhotosPerEntry, 9);
-  assert.equal(rules.voiceMemosEnabled, false);
+  assert.equal(rules.voiceMemosEnabled, true);
   assert.equal(rules.copy.newTitle, "New Memory Stamp");
   assert.equal(rules.copy.editTitle, "Edit Memory Stamp");
   assert.equal(rules.copy.editAriaLabel, "Edit Memory Stamp");
@@ -46,6 +46,13 @@ test("journal route passes the journal product mode through to the form flow", (
   const journalPageSource = readSource("components/journal/journal-memory-page.tsx");
   const persistentFlowSource = readSource("components/capsule/persistent-memory-flow.tsx");
   const memoryFormSource = readSource("components/memory/memory-form.tsx");
+  const voiceRecorderSource = readSource("components/memory/voice-recorder.tsx");
+  const journalVoiceNotePlayerSource = readSource(
+    "components/memory/journal-voice-note-player.tsx",
+  );
+  const dailyMemoryStampSource = readSource(
+    "components/stamp/daily-memory-stamp.tsx",
+  );
   const photoPickerSource = readSource("components/memory/photo-picker.tsx");
   const journalDemoSource = readSource("components/journal/journal-demo-flow.tsx");
   const memoryDemoRouteSource = readSource("app/memory/demo/page.tsx");
@@ -70,6 +77,27 @@ test("journal route passes the journal product mode through to the form flow", (
   assert.match(persistentFlowSource, /productRules\.maxPhotosPerEntry/);
   assert.match(persistentFlowSource, /productMode=\{productMode\}/);
   assert.match(memoryFormSource, /voiceMemosEnabled/);
+  assert.match(memoryFormSource, /journalMode=\{isJournalProduct\}/);
+  assert.match(memoryFormSource, /onConfirmationChange/);
+  assert.match(voiceRecorderSource, /A whisper from today/);
+  assert.match(
+    voiceRecorderSource,
+    /Let today linger in your voice before it is sealed\./,
+  );
+  assert.match(voiceRecorderSource, /aria-expanded=\{journalOpen\}/);
+  assert.match(voiceRecorderSource, /<small>Optional<\/small>/);
+  assert.match(
+    voiceRecorderSource,
+    /<PlusIcon[\s\S]*journalOpen \? "rotate-45" : ""/,
+  );
+  assert.doesNotMatch(voiceRecorderSource, /journal-voice-note-disclosure__icon/);
+  assert.match(voiceRecorderSource, /journal-voice-note-recording__times/);
+  assert.doesNotMatch(voiceRecorderSource, /type="file"/);
+  assert.match(journalVoiceNotePlayerSource, />\s*Remove\s*</);
+  assert.match(journalVoiceNotePlayerSource, />\s*Save\s*</);
+  assert.doesNotMatch(journalVoiceNotePlayerSource, /Record again/);
+  assert.match(dailyMemoryStampSource, /journal-daily-voice-note/);
+  assert.match(dailyMemoryStampSource, /resolveVoiceMemoUrl/);
   assert.match(memoryFormSource, /That day is already sealed in this journal/);
   assert.match(memoryFormSource, /Open that stamp instead/);
   assert.match(memoryFormSource, /duplicateStamp/);
@@ -106,7 +134,11 @@ test("journal route passes the journal product mode through to the form flow", (
   assert.match(journalPhotoPickerSource, /One photo is enough to seal the day\./);
   assert.match(journalPhotoPickerSource, /onConfirmCrop/);
   assert.match(journalPhotoPickerSource, /Adjust scrap/);
-  assert.match(journalPhotoPickerSource, /Add more moments \(optional\)/);
+  assert.match(
+    journalPhotoPickerSource,
+    /journal-optional-section-label[\s\S]*<span>Add more moments<\/span>[\s\S]*<small>Optional<\/small>/,
+  );
+  assert.doesNotMatch(journalPhotoPickerSource, /Add more moments \(optional\)/);
   assert.match(
     journalPhotoPickerSource,
     /Add up to \{additionalCapacity\.remaining\} more/,
@@ -215,6 +247,10 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(globalCssSource, /--stamp-rim-width/);
   assert.match(globalCssSource, /--stamp-rim-color/);
   assert.match(globalCssSource, /--stamp-inner-contrast/);
+  assert.match(
+    globalCssSource,
+    /@media \(min-width: 640px\)[\s\S]*\.journal-create-edit-form\s*\{\s*flex-shrink: 0;/,
+  );
   assert.match(globalCssSource, /--stamp-cutout-shadow/);
   assert.match(globalCssSource, /\.stamp-frame--lg\s*\{[\s\S]*--stamp-rim-width: 10px/);
   assert.match(globalCssSource, /\.stamp-frame--md\s*\{[\s\S]*--stamp-rim-width: 7px/);

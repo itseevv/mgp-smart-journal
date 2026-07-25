@@ -121,6 +121,7 @@ export function MemoryForm({
 }: MemoryFormProps) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isRecording, setIsRecording] = useState(false);
+  const [isVoiceNoteConfirmed, setIsVoiceNoteConfirmed] = useState(true);
   const [isPreparingPhotos, setIsPreparingPhotos] = useState(false);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const dateTime = formatDateTimeParts(draft.capturedAt);
@@ -145,7 +146,8 @@ export function MemoryForm({
     (!selectedLocalDate ||
       !draft.title.trim() ||
       draft.photos.length === 0 ||
-      Boolean(duplicateStamp));
+      Boolean(duplicateStamp) ||
+      !isVoiceNoteConfirmed);
   const isSaving =
     saveStatus === "preparing" ||
     saveStatus === "uploading" ||
@@ -437,6 +439,8 @@ export function MemoryForm({
               onRecordingChange={setIsRecording}
               registerObjectUrl={registerObjectUrl}
               resolveVoiceMemoUrl={resolveVoiceMemoUrl}
+              journalMode={isJournalProduct}
+              onConfirmationChange={setIsVoiceNoteConfirmed}
             />
           </div>
         ) : null}

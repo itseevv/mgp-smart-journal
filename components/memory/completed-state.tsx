@@ -56,6 +56,7 @@ export function CompletedState({
         journalTitle={journalTitle}
         onLock={onLock}
         resolvePhotoUrl={resolvePhotoUrl}
+        resolveVoiceMemoUrl={resolveVoiceMemoUrl}
         theme={theme}
       />
     );

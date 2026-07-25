@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 
 import { ChevronLeftIcon } from "@/components/memory/memory-icons";
+import { JournalVoiceNotePlayer } from "@/components/memory/journal-voice-note-player";
 import {
   JournalPrimaryCTA,
   JournalShellIconButton,
@@ -40,6 +41,10 @@ type DailyMemoryStampProps = {
   resolvePhotoUrl?: (
     photo: MemoryEntry["photos"][number],
     variant: "display" | "thumbnail",
+    forceRefresh?: boolean,
+  ) => Promise<string>;
+  resolveVoiceMemoUrl?: (
+    memo: MemoryEntry["voiceMemos"][number],
     forceRefresh?: boolean,
   ) => Promise<string>;
   theme?: JournalTheme;
@@ -79,10 +84,13 @@ export function DailyMemoryStamp({
   journalTitle = journalConfig.defaultTitle,
   onLock = () => undefined,
   resolvePhotoUrl,
+  resolveVoiceMemoUrl,
   theme = defaultJournalTheme,
 }: DailyMemoryStampProps) {
   const [exportOpen, setExportOpen] = useState(false);
+  const [activeMemoId, setActiveMemoId] = useState<string | null>(null);
   const dateLabel = formatDisplayDate(memory.capturedAt);
+  const voiceNote = memory.voiceMemos[0];
   const backControl = onBackToMonthSheet ? (
     <JournalShellIconButton
       type="button"
@@ -115,7 +123,9 @@ export function DailyMemoryStamp({
 
       <JournalStageOverlay
         variant="daily-detail"
-        className="daily-detail-content-surface min-h-0 flex-1 overflow-hidden p-2.5"
+        className={`daily-detail-content-surface min-h-0 flex-1 p-2.5 ${
+          voiceNote ? "overflow-y-auto" : "overflow-hidden"
+        }`}
         data-daily-detail-surface="sheer-overlay"
         data-daily-detail-mobile-width="approved-playground"
         data-daily-detail-spacing="approved-playground-baseline"
@@ -156,6 +166,23 @@ export function DailyMemoryStamp({
             resolvePhotoUrl={resolvePhotoUrl}
           />
         </section>
+
+        {voiceNote ? (
+          <section
+            className="journal-daily-voice-note"
+            aria-labelledby="journal-daily-voice-note-title"
+          >
+            <h2 id="journal-daily-voice-note-title">
+              A whisper from today
+            </h2>
+            <JournalVoiceNotePlayer
+              voiceMemo={voiceNote}
+              activeId={activeMemoId}
+              onActiveChange={setActiveMemoId}
+              resolveUrl={resolveVoiceMemoUrl}
+            />
+          </section>
+        ) : null}
       </JournalStageOverlay>
 
       <footer
