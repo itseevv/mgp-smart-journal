@@ -79,6 +79,10 @@ test("journal route passes the journal product mode through to the form flow", (
   assert.match(memoryFormSource, /voiceMemosEnabled/);
   assert.match(memoryFormSource, /journalMode=\{isJournalProduct\}/);
   assert.match(memoryFormSource, /onConfirmationChange/);
+  assert.match(
+    memoryFormSource,
+    /if \(isJournalProduct && !isVoiceNoteConfirmed\) return;/,
+  );
   assert.match(voiceRecorderSource, /A whisper from today/);
   assert.match(
     voiceRecorderSource,

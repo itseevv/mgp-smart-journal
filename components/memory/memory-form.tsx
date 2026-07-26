@@ -187,6 +187,7 @@ export function MemoryForm({
     event.preventDefault();
     if (isPreparingPhotos) return;
     if (isJournalProduct && !selectedLocalDate) return;
+    if (isJournalProduct && !isVoiceNoteConfirmed) return;
     const nextErrors: FormErrors = {};
     if (!draft.title.trim()) {
       nextErrors.title = copy.titleRequiredError;
