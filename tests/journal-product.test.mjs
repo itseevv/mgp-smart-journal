@@ -64,7 +64,7 @@ test("journal product constants describe one 9-image daily stamp", () => {
   assert.equal(DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS, 8);
   assert.equal(JOURNAL_YEAR_DAYS, 365);
   assert.equal(JOURNAL_YEAR_PHOTO_CAPACITY, 3285);
-  assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, false);
+  assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, true);
   assert.equal(STAMP_FRAME_RATIO_MODE, "square");
   assert.equal(DEFAULT_STAMP_FRAME_ASPECT_RATIO, 1);
 });

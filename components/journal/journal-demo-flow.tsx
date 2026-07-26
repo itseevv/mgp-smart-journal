@@ -64,7 +64,7 @@ function copyDraft(memory: DemoPersistentStamp): MemoryDraft {
     localTimezone: memory.localTimezone,
     title: memory.title,
     photos: memory.photos.map((photo) => ({ ...photo })),
-    voiceMemos: [],
+    voiceMemos: memory.voiceMemos.map((voiceMemo) => ({ ...voiceMemo })),
   };
 }
 
@@ -78,7 +78,7 @@ function stampSummary(memory: DemoPersistentStamp) {
     localDate: memory.localDate,
     localTimezone: memory.localTimezone,
     photoCount: Math.min(memory.photos.length, DAILY_MEMORY_STAMP_MAX_PHOTOS),
-    voiceMemoCount: 0,
+    voiceMemoCount: memory.voiceMemos.length,
     firstPhotoStoragePath: firstPhoto?.storagePath,
     firstPhotoWidth: firstPhoto?.width,
     firstPhotoHeight: firstPhoto?.height,
@@ -425,7 +425,7 @@ export function JournalDemoFlow({
       localTimezone: draft.localTimezone,
       title: draft.title.trim(),
       photos: draft.photos.slice(0, DAILY_MEMORY_STAMP_MAX_PHOTOS),
-      voiceMemos: [],
+      voiceMemos: draft.voiceMemos.slice(0, 1),
     };
 
     setSavedStamps((current) => {

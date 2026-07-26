@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   MicrophoneIcon,
+  PlusIcon,
   StopIcon,
 } from "@/components/memory/memory-icons";
+import { JournalVoiceNotePlayer } from "@/components/memory/journal-voice-note-player";
 import {
   formatDuration,
   VoiceMemoCard,
@@ -37,6 +39,8 @@ type VoiceRecorderProps = {
     memo: MemoryVoiceMemo,
     forceRefresh?: boolean,
   ) => Promise<string>;
+  journalMode?: boolean;
+  onConfirmationChange?: (confirmed: boolean) => void;
 };
 
 const PERMISSION_TIMEOUT_MS = 12000;
@@ -73,6 +77,8 @@ export function VoiceRecorder({
   registerObjectUrl,
   onRecordingChange,
   resolveVoiceMemoUrl,
+  journalMode = false,
+  onConfirmationChange,
 }: VoiceRecorderProps) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -94,6 +100,8 @@ export function VoiceRecorder({
   >(undefined);
   const [recordingLimit, setRecordingLimit] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
+  const [journalOpen, setJournalOpen] = useState(voiceMemos.length > 0);
+  const [journalNoteConfirmed, setJournalNoteConfirmed] = useState(true);
 
   const totalUsed = totalVoiceDuration(voiceMemos);
   const remaining = Math.max(
@@ -105,6 +113,11 @@ export function VoiceRecorder({
   useEffect(() => {
     onRecordingChange(isBusy);
   }, [isBusy, onRecordingChange]);
+
+  useEffect(() => {
+    if (!journalMode) return;
+    onConfirmationChange?.(journalNoteConfirmed);
+  }, [journalMode, journalNoteConfirmed, onConfirmationChange]);
 
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -135,6 +148,9 @@ export function VoiceRecorder({
     clearPermissionTimer();
     setStatus("idle");
     setStatusMessage("");
+    if (journalMode && voiceMemos.length === 0) {
+      setJournalNoteConfirmed(true);
+    }
   };
 
   useEffect(() => {
@@ -159,6 +175,9 @@ export function VoiceRecorder({
     ) {
       setStatus("unsupported");
       setRetryReplacementId(replacementId);
+      if (journalMode && voiceMemos.length === 0) {
+        setJournalNoteConfirmed(true);
+      }
       return;
     }
 
@@ -180,6 +199,10 @@ export function VoiceRecorder({
     setActiveMemoId(null);
     setStatusMessage("");
     setStatus("requestingPermission");
+    if (journalMode) {
+      setJournalOpen(true);
+      setJournalNoteConfirmed(false);
+    }
     clearPermissionTimer();
     permissionTimerRef.current = setTimeout(() => {
       if (requestTokenRef.current !== requestToken) return;
@@ -229,6 +252,9 @@ export function VoiceRecorder({
         setStatusMessage(
           "The recording could not be completed. Your existing voice memos are unchanged.",
         );
+        if (journalMode && voiceMemos.length === 0) {
+          setJournalNoteConfirmed(true);
+        }
       };
       recorder.onstop = () => {
         clearTimer();
@@ -248,6 +274,9 @@ export function VoiceRecorder({
           setStatusMessage(
             "No audio was captured. Your existing voice memos are unchanged.",
           );
+          if (journalMode && voiceMemos.length === 0) {
+            setJournalNoteConfirmed(true);
+          }
           return;
         }
 
@@ -307,11 +336,16 @@ export function VoiceRecorder({
         replacementIdRef.current = undefined;
         setRetryReplacementId(undefined);
         setStatus("ready");
-        setStatusMessage(
-          durationSeconds >= recordingLimitRef.current
-            ? "Recording saved. The available voice memo time has been used."
-            : "Recording saved.",
-        );
+        if (journalMode) {
+          setJournalNoteConfirmed(false);
+          setStatusMessage("");
+        } else {
+          setStatusMessage(
+            durationSeconds >= recordingLimitRef.current
+              ? "Recording saved. The available voice memo time has been used."
+              : "Recording saved.",
+          );
+        }
       };
 
       recorder.start(250);
@@ -350,6 +384,9 @@ export function VoiceRecorder({
           "The microphone could not be started. Your existing voice memos are unchanged.",
         );
       }
+      if (journalMode && voiceMemos.length === 0) {
+        setJournalNoteConfirmed(true);
+      }
     }
   };
 
@@ -365,6 +402,178 @@ export function VoiceRecorder({
     0,
     recordingLimit - elapsedSeconds,
   );
+  const journalMemo = voiceMemos[0];
+  const journalProgress =
+    recordingLimit > 0
+      ? Math.min(100, (elapsedSeconds / recordingLimit) * 100)
+      : 0;
+
+  if (journalMode) {
+    const journalMediaBusy =
+      status === "requestingPermission" ||
+      status === "recording" ||
+      status === "processing";
+    const journalDisclosureBusy =
+      journalMediaBusy || !journalNoteConfirmed;
+    const removeJournalNote = () => {
+      onChange([]);
+      setJournalNoteConfirmed(true);
+      setStatus("idle");
+      setStatusMessage("");
+      setActiveMemoId(null);
+    };
+
+    return (
+      <section
+        className="journal-voice-note-field"
+        aria-labelledby="journal-voice-note-title"
+      >
+        <button
+          type="button"
+          className="journal-voice-note-disclosure"
+          aria-expanded={journalOpen}
+          aria-controls="journal-voice-note-panel"
+          disabled={journalDisclosureBusy}
+          onClick={() => setJournalOpen((open) => !open)}
+        >
+          <span className="journal-voice-note-disclosure__label">
+            <span id="journal-voice-note-title">A whisper from today</span>
+            <small>Optional</small>
+          </span>
+          <PlusIcon
+            className={`h-4 w-4 text-oxblood transition-transform ${
+              journalOpen ? "rotate-45" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {journalOpen ? (
+          <div
+            id="journal-voice-note-panel"
+            className="journal-voice-note-panel"
+          >
+            <p className="journal-voice-note-intro">
+              Let today linger in your voice before it is sealed.
+            </p>
+
+            {status === "requestingPermission" ? (
+              <div className="journal-voice-note-status" role="status">
+                <span>Waiting for microphone…</span>
+                <button type="button" onClick={cancelPermissionRequest}>
+                  Cancel
+                </button>
+              </div>
+            ) : status === "recording" ? (
+              <div className="journal-voice-note-recording" role="status">
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="journal-voice-note-recording__stop"
+                  aria-label="Stop recording"
+                >
+                  <StopIcon />
+                </button>
+                <div className="journal-voice-note-recording__track">
+                  <div
+                    className="journal-voice-note-waveform"
+                    data-recording="true"
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 28 }, (_, index) => (
+                      <i key={index} />
+                    ))}
+                  </div>
+                  <span
+                    className="journal-voice-note-recording__progress"
+                    style={{ width: `${journalProgress}%` }}
+                    aria-hidden="true"
+                  />
+                  <span className="journal-voice-note-recording__times">
+                    <span>{formatDuration(elapsedSeconds)}</span>
+                    <span>{formatDuration(config.maxTotalVoiceDurationSeconds)}</span>
+                  </span>
+                </div>
+              </div>
+            ) : status === "processing" ? (
+              <div className="journal-voice-note-status" role="status">
+                Saving recording…
+              </div>
+            ) : journalMemo ? (
+              <JournalVoiceNotePlayer
+                voiceMemo={journalMemo}
+                state={journalNoteConfirmed ? "saved" : "review"}
+                activeId={activeMemoId}
+                onActiveChange={setActiveMemoId}
+                onRemove={removeJournalNote}
+                onSave={() => {
+                  setJournalNoteConfirmed(true);
+                  setStatusMessage("");
+                }}
+                disabled={journalMediaBusy}
+                resolveUrl={resolveVoiceMemoUrl}
+              />
+            ) : status === "permissionDenied" || status === "error" ? null
+            : status === "unsupported" ? (
+              <p className="journal-voice-note-error" role="alert">
+                Voice recording is not supported in this browser.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void startRecording()}
+                className="journal-voice-note-record"
+                aria-label="Record a voice note"
+              >
+                <span className="journal-voice-note-record__icon">
+                  <MicrophoneIcon />
+                </span>
+                <span className="journal-voice-note-record__track">
+                  <span
+                    className="journal-voice-note-waveform"
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 28 }, (_, index) => (
+                      <i key={index} />
+                    ))}
+                  </span>
+                  <span className="journal-voice-note-record__times">
+                    <span>0:00</span>
+                    <span>
+                      {formatDuration(config.maxTotalVoiceDurationSeconds)}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            )}
+
+            {statusMessage ? (
+              <p
+                className="journal-voice-note-error"
+                role={
+                  status === "permissionDenied" || status === "error"
+                    ? "alert"
+                    : "status"
+                }
+              >
+                {statusMessage}
+              </p>
+            ) : null}
+
+            {status === "permissionDenied" || status === "error" ? (
+              <button
+                type="button"
+                onClick={() => void startRecording()}
+                className="journal-voice-note-retry"
+              >
+                Retry microphone
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section

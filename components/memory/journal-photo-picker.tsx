@@ -391,8 +391,12 @@ export function JournalPhotoPicker({
             aria-expanded={additionalOpen}
             aria-controls="additional-moments-panel"
           >
-            <span id="additional-moments-title">
-              Add more moments (optional)
+            <span
+              id="additional-moments-title"
+              className="journal-optional-section-label"
+            >
+              <span>Add more moments</span>
+              <small>Optional</small>
             </span>
             <PlusIcon
               className={`h-4 w-4 text-oxblood transition-transform ${
