@@ -30,6 +30,10 @@ import {
   shareMonthlyMemoryEditionBlob,
 } from "@/lib/export/monthly-memory-sheet-export";
 import { createMonthlyExportGenerationGate } from "@/lib/export/monthly-memory-sheet-lifecycle";
+import {
+  fetchMonthlyArtifactBlob,
+  fetchMonthlyExportResponse,
+} from "@/lib/export/monthly-memory-sheet-delivery";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 import styles from "./monthly-stamp-export-composer.module.css";
@@ -85,19 +89,22 @@ async function renderPersistedMonthlyMemoryEdition({
   if (sessionResult.error || !accessToken) {
     throw new Error("Monthly export requires an active journal session.");
   }
-  const response = await fetch("/api/export/monthly-sheet", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
+  const response = await fetchMonthlyExportResponse({
+    url: "/api/export/monthly-sheet",
+    init: {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        capsuleId,
+        monthKey,
+        timeZone: resolvedLocalTimezone() ?? "UTC",
+        stamps: monthlyMemoryEditionRequestStamps({ monthKey, stamps }),
+      }),
+      cache: "no-store",
     },
-    body: JSON.stringify({
-      capsuleId,
-      monthKey,
-      timeZone: resolvedLocalTimezone() ?? "UTC",
-      stamps: monthlyMemoryEditionRequestStamps({ monthKey, stamps }),
-    }),
-    cache: "no-store",
     signal,
   });
   if (!response.ok) {
@@ -126,29 +133,12 @@ async function renderPersistedMonthlyMemoryEdition({
     ) {
       throw new Error("Monthly sheet server export returned invalid delivery.");
     }
-    const artifactUrl = new URL(delivery.url);
-    const configuredStorageOrigin = new URL(
-      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.local",
-    ).origin;
-    if (
-      artifactUrl.protocol !== "https:" ||
-      artifactUrl.origin !== configuredStorageOrigin
-    ) {
-      throw new Error("Monthly sheet server export returned invalid delivery.");
-    }
-    const artifactResponse = await fetch(artifactUrl, {
-      cache: "no-store",
-      credentials: "omit",
+    blob = await fetchMonthlyArtifactBlob({
+      url: delivery.url,
+      configuredStorageUrl:
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.local",
       signal,
     });
-    if (
-      !artifactResponse.ok ||
-      artifactResponse.headers.get("content-type")?.split(";")[0] !==
-        "image/png"
-    ) {
-      throw new Error("Monthly sheet artifact delivery failed.");
-    }
-    blob = await artifactResponse.blob();
     void fetch("/api/export/monthly-sheet", {
       method: "DELETE",
       headers: {
