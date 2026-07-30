@@ -17,6 +17,11 @@ import {
   createMonthlyExportGenerationGate,
 } from "../lib/export/monthly-memory-sheet-lifecycle.ts";
 import {
+  fetchMonthlyArtifactBlob,
+  fetchMonthlyExportResponse,
+  monthlyArtifactAllowedOrigins,
+} from "../lib/export/monthly-memory-sheet-delivery.ts";
+import {
   createMonthlyExportCleanupHandler,
   monthlyExportArtifactRecordMatchesIdentity,
 } from "../lib/export/monthly-memory-sheet-cleanup.ts";
@@ -99,6 +104,95 @@ function cleanupRecord(index) {
       `_system/monthly-export-artifacts/${capsuleId}-${artifactId}.json`,
   };
 }
+
+test("signed monthly artifact delivery tolerates transient mobile fetch failures", async () => {
+  const attempts = [];
+  const blob = await fetchMonthlyArtifactBlob({
+    url:
+      "https://project.supabase.co/storage/v1/object/sign/memory-media/export.png?token=test",
+    configuredStorageUrl: "https://project.supabase.co",
+    retryDelaysMs: [0, 0],
+    fetchImpl: async (url) => {
+      attempts.push(String(url));
+      if (attempts.length === 1) throw new TypeError("mobile network reset");
+      if (attempts.length === 2) return new Response(null, { status: 404 });
+      return new Response(new Blob(["png"], { type: "image/png" }), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    },
+  });
+  assert.equal(attempts.length, 3);
+  assert.equal(blob.type, "image/png");
+  assert.equal(blob.size, 3);
+});
+
+test("signed monthly artifact delivery keeps a strict Supabase origin allowlist", async () => {
+  const origins = monthlyArtifactAllowedOrigins("https://project.supabase.co");
+  assert.deepEqual(
+    [...origins].sort(),
+    [
+      "https://project.storage.supabase.co",
+      "https://project.supabase.co",
+    ],
+  );
+  await assert.rejects(
+    fetchMonthlyArtifactBlob({
+      url: "https://project.supabase.co.attacker.test/export.png",
+      configuredStorageUrl: "https://project.supabase.co",
+      retryDelaysMs: [],
+      fetchImpl: async () => {
+        throw new Error("untrusted fetch must not run");
+      },
+    }),
+    /invalid delivery/,
+  );
+});
+
+test("monthly export waits once for the server busy cooldown without hiding other limits", async () => {
+  const attempts = [];
+  const waits = [];
+  const fetchImpl = async () => {
+    attempts.push(attempts.length + 1);
+    if (attempts.length === 1) {
+      return Response.json(
+        { ok: false, code: "EXPORT_BUSY" },
+        { status: 429, headers: { "retry-after": "3" } },
+      );
+    }
+    return new Response(new Blob(["png"], { type: "image/png" }), {
+      status: 200,
+      headers: { "content-type": "image/png" },
+    });
+  };
+  const recovered = await fetchMonthlyExportResponse({
+    url: "/api/export/monthly-sheet",
+    init: { method: "POST", body: "{}" },
+    fetchImpl,
+    waitImpl: async (delayMs) => waits.push(delayMs),
+  });
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(attempts, [1, 2]);
+  assert.deepEqual(waits, [3_100]);
+
+  const limited = await fetchMonthlyExportResponse({
+    url: "/api/export/monthly-sheet",
+    init: { method: "POST", body: "{}" },
+    fetchImpl: async () =>
+      Response.json(
+        { ok: false, code: "EXPORT_LIMIT" },
+        { status: 429, headers: { "retry-after": "3600" } },
+      ),
+    waitImpl: async () => {
+      throw new Error("durable limits must not be retried");
+    },
+  });
+  assert.equal(limited.status, 429);
+  assert.deepEqual(await limited.json(), {
+    ok: false,
+    code: "EXPORT_LIMIT",
+  });
+});
 
 test("monthly export route rejects malformed top-level bodies without invoking auth", async () => {
   let authorizationCalls = 0;
