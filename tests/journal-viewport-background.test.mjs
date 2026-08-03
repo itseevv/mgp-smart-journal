@@ -10,6 +10,14 @@ const globalStyles = await readFile(
   new URL("../app/globals.css", import.meta.url),
   "utf8",
 );
+const demoPageSource = await readFile(
+  new URL("../app/journal/demo/page.tsx", import.meta.url),
+  "utf8",
+);
+const capsulePageSource = await readFile(
+  new URL("../components/capsule/capsule-page.tsx", import.meta.url),
+  "utf8",
+);
 
 function ruleBody(selector, startAt = 0) {
   const ruleStart = globalStyles.indexOf(`${selector} {`, startAt);
@@ -55,4 +63,32 @@ test("mobile viewport extends the leather fallback through safe areas", () => {
     globalStyles.indexOf(".journal-mobile-shell {", globalStyles.indexOf(".journal-mobile-shell {") + 1),
   );
   assert.match(shellDesktopRule, /padding-inline:\s*calc\(1rem \+ env\(safe-area-inset-left\)\)\s*calc\(1rem \+ env\(safe-area-inset-right\)\);/);
+});
+
+test("Journal page owns the leather texture behind Safari floating chrome", () => {
+  assert.match(
+    globalStyles,
+    /html:has\(\.journal-mobile-page\),\s*body:has\(\.journal-mobile-page\)\s*\{\s*background:\s*var\(--leather\);\s*\}/,
+  );
+  const pageRule = ruleBody(".journal-mobile-page");
+  assert.match(pageRule, /min-height:\s*100dvh;/);
+  assert.match(pageRule, /min-height:\s*100lvh;/);
+  assert.match(pageRule, /overflow:\s*visible;/);
+
+  for (const source of [demoPageSource, capsulePageSource]) {
+    assert.match(
+      source,
+      /className="journal-mobile-page journal-themed-background"/,
+    );
+  }
+  assert.match(demoPageSource, /style=\{journalThemeStyle\(defaultJournalTheme\)\}/);
+  assert.match(capsulePageSource, /\.\.\.journalThemeStyle\(theme\)/);
+  assert.doesNotMatch(
+    demoPageSource,
+    /<JournalMobileShell[\s\S]*?className="journal-themed-background"/,
+  );
+  assert.doesNotMatch(
+    capsulePageSource,
+    /<JournalMobileShell[\s\S]*?className="journal-themed-background"/,
+  );
 });
