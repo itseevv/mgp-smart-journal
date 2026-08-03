@@ -27,11 +27,11 @@ export default async function JournalDemoPage({
 }) {
   const { screen, photos, scenario, month } = await searchParams;
   return (
-    <main className="journal-mobile-page">
-      <JournalMobileShell
-        className="journal-themed-background"
-        style={journalThemeStyle(defaultJournalTheme)}
-      >
+    <main
+      className="journal-mobile-page journal-themed-background"
+      style={journalThemeStyle(defaultJournalTheme)}
+    >
+      <JournalMobileShell>
         <JournalDemoFlow
           initialScreen={
             screen === "create" ||

@@ -261,9 +261,7 @@ test("phase 6B renders assigned theme texture in app CSS and daily export", asyn
   assert.match(css, /\.journal-themed-background \.journal-leather-surface/);
   assert.match(css, /var\(--journal-overlay-opacity/);
   assert.match(css, /image-rendering: auto/);
-  assert.match(capsulePage, /className="journal-mobile-page"/);
-  assert.match(capsulePage, /className="journal-themed-background"/);
-  assert.doesNotMatch(capsulePage, /journal-mobile-page journal-themed-background/);
+  assert.match(capsulePage, /className="journal-mobile-page journal-themed-background"/);
   assert.match(capsulePage, /journalThemeStyle\(theme\)/);
   assert.doesNotMatch(journalHome, /className="journal-leather-surface/);
   assert.doesNotMatch(dailyStamp, /className="journal-leather-surface/);

@@ -51,6 +51,11 @@ body {
   overflow-x: hidden;
 }
 
+html:has(.journal-mobile-page),
+body:has(.journal-mobile-page) {
+  background: var(--leather);
+}
+
 main.min-h-screen.bg-leather.p-8 {
   min-height: 100dvh;
   padding-bottom: calc(2rem + env(safe-area-inset-bottom));
@@ -1211,7 +1216,8 @@ a:focus-visible {
 .journal-mobile-page {
   background: var(--journal-background, var(--leather));
   min-height: 100dvh;
-  overflow-x: hidden;
+  min-height: 100lvh;
+  overflow: visible;
 }
 
 .journal-mobile-shell {

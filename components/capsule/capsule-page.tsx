@@ -499,16 +499,14 @@ export function CapsulePage({
     const theme = state.journalTheme ?? resolveJournalTheme();
     return (
       <main
-        className="journal-mobile-page"
+        className="journal-mobile-page journal-themed-background"
         style={{
+          ...journalThemeStyle(theme),
           background: theme.journalBackground,
           color: theme.textOnJournal,
         }}
       >
-        <JournalMobileShell
-          className="journal-themed-background"
-          style={journalThemeStyle(theme)}
-        >
+        <JournalMobileShell>
           {memoryId ? (
             <JournalMemoryPage
               client={state.client}
