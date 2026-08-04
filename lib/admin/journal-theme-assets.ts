@@ -94,6 +94,15 @@ export function journalThemeTextureStoragePath(
   return `journal-themes/${themeId}/texture-original.${journalThemeTextureExtension(mimeType)}`;
 }
 
+export function journalThemeTextureVersionedPublicUrl(
+  publicUrl: string,
+  version: string | number,
+) {
+  const url = new URL(publicUrl);
+  url.searchParams.set("v", String(version));
+  return url.toString();
+}
+
 function sniffMimeType(bytes: Uint8Array): JournalThemeTextureMimeType | null {
   if (
     bytes.length >= 8 &&
