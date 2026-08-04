@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   JOURNAL_THEME_ASSET_BUCKET,
   journalThemeTextureStoragePath,
+  journalThemeTextureVersionedPublicUrl,
   validateJournalThemeTextureUpload,
 } from "../lib/admin/journal-theme-assets.ts";
 import {
@@ -89,6 +90,16 @@ test("phase 6B theme assets use the dedicated public bucket and stable texture p
   assert.equal(
     journalThemeTextureStoragePath(themeId, "image/webp"),
     "journal-themes/70442906-d2c9-4a1a-a39b-ab37ffdf66dc/texture-original.webp",
+  );
+});
+
+test("replacement texture URLs bypass the long-lived asset cache", () => {
+  assert.equal(
+    journalThemeTextureVersionedPublicUrl(
+      "https://example.supabase.co/storage/v1/object/public/journal-theme-assets/journal-themes/theme-id/texture-original.png?download=false",
+      1785855661000,
+    ),
+    "https://example.supabase.co/storage/v1/object/public/journal-theme-assets/journal-themes/theme-id/texture-original.png?download=false&v=1785855661000",
   );
 });
 

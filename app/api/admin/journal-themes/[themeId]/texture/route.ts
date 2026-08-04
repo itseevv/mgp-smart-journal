@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   JOURNAL_THEME_ASSET_BUCKET,
   journalThemeTextureStoragePath,
+  journalThemeTextureVersionedPublicUrl,
   validateJournalThemeTextureUpload,
 } from "@/lib/admin/journal-theme-assets";
 import { isUuid, requireAdminSession } from "@/lib/admin/capsules";
@@ -80,9 +81,12 @@ export async function POST(
 
     if (upload.error) throw upload.error;
 
-    const publicUrl = supabase.storage
-      .from(JOURNAL_THEME_ASSET_BUCKET)
-      .getPublicUrl(storagePath).data.publicUrl;
+    const publicUrl = journalThemeTextureVersionedPublicUrl(
+      supabase.storage
+        .from(JOURNAL_THEME_ASSET_BUCKET)
+        .getPublicUrl(storagePath).data.publicUrl,
+      Date.now(),
+    );
 
     try {
       const saved = await saveAdminJournalTheme({
