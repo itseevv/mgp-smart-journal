@@ -108,6 +108,7 @@ export function DailyMemoryStamp({
       aria-labelledby="daily-memory-stamp-title"
       className={detailSurfaceClassName}
       data-journal-detail-background="themed-leather"
+      data-journal-theme={theme.slug}
       data-journal-stamp-detail="true"
       data-daily-detail-shell="journal-identity"
       data-phase-7r4-detail="daily-detail-production"
