@@ -200,6 +200,16 @@ a:focus-visible {
   color: var(--journal-text);
 }
 
+[data-journal-theme="blush"] .daily-detail-content-surface {
+  background-color: rgba(103, 65, 68, 0.13);
+  background-image: none;
+  backdrop-filter: none;
+}
+
+[data-journal-theme="blush"] .daily-detail-content-surface::before {
+  opacity: 0;
+}
+
 .daily-detail-shell-surface {
   margin: calc(-0.75rem - env(safe-area-inset-top)) -0.75rem
     calc(-1rem - env(safe-area-inset-bottom));
@@ -1834,6 +1844,11 @@ a:focus-visible {
   margin-top: 0;
 }
 
+[data-journal-theme="blush"] .journal-daily-voice-note .journal-voice-note-card {
+  background: rgba(106, 67, 69, 0.065);
+  border-color: transparent;
+}
+
 .journal-daily-voice-note .journal-voice-note-waveform i {
   background: color-mix(
     in srgb,
@@ -1842,12 +1857,20 @@ a:focus-visible {
   );
 }
 
+[data-journal-theme="blush"] .journal-daily-voice-note .journal-voice-note-waveform i {
+  background: rgba(255, 235, 222, 0.27);
+}
+
 .journal-daily-voice-note .journal-voice-note-card__duration {
   color: color-mix(
     in srgb,
     var(--journal-home-title) 64%,
     transparent
   );
+}
+
+[data-journal-theme="blush"] .journal-daily-voice-note .journal-voice-note-card__duration {
+  color: rgba(255, 238, 227, 0.66);
 }
 
 .photo-viewer-fullscreen {
