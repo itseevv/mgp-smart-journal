@@ -226,7 +226,12 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(stampGridSource, /data-stamp-frame-ratio/);
   assert.match(stampGridSource, /data-stamp-cover-crop/);
   assert.match(stampGridSource, /CroppedPrivateStampImage/);
+  assert.match(
+    stampGridSource,
+    /<CroppedPrivateStampImage[\s\S]*?variant="display"/,
+  );
   assert.match(stampGridSource, /PrivatePhoto/);
+  assert.match(stampGridSource, /<PrivatePhoto[\s\S]*?variant="thumbnail"/);
   assert.match(stampGridSource, /PhotoViewer/);
   assert.match(croppedStampImageSource, /cropMetadataToImageStyle/);
   assert.match(croppedStampImageSource, /centerSquareCropMetadata/);
@@ -248,6 +253,22 @@ test("journal mobile surfaces remove placeholder branding", () => {
   assert.match(stampFrameSource, /stamp-frame--md/);
   assert.match(stampFrameSource, /stamp-frame--sm/);
   assert.match(globalCssSource, /\.stamp-frame::before/);
+  assert.match(
+    globalCssSource,
+    /\[data-journal-theme="blush"\] \.daily-detail-content-surface/,
+  );
+  assert.match(
+    globalCssSource,
+    /\[data-journal-theme="blush"\] \.journal-daily-voice-note \.journal-voice-note-card/,
+  );
+  assert.doesNotMatch(
+    globalCssSource,
+    /\[data-journal-theme="blush"\] \.journal-daily-voice-note \.journal-voice-note-waveform/,
+  );
+  assert.doesNotMatch(
+    globalCssSource,
+    /\[data-journal-theme="blush"\] \.journal-daily-voice-note \.journal-voice-note-card__duration/,
+  );
   assert.match(globalCssSource, /--stamp-rim-width/);
   assert.match(globalCssSource, /--stamp-rim-color/);
   assert.match(globalCssSource, /--stamp-inner-contrast/);

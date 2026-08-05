@@ -1857,20 +1857,12 @@ a:focus-visible {
   );
 }
 
-[data-journal-theme="blush"] .journal-daily-voice-note .journal-voice-note-waveform i {
-  background: rgba(255, 235, 222, 0.27);
-}
-
 .journal-daily-voice-note .journal-voice-note-card__duration {
   color: color-mix(
     in srgb,
     var(--journal-home-title) 64%,
     transparent
   );
-}
-
-[data-journal-theme="blush"] .journal-daily-voice-note .journal-voice-note-card__duration {
-  color: rgba(255, 238, 227, 0.66);
 }
 
 .photo-viewer-fullscreen {
