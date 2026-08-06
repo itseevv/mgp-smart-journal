@@ -176,6 +176,23 @@ test("journal route passes the journal product mode through to the form flow", (
   );
 });
 
+test("final journal titles use platform-native emoji without changing export emoji assets", () => {
+  const emojiTextSource = readSource(
+    "components/stamp/daily-stamp-emoji-text.tsx",
+  );
+
+  assert.match(emojiTextSource, /dailyStampTextParts/);
+  assert.match(emojiTextSource, /Apple Color Emoji/);
+  assert.match(emojiTextSource, /Segoe UI Emoji/);
+  assert.match(emojiTextSource, /Noto Color Emoji/);
+  assert.match(emojiTextSource, /data-native-emoji="true"/);
+  assert.match(emojiTextSource, /\{part\.text\}/);
+  assert.doesNotMatch(
+    emojiTextSource,
+    /dailyStampEmojiAssetUrl|backgroundImage|\/api\/export\/daily-stamp/,
+  );
+});
+
 test("journal mobile surfaces remove placeholder branding", () => {
   const mobileShellSource = readSource("components/journal/journal-mobile-shell.tsx");
   const stampDetailSource = readSource("components/stamp/daily-memory-stamp.tsx");
