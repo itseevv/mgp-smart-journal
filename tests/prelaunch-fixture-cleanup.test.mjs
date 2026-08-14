@@ -9,6 +9,13 @@ const cleanupMigration = await readFile(
   ),
   "utf8",
 );
+const photoLimitCleanupMigration = await readFile(
+  new URL(
+    "../supabase/migrations/202607270002_remove_prelaunch_photo_limit_fixture.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const lifecycleMigration = await readFile(
   new URL(
     "../supabase/migrations/202607280001_journal_volume_lifecycle.sql",
@@ -56,4 +63,37 @@ test("cleanup precedes lifecycle backfill and the executable harness covers it",
   assert.match(databaseHarness, /assertPrelaunchDuplicateFixtureCleanup\(\)/);
   assert.match(databaseHarness, /summary\.remainingMemories !== 0/);
   assert.match(databaseHarness, /summary\.queuedPaths !== 4/);
+});
+
+test("photo-limit fixture cleanup is exact, verified, and remains a clean-database no-op", () => {
+  assert.match(
+    photoLimitCleanupMigration,
+    /target_capsule_id constant uuid := 'ac5a42f8-1d4b-4279-ac77-a008f4c646cf'/,
+  );
+  assert.match(
+    photoLimitCleanupMigration,
+    /target_memory_id constant uuid := '1b27eccb-c980-4166-b9c2-034072419e75'/,
+  );
+  assert.match(photoLimitCleanupMigration, /if existing_target_count = 0 then\s+return;/);
+  assert.match(photoLimitCleanupMigration, /capsule\.product_type = 'journal'/);
+  assert.match(photoLimitCleanupMigration, /date '2026-06-16'/);
+  assert.match(photoLimitCleanupMigration, /\) = 19/);
+  assert.match(photoLimitCleanupMigration, /\) = 1/);
+  assert.match(photoLimitCleanupMigration, /PRELAUNCH_PHOTO_LIMIT_FIXTURE_MISMATCH/);
+});
+
+test("photo-limit fixture media is queued before its Memory row is deleted", () => {
+  const queueIndex = photoLimitCleanupMigration.indexOf(
+    "insert into public.media_cleanup_queue",
+  );
+  const deleteIndex = photoLimitCleanupMigration.indexOf("delete from public.memories");
+  assert.ok(queueIndex >= 0);
+  assert.ok(deleteIndex > queueIndex);
+  assert.match(photoLimitCleanupMigration, /photo\.storage_path/);
+  assert.match(photoLimitCleanupMigration, /photo\.thumbnail_storage_path/);
+  assert.match(photoLimitCleanupMigration, /memo\.storage_path/);
+  assert.match(photoLimitCleanupMigration, /on conflict \(storage_path\) do nothing/);
+  assert.match(photoLimitCleanupMigration, /if deleted_count <> 1 then/);
+  assert.match(databaseHarness, /seedPrelaunchPhotoLimitFixture\(\)/);
+  assert.match(databaseHarness, /assertPrelaunchPhotoLimitFixtureCleanup\(\)/);
 });
