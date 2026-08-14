@@ -185,67 +185,75 @@ async function processCleanup(
   capsuleId: string,
   requestedPaths: string[],
 ) {
-  const validPrefix = `capsules/${capsuleId}/`;
-  if (requestedPaths.some((path) => !path.startsWith(validPrefix))) {
-    return { ok: false, code: "INVALID_REQUEST" };
+  const cleanupRpc = admin.rpc.bind(admin) as unknown as (
+    name: string,
+    params: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: Error | null }>;
+
+  const claim = await cleanupRpc("claim_media_cleanup", {
+    target_capsule_id: capsuleId,
+    requested_paths: [...new Set(requestedPaths)],
+    requested_limit: 100,
+  });
+  if (claim.error) throw claim.error;
+
+  const claimData = claim.data as {
+    ok?: boolean;
+    code?: string;
+    claimToken?: string;
+    claimed?: Array<{ id?: string; storagePath?: string }>;
+    remaining?: number;
+    quarantinedCount?: number;
+  } | null;
+  if (!claimData?.ok) {
+    return claimData ?? { ok: false, code: "UNAVAILABLE" };
   }
 
-  if (requestedPaths.length > 0) {
-    const rows = requestedPaths.map((storagePath) => ({
-      capsule_id: capsuleId,
-      storage_path: storagePath,
-      status: "pending",
-      last_error: null,
-    }));
-    const queued = await admin
-      .from("media_cleanup_queue")
-      .upsert(rows, { onConflict: "storage_path" });
-    if (queued.error) throw queued.error;
+  const claimedPaths = Array.isArray(claimData.claimed)
+    ? claimData.claimed.flatMap((item) =>
+      typeof item.storagePath === "string" ? [item.storagePath] : []
+    )
+    : [];
+  if (claimedPaths.length === 0) {
+    return {
+      ok: true,
+      remaining: claimData.remaining ?? 0,
+      quarantinedCount: claimData.quarantinedCount ?? 0,
+    };
   }
-
-  const queued = await admin
-    .from("media_cleanup_queue")
-    .select("id,storage_path,attempts")
-    .eq("capsule_id", capsuleId)
-    .in("status", ["pending", "failed"])
-    .order("created_at")
-    .limit(100);
-  if (queued.error) throw queued.error;
-  if (!queued.data.length) return { ok: true, remaining: 0 };
+  if (typeof claimData.claimToken !== "string") {
+    throw new Error("Cleanup claim omitted its token.");
+  }
 
   const removal = await admin.storage
     .from("memory-media")
-    .remove(queued.data.map((item) => item.storage_path));
-  if (removal.error) {
-    await Promise.all(
-      queued.data.map((item) =>
-        admin
-          .from("media_cleanup_queue")
-          .update({
-            status: "failed",
-            attempts: item.attempts + 1,
-            last_error: removal.error.message.slice(0, 500),
-          })
-          .eq("id", item.id),
-      ),
-    );
-  } else {
-    const deleted = await admin
-      .from("media_cleanup_queue")
-      .delete()
-      .in("id", queued.data.map((item) => item.id));
-    if (deleted.error) throw deleted.error;
-  }
+    .remove(claimedPaths);
+  const finalized = await cleanupRpc("finalize_media_cleanup", {
+    target_capsule_id: capsuleId,
+    requested_claim_token: claimData.claimToken,
+    requested_succeeded: !removal.error,
+    requested_error: removal.error?.message.slice(0, 500) ?? null,
+  });
+  if (finalized.error) throw finalized.error;
 
-  const remaining = await admin
-    .from("media_cleanup_queue")
-    .select("id", { count: "exact", head: true })
-    .eq("capsule_id", capsuleId);
-  if (remaining.error) throw remaining.error;
-  return {
-    ok: !removal.error,
-    remaining: remaining.count ?? 0,
-  };
+  const finalizedData = finalized.data as {
+    ok?: boolean;
+    code?: string;
+    remaining?: number;
+  } | null;
+  if (!removal.error && !finalizedData?.ok) {
+    throw new Error("Cleanup finalize rejected a successful claim.");
+  }
+  return removal.error
+    ? {
+      ok: false,
+      code: finalizedData?.code ?? "STORAGE_REMOVE_FAILED",
+      remaining: finalizedData?.remaining ?? claimData.remaining ?? 0,
+    }
+    : {
+      ok: true,
+      remaining: finalizedData?.remaining ?? 0,
+    };
 }
 
 async function isCapsuleDisabled(

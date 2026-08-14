@@ -839,6 +839,14 @@ a:focus-visible {
   opacity: 0.35;
 }
 
+.editorial-icon-button.journal-shell-icon-button.archive-quota-notice-button {
+  background: var(--journal-paper-muted, var(--paper-deep));
+  color: var(--journal-paper-text, var(--ink));
+  height: var(--month-sheet-nav-control-size, 2.5rem);
+  min-width: var(--month-sheet-nav-control-size, 2.5rem);
+  width: var(--month-sheet-nav-control-size, 2.5rem);
+}
+
 .journal-stage-overlay--month-sheet
   .editorial-icon-button.journal-shell-icon-button.month-sheet-nav-button {
   height: var(--month-sheet-nav-control-size, 2.5rem);
@@ -1532,7 +1540,7 @@ a:focus-visible {
   align-items: baseline;
   display: flex;
   font-family: var(--mgp-utility-font);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   gap: 0.5rem;
 }

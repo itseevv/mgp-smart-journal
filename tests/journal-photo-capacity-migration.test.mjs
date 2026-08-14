@@ -2,36 +2,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const migrationSource = readFileSync(
-  new URL(
-    "../supabase/migrations/202607130001_journal_year_photo_capacity.sql",
-    import.meta.url,
-  ),
-  "utf8",
-);
+const readSource = (path) =>
+  readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("journal capacity migration aligns reads and writes to one year", () => {
-  assert.match(
-    migrationSource,
-    /create or replace function public\.journal_photo_capacity\(\)/,
+test("the launch forward migration removes whole-Journal photo admission", () => {
+  const historical = readSource(
+    "supabase/migrations/202607130001_journal_year_photo_capacity.sql",
   );
-  assert.match(migrationSource, /select 3285;/);
-  assert.match(
-    migrationSource,
-    /other_photo_count \+ jsonb_array_length\(requested_photos\)\s*>\s*public\.journal_photo_capacity\(\)/,
+  const launch = readSource(
+    "supabase/migrations/202608140001_archive_storage_admission_and_remove_lifecycle.sql",
   );
-  assert.match(
-    migrationSource,
-    /'maxPhotos', public\.journal_photo_capacity\(\)/,
-  );
-  assert.match(
-    migrationSource,
-    /target_capsule\.product_type = 'journal'[\s\S]*jsonb_array_length\(requested_photos\) > 9/,
-  );
-  assert.match(migrationSource, /existing_photo_count integer/);
-  assert.match(
-    migrationSource,
-    /jsonb_array_length\(requested_photos\) > existing_photo_count/,
-  );
-  assert.doesNotMatch(migrationSource, /'maxPhotos', 100/);
+  assert.match(historical, /select 3285;/);
+  assert.match(historical, /journal_photo_capacity/);
+  assert.match(launch, /JOURNAL_STORAGE_LIMIT/);
+  assert.match(launch, /jsonb_array_length\(requested_photos\) > 9/);
+  assert.doesNotMatch(launch, /JOURNAL_YEAR_PHOTO_CAPACITY|other_photo_count|journal_photo_capacity\(\)/);
 });

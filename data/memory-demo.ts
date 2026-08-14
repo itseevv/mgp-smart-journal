@@ -2,11 +2,13 @@ import {
   localDateKeyFromValue,
   resolvedLocalTimezone,
 } from "./local-date.ts";
+import { JOURNAL_VOICE_NOTE_MAX_BYTES } from "./journal-product.ts";
 
 export type MemoryMediaConfig = {
   maxPhotosPerMemory: number;
   maxPhotoFileSizeBytes: number;
   maxTotalVoiceDurationSeconds: number;
+  maxVoiceMemoFileSizeBytes: number;
   maxDisplayPhotoEdgePixels: number;
   displayPhotoQuality: number;
   maxThumbnailPhotoEdgePixels: number;
@@ -21,6 +23,7 @@ export const memoryMediaConfig: MemoryMediaConfig = {
   maxPhotosPerMemory: 30,
   maxPhotoFileSizeBytes: 25 * 1024 * 1024,
   maxTotalVoiceDurationSeconds: 300,
+  maxVoiceMemoFileSizeBytes: JOURNAL_VOICE_NOTE_MAX_BYTES,
   maxDisplayPhotoEdgePixels: 2000,
   displayPhotoQuality: 0.82,
   maxThumbnailPhotoEdgePixels: 480,

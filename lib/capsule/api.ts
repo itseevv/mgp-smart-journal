@@ -8,12 +8,13 @@ import type {
   PersistentMemoryEntry,
 } from "@/data/memory-demo";
 import {
-  journalConfig,
+  evictMissingMemoryCacheEntries,
   type CapsuleProductType,
   type JournalHomeData,
   type JournalMemoryContext,
   type JournalMemorySummary,
 } from "@/data/journal";
+import type { ArchiveQuotaSummary } from "@/data/archive-quota";
 import type { JournalTheme } from "@/data/journal-themes";
 import { DAILY_MEMORY_STAMP_MAX_PHOTOS } from "@/data/journal-product";
 import {
@@ -34,6 +35,26 @@ import { isPhotoCropMetadata } from "@/lib/scrap/crop-math";
 
 const MEDIA_BUCKET = "memory-media";
 const sessionMemoryCache = new Map<string, PersistentMemoryEntry>();
+const ARCHIVE_STORAGE_LIMIT_MESSAGE =
+  "Your Momento is full, so these new moments couldn’t be saved. Remove some media or expand your Archive, then try again.";
+
+function mapArchiveQuota(
+  value: Record<string, unknown> | null | undefined,
+): ArchiveQuotaSummary {
+  const status = value?.storageStatus;
+  return {
+    archiveId: String(value?.archiveId ?? ""),
+    grantedBytes: Number(value?.grantedBytes ?? 0),
+    usedBytes: Number(value?.usedBytes ?? 0),
+    percentage: Number(value?.percentage ?? 0),
+    storageStatus:
+      status === "WARNING" || status === "FULL" ? status : "NORMAL",
+    linkedChipCount: Number(value?.linkedChipCount ?? 0),
+    storedOptimisedPhotoBytes: Number(value?.storedOptimisedPhotoBytes ?? 0),
+    storedThumbnailBytes: Number(value?.storedThumbnailBytes ?? 0),
+    storedVoiceNoteBytes: Number(value?.storedVoiceNoteBytes ?? 0),
+  };
+}
 
 function memoryCacheKey(capsuleId: string, memoryId?: string) {
   return `${capsuleId}:${memoryId ?? "bookmark"}`;
@@ -127,14 +148,38 @@ export class PendingMediaCleanupError extends Error {
   }
 }
 
+export type PersistentMemoryCommitCode =
+  | "ACCESS_DENIED"
+  | "MEMORY_ID_CONFLICT"
+  | "MEMORY_NOT_FOUND"
+  | "MEMORY_ALREADY_EXISTS"
+  | "EXPECTED_EXISTENCE_REQUIRED"
+  | "MEDIA_ID_CONFLICT"
+  | "MEDIA_PATH_CONFLICT"
+  | "MEDIA_CLEANUP_RESERVED"
+  | "MEDIA_CLEANUP_REQUIRED"
+  | "MEDIA_RESERVATION_REQUIRED"
+  | "MEDIA_RESERVATION_CONFLICT"
+  | "INVALID_MEDIA_RESERVATION"
+  | "BOOKMARK_MEMORY_LIMIT"
+  | "JOURNAL_PHOTO_LIMIT"
+  | "JOURNAL_VOICE_LIMIT"
+  | "JOURNAL_STORAGE_LIMIT"
+  | "FUTURE_LOCAL_DATE"
+  | "INVALID_LOCAL_DATE"
+  | "DUPLICATE_LOCAL_DATE"
+  | "INVALID_MEMORY";
+
 export class MediaSaveError extends Error {
   constructor(
     message: string,
     readonly draft: PersistentMemoryEntry,
     readonly failedItems: string[],
     readonly uploadedPaths: string[],
+    readonly code?: PersistentMemoryCommitCode,
   ) {
     super(message);
+    this.name = "MediaSaveError";
   }
 }
 
@@ -457,7 +502,17 @@ export async function loadPersistentMemory(
     : query.order("created_at", { ascending: true }).limit(1);
   const result = await query.maybeSingle();
   if (result.error) throw result.error;
-  if (!result.data) return undefined;
+  if (!result.data) {
+    if (memoryId) {
+      evictMissingMemoryCacheEntries(
+        sessionMemoryCache,
+        memoryCacheKey(capsuleId, memoryId),
+        memoryCacheKey(capsuleId),
+        memoryId,
+      );
+    }
+    return undefined;
+  }
   const memory = mapPersistentMemory(result.data as Record<string, unknown>);
   cachePersistentMemory(memory);
   return memory;
@@ -476,8 +531,8 @@ export async function loadJournalHome(
     capsuleId?: string;
     title?: string;
     photoCount?: number;
-    maxPhotos?: number;
     cleanupPendingCount?: number;
+    archiveQuota?: Record<string, unknown> | null;
     journalTheme?: Record<string, unknown> | null;
     memories?: Record<string, unknown>[];
   };
@@ -486,10 +541,10 @@ export async function loadJournalHome(
   }
   return {
     capsuleId: data.capsuleId,
+    archiveQuota: mapArchiveQuota(data.archiveQuota),
     title: data.title ?? "My Journal",
     theme: mapJournalTheme(data.journalTheme),
     photoCount: Number(data.photoCount ?? 0),
-    maxPhotos: Number(data.maxPhotos ?? journalConfig.maxPhotos),
     cleanupPendingCount: Number(data.cleanupPendingCount ?? 0),
     memories: Array.isArray(data.memories)
       ? data.memories.map(mapJournalMemorySummary)
@@ -500,22 +555,11 @@ export async function loadJournalHome(
 export async function loadJournalMemoryContext(
   client: SupabaseClient,
   capsuleId: string,
-  memoryId: string,
 ): Promise<JournalMemoryContext> {
   const home = await loadJournalHome(client, capsuleId);
-  const existingMemoryPhotos =
-    home.memories.find((memory) => memory.id === memoryId)?.photoCount ?? 0;
   return {
     title: home.title,
-    totalJournalPhotos: home.photoCount,
-    existingMemoryPhotos,
-    effectivePhotoLimit: Math.max(
-      0,
-      Math.min(
-        DAILY_MEMORY_STAMP_MAX_PHOTOS,
-        home.maxPhotos - home.photoCount + existingMemoryPhotos,
-      ),
-    ),
+    maxPhotosPerEntry: DAILY_MEMORY_STAMP_MAX_PHOTOS,
     theme: home.theme,
     memories: home.memories,
   };
@@ -530,7 +574,8 @@ export async function updateJournalTitle(
     requested_capsule_id: capsuleId,
     requested_title: title,
   });
-  if (result.error || !(result.data as { ok?: boolean })?.ok) {
+  const data = result.data as { ok?: boolean; code?: "ACCESS_DENIED" | "NOT_A_JOURNAL" };
+  if (result.error || !data?.ok) {
     throw new Error("The journal title could not be saved.");
   }
   return String((result.data as { title: string }).title);
@@ -581,6 +626,7 @@ async function resumableUpload(
   path: string,
   file: Blob,
   mimeType: string,
+  immutablePath: boolean,
 ) {
   const { data } = await client.auth.getSession();
   const accessToken = data.session?.access_token;
@@ -592,6 +638,7 @@ async function resumableUpload(
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
         authorization: `Bearer ${accessToken}`,
+        "x-upsert": immutablePath ? "false" : "true",
       },
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
@@ -605,6 +652,10 @@ async function resumableUpload(
       onError: reject,
       onSuccess: () => resolve(),
     });
+    if (immutablePath) {
+      upload.start();
+      return;
+    }
     void upload.findPreviousUploads().then((previousUploads) => {
       if (previousUploads.length > 0) {
         upload.resumeFromPreviousUpload(previousUploads[0]);
@@ -620,15 +671,16 @@ async function uploadFile(
   file: Blob,
   mimeType: string,
   config: MemoryMediaConfig,
+  immutablePath: boolean,
 ) {
   if (file.size > config.standardUploadMaxBytes) {
-    await resumableUpload(client, path, file, mimeType);
+    await resumableUpload(client, path, file, mimeType, immutablePath);
     return "tus" as const;
   }
   const result = await client.storage.from(MEDIA_BUCKET).upload(path, file, {
     contentType: mimeType,
     cacheControl: "3600",
-    upsert: true,
+    upsert: !immutablePath,
   });
   if (result.error) throw result.error;
   return "standard" as const;
@@ -639,6 +691,41 @@ function cloneDraft(draft: PersistentMemoryEntry): PersistentMemoryEntry {
     ...draft,
     photos: draft.photos.map((photo) => ({ ...photo })),
     voiceMemos: draft.voiceMemos.map((memo) => ({ ...memo })),
+  };
+}
+
+export function withoutCleanedUploadPaths(
+  draft: PersistentMemoryEntry,
+  cleanedPaths: Iterable<string>,
+) {
+  const cleaned = new Set(cleanedPaths);
+  return {
+    ...draft,
+    photos: draft.photos.map((photo) => {
+      if (
+        !cleaned.has(photo.storagePath ?? "") &&
+        !cleaned.has(photo.thumbnailStoragePath ?? "")
+      ) return { ...photo };
+      return {
+        ...photo,
+        storagePath: undefined,
+        thumbnailStoragePath: undefined,
+        status: "new" as const,
+        error: undefined,
+      };
+    }),
+    voiceMemos: draft.voiceMemos.map((memo) =>
+      cleaned.has(memo.storagePath ?? "")
+        ? {
+          ...memo,
+          storagePath: undefined,
+          status: memo.previousStoragePath
+            ? "replacement" as const
+            : "new" as const,
+          error: undefined,
+        }
+        : { ...memo }
+    ),
   };
 }
 
@@ -718,15 +805,152 @@ type PendingUpload =
   | { kind: "photo"; index: number; label: string }
   | { kind: "voice"; index: number; label: string };
 
+type JournalReservationPathKind =
+  | "photo_display"
+  | "photo_thumbnail"
+  | "voice";
+
+type JournalReservationRequest = {
+  mediaId: string;
+  pathKind: JournalReservationPathKind;
+  expectedSizeBytes: number;
+  expectedMimeType: string;
+};
+
+type JournalReservationGrant = JournalReservationRequest & {
+  reservationId: string;
+  storagePath: string;
+  expiresAt: string;
+};
+
+function reservationKey(mediaId: string, pathKind: JournalReservationPathKind) {
+  return `${mediaId}:${pathKind}`;
+}
+
+function expectedReservedStoragePath(
+  capsuleId: string,
+  memoryId: string,
+  grant: Pick<
+    JournalReservationGrant,
+    "reservationId" | "mediaId" | "pathKind" | "expectedMimeType"
+  >,
+) {
+  const extension = extensionFor(grant.expectedMimeType);
+  if (grant.pathKind === "voice") {
+    return `capsules/${capsuleId}/memories/${memoryId}/voice/${grant.mediaId}/${grant.reservationId}.${extension}`;
+  }
+  const variant = grant.pathKind === "photo_display" ? "display" : "thumb";
+  return `capsules/${capsuleId}/memories/${memoryId}/photos/${grant.mediaId}/${grant.reservationId}-${variant}.${extension}`;
+}
+
+async function reserveJournalMediaUploads(
+  client: SupabaseClient,
+  capsuleId: string,
+  memoryId: string,
+  expectedMemoryExists: boolean,
+  draft: PersistentMemoryEntry,
+  requests: JournalReservationRequest[],
+) {
+  const result = await client.rpc("reserve_journal_media_uploads", {
+    requested_capsule_id: capsuleId,
+    requested_memory_id: memoryId,
+    requested_expected_exists: expectedMemoryExists,
+    requested_final_photo_ids: draft.photos.map((photo) => photo.id),
+    requested_final_voice_ids: draft.voiceMemos.map((memo) => memo.id),
+    requested_items: requests,
+  });
+  const data = result.data as {
+    ok?: boolean;
+    code?: PersistentMemoryCommitCode | "NOT_A_JOURNAL";
+    reservations?: unknown;
+  } | null;
+  if (result.error || !data?.ok || !Array.isArray(data.reservations)) {
+    throw new MediaSaveError(
+      "Journal media reservation failed.",
+      draft,
+      [],
+      [],
+      data?.code === "NOT_A_JOURNAL" ? "INVALID_MEDIA_RESERVATION" : data?.code,
+    );
+  }
+
+  const requestedByKey = new Map(
+    requests.map((request) => [
+      reservationKey(request.mediaId, request.pathKind),
+      request,
+    ]),
+  );
+  const grantedByKey = new Map<string, JournalReservationGrant>();
+  for (const candidate of data.reservations) {
+    if (!candidate || typeof candidate !== "object") {
+      throw new MediaSaveError(
+        "Journal media reservation response was invalid.",
+        draft,
+        [],
+        [],
+        "INVALID_MEDIA_RESERVATION",
+      );
+    }
+    const grant = candidate as Partial<JournalReservationGrant>;
+    const key =
+      typeof grant.mediaId === "string" &&
+        typeof grant.pathKind === "string"
+        ? reservationKey(
+          grant.mediaId,
+          grant.pathKind as JournalReservationPathKind,
+        )
+        : "";
+    const request = requestedByKey.get(key);
+    if (
+      !request ||
+      grantedByKey.has(key) ||
+      typeof grant.reservationId !== "string" ||
+      typeof grant.storagePath !== "string" ||
+      typeof grant.expiresAt !== "string" ||
+      grant.expectedSizeBytes !== request.expectedSizeBytes ||
+      grant.expectedMimeType !== request.expectedMimeType ||
+      grant.storagePath !== expectedReservedStoragePath(
+        capsuleId,
+        memoryId,
+        grant as JournalReservationGrant,
+      ) ||
+      !Number.isFinite(Date.parse(grant.expiresAt)) ||
+      Date.parse(grant.expiresAt) <= Date.now()
+    ) {
+      throw new MediaSaveError(
+        "Journal media reservation response was invalid.",
+        draft,
+        [],
+        [],
+        "INVALID_MEDIA_RESERVATION",
+      );
+    }
+    grantedByKey.set(key, grant as JournalReservationGrant);
+  }
+  if (grantedByKey.size !== requestedByKey.size) {
+    throw new MediaSaveError(
+      "Journal media reservation response was incomplete.",
+      draft,
+      [],
+      [],
+      "INVALID_MEDIA_RESERVATION",
+    );
+  }
+  return grantedByKey;
+}
+
 async function uploadDraftMedia(
   client: SupabaseClient,
   capsuleId: string,
   memoryId: string,
+  expectedMemoryExists: boolean,
+  journalMode: boolean,
   draft: PersistentMemoryEntry,
   config: MemoryMediaConfig,
   metrics: MediaPipelineMetrics,
   onProgress: (progress: SaveProgress) => void,
   onDraftChange: (draft: PersistentMemoryEntry) => void,
+  cleanupBeforeReservationRetry?: () => Promise<boolean>,
 ) {
   const next = cloneDraft(draft);
   const pending: PendingUpload[] = [
@@ -743,6 +967,65 @@ async function uploadDraftMedia(
         : [],
     ),
   ];
+  const reservationRequests = pending.flatMap<JournalReservationRequest>(
+    (item): JournalReservationRequest[] => {
+      if (item.kind === "photo") {
+        const photo = next.photos[item.index];
+        return [
+          {
+            mediaId: photo.id,
+            pathKind: "photo_display" as const,
+            expectedSizeBytes: photo.preparedFile!.size,
+            expectedMimeType: photo.mimeType,
+          },
+          {
+            mediaId: photo.id,
+            pathKind: "photo_thumbnail" as const,
+            expectedSizeBytes: photo.preparedThumbnailFile!.size,
+            expectedMimeType: photo.thumbnailMimeType!,
+          },
+        ];
+      }
+      const memo = next.voiceMemos[item.index];
+      return [{
+        mediaId: memo.id,
+        pathKind: "voice" as const,
+        expectedSizeBytes: memo.blob!.size,
+        expectedMimeType: memo.mimeType,
+      }];
+    },
+  );
+  const requestJournalReservations = () => reserveJournalMediaUploads(
+    client,
+    capsuleId,
+    memoryId,
+    expectedMemoryExists,
+    next,
+    reservationRequests,
+  );
+  let journalReservations = new Map<string, JournalReservationGrant>();
+  if (journalMode && reservationRequests.length > 0) {
+    try {
+      journalReservations = await requestJournalReservations();
+    } catch (error) {
+      if (
+        !(error instanceof MediaSaveError) ||
+        error.code !== "MEDIA_CLEANUP_REQUIRED" ||
+        !cleanupBeforeReservationRetry
+      ) {
+        throw error;
+      }
+      onProgress({
+        status: "cleaningUp",
+        message: "Finishing required media cleanup…",
+      });
+      if (!await cleanupBeforeReservationRetry()) throw error;
+      journalReservations = await requestJournalReservations();
+    }
+  }
+  const journalReservedPaths = [...journalReservations.values()].map(
+    (reservation) => reservation.storagePath,
+  );
   metrics.skippedFiles = next.photos.length + next.voiceMemos.length - pending.length;
   let completed = 0;
   const totalFiles = pending.reduce(
@@ -764,8 +1047,16 @@ async function uploadDraftMedia(
           const photo = next.photos[item.index];
           const file = photo.preparedFile!;
           const thumbnailFile = photo.preparedThumbnailFile!;
-          const path = `capsules/${capsuleId}/memories/${memoryId}/photos/${photo.id}/display.${extensionFor(photo.mimeType)}`;
-          const thumbnailPath = `capsules/${capsuleId}/memories/${memoryId}/photos/${photo.id}/thumb.${extensionFor(photo.thumbnailMimeType!)}`;
+          const path = journalMode
+            ? journalReservations.get(
+              reservationKey(photo.id, "photo_display"),
+            )!.storagePath
+            : `capsules/${capsuleId}/memories/${memoryId}/photos/${photo.id}/display.${extensionFor(photo.mimeType)}`;
+          const thumbnailPath = journalMode
+            ? journalReservations.get(
+              reservationKey(photo.id, "photo_thumbnail"),
+            )!.storagePath
+            : `capsules/${capsuleId}/memories/${memoryId}/photos/${photo.id}/thumb.${extensionFor(photo.thumbnailMimeType!)}`;
           photo.status = "uploading";
           onDraftChange(cloneDraft(next));
           sizeBytes = file.size + thumbnailFile.size;
@@ -775,6 +1066,7 @@ async function uploadDraftMedia(
             file,
             photo.mimeType,
             config,
+            journalMode,
           );
           uploadedPaths.push(path);
           completed += 1;
@@ -786,24 +1078,18 @@ async function uploadDraftMedia(
             sourceBytes: metrics.sourceBytes,
             optimisedBytes: metrics.optimisedBytes,
           });
-          try {
-            const thumbnailMethod = await uploadFile(
-              client,
-              thumbnailPath,
-              thumbnailFile,
-              photo.thumbnailMimeType!,
-              config,
-            );
-            method =
-              displayMethod === "tus" || thumbnailMethod === "tus"
-                ? "tus"
-                : "standard";
-          } catch (error) {
-            await client.storage.from(MEDIA_BUCKET).remove([path]);
-            const pathIndex = uploadedPaths.indexOf(path);
-            if (pathIndex >= 0) uploadedPaths.splice(pathIndex, 1);
-            throw error;
-          }
+          const thumbnailMethod = await uploadFile(
+            client,
+            thumbnailPath,
+            thumbnailFile,
+            photo.thumbnailMimeType!,
+            config,
+            journalMode,
+          );
+          method =
+            displayMethod === "tus" || thumbnailMethod === "tus"
+              ? "tus"
+              : "standard";
           uploadedPaths.push(thumbnailPath);
           photo.storagePath = path;
           photo.thumbnailStoragePath = thumbnailPath;
@@ -813,12 +1099,22 @@ async function uploadDraftMedia(
         } else {
           const memo = next.voiceMemos[item.index];
           const blob = memo.blob!;
-          const revisionId = crypto.randomUUID();
-          const path = `capsules/${capsuleId}/memories/${memoryId}/voice/${memo.id}/${revisionId}.${extensionFor(memo.mimeType)}`;
+          const path = journalMode
+            ? journalReservations.get(
+              reservationKey(memo.id, "voice"),
+            )!.storagePath
+            : `capsules/${capsuleId}/memories/${memoryId}/voice/${memo.id}/${crypto.randomUUID()}.${extensionFor(memo.mimeType)}`;
           memo.status = "uploading";
           onDraftChange(cloneDraft(next));
           sizeBytes = blob.size;
-          method = await uploadFile(client, path, blob, memo.mimeType, config);
+          method = await uploadFile(
+            client,
+            path,
+            blob,
+            memo.mimeType,
+            config,
+            journalMode,
+          );
           memo.storagePath = path;
           memo.sizeBytes = blob.size;
           memo.status = "uploaded";
@@ -869,7 +1165,10 @@ async function uploadDraftMedia(
   return {
     draft: next,
     failedItems: result.failed.map(({ item }) => item.label),
-    uploadedPaths,
+    uploadedPaths:
+      journalMode && result.failed.length > 0
+        ? journalReservedPaths
+        : uploadedPaths,
   };
 }
 
@@ -877,11 +1176,14 @@ export async function savePersistentMemory(
   client: SupabaseClient,
   capsuleId: string,
   memoryId: string,
+  expectedMemoryExists: boolean,
+  journalMode: boolean,
   draft: PersistentMemoryEntry,
   config: MemoryMediaConfig,
   callbacks: {
     onProgress: (progress: SaveProgress) => void;
     onDraftChange: (draft: PersistentMemoryEntry) => void;
+    cleanupPaths: (paths: string[]) => Promise<boolean>;
   },
   pendingCleanupPaths: string[] = [],
 ) {
@@ -893,16 +1195,39 @@ export async function savePersistentMemory(
         status: "cleaningUp",
         message: "Finishing cleanup from the previous save…",
       });
-      const pendingRemoval = await client.storage
-        .from(MEDIA_BUCKET)
-        .remove(pendingCleanupPaths);
-      if (pendingRemoval.error) {
+      const cleaned = await callbacks.cleanupPaths(pendingCleanupPaths);
+      if (!cleaned) {
         callbacks.onProgress({
           status: "partialFailure",
           message: "Old media cleanup still needs another attempt.",
         });
         throw new PendingMediaCleanupError(pendingCleanupPaths);
       }
+      workingDraft = withoutCleanedUploadPaths(
+        workingDraft,
+        pendingCleanupPaths,
+      );
+      callbacks.onDraftChange(cloneDraft(workingDraft));
+    }
+
+    const oversizedVoiceMemo = workingDraft.voiceMemos.find(
+      (memo) =>
+        memo.blob && memo.blob.size > config.maxVoiceMemoFileSizeBytes,
+    );
+    if (oversizedVoiceMemo) {
+      oversizedVoiceMemo.status = "failed";
+      oversizedVoiceMemo.error = `Voice Notes must be ${Math.floor(config.maxVoiceMemoFileSizeBytes / (1024 * 1024))} MiB or smaller.`;
+      callbacks.onDraftChange(cloneDraft(workingDraft));
+      callbacks.onProgress({
+        status: "error",
+        message: oversizedVoiceMemo.error,
+      });
+      throw new MediaSaveError(
+        "Voice Note file-size validation failed.",
+        workingDraft,
+        [oversizedVoiceMemo.title],
+        [],
+      );
     }
 
     const preparation = await prepareDraftPhotos(
@@ -942,14 +1267,43 @@ export async function savePersistentMemory(
       client,
       capsuleId,
       memoryId,
+      expectedMemoryExists,
+      journalMode,
       workingDraft,
       config,
       metrics,
       callbacks.onProgress,
       callbacks.onDraftChange,
-    );
+      journalMode ? () => callbacks.cleanupPaths([]) : undefined,
+    ).catch((error) => {
+      if (error instanceof MediaSaveError) {
+        callbacks.onProgress({
+          status: "error",
+          message:
+            error.code === "JOURNAL_STORAGE_LIMIT"
+              ? ARCHIVE_STORAGE_LIMIT_MESSAGE
+              : "Secure media admission could not be completed. Retry the save.",
+        });
+      }
+      throw error;
+    });
     workingDraft = uploaded.draft;
     if (uploaded.failedItems.length > 0) {
+      let cleanupPendingPaths = uploaded.uploadedPaths;
+      if (cleanupPendingPaths.length > 0) {
+        callbacks.onProgress({
+          status: "cleaningUp",
+          message: "Removing unfinished media…",
+        });
+        if (await callbacks.cleanupPaths(cleanupPendingPaths)) {
+          workingDraft = withoutCleanedUploadPaths(
+            workingDraft,
+            cleanupPendingPaths,
+          );
+          callbacks.onDraftChange(cloneDraft(workingDraft));
+          cleanupPendingPaths = [];
+        }
+      }
       callbacks.onProgress({
         status: "error",
         message: `${uploaded.failedItems.length} ${
@@ -964,7 +1318,7 @@ export async function savePersistentMemory(
         "Media upload failed.",
         workingDraft,
         uploaded.failedItems,
-        uploaded.uploadedPaths,
+        cleanupPendingPaths,
       );
     }
 
@@ -978,6 +1332,7 @@ export async function savePersistentMemory(
     const commitParameters = {
       requested_capsule_id: capsuleId,
       requested_memory_id: memoryId,
+      requested_expected_exists: expectedMemoryExists,
       requested_title: workingDraft.title,
       requested_occurred_at: workingDraft.capturedAt,
       requested_local_date: workingDraft.localDate ?? null,
@@ -1017,14 +1372,7 @@ export async function savePersistentMemory(
     );
     const commitResult = result.data as {
       ok?: boolean;
-      code?:
-        | "ACCESS_DENIED"
-        | "MEMORY_ID_CONFLICT"
-        | "MEDIA_ID_CONFLICT"
-        | "BOOKMARK_MEMORY_LIMIT"
-        | "JOURNAL_PHOTO_LIMIT"
-        | "DUPLICATE_LOCAL_DATE"
-        | "INVALID_MEMORY";
+      code?: PersistentMemoryCommitCode;
       cleanupPendingCount?: number;
       existingMemoryId?: string;
     } | null;
@@ -1033,24 +1381,45 @@ export async function savePersistentMemory(
         commitResult?.code === "DUPLICATE_LOCAL_DATE" ||
         result.error?.code === "23505"
           ? "That day is already sealed in this journal."
-          : commitResult?.code === "JOURNAL_PHOTO_LIMIT"
-          ? "This journal needs a little space before another day can be sealed."
+          : commitResult?.code === "JOURNAL_STORAGE_LIMIT"
+            ? ARCHIVE_STORAGE_LIMIT_MESSAGE
+          : commitResult?.code === "FUTURE_LOCAL_DATE"
+            ? "Choose today or an earlier local date."
+          : commitResult?.code === "INVALID_LOCAL_DATE"
+            ? "Choose a valid local date before sealing this day."
           : commitResult?.code === "BOOKMARK_MEMORY_LIMIT"
             ? "A bookmark capsule can contain only one memory."
-            : commitResult?.code === "MEMORY_ID_CONFLICT"
+          : commitResult?.code === "MEMORY_ID_CONFLICT"
               ? "This memory belongs to a different capsule."
+            : commitResult?.code === "MEMORY_NOT_FOUND"
+              ? "This Memory Day was deleted while it was open. Go back to the journal before making another change."
+            : commitResult?.code === "MEMORY_ALREADY_EXISTS"
+              ? "This Memory Day already exists. Refresh the journal before retrying."
               : commitResult?.code === "MEDIA_ID_CONFLICT"
                 ? "One or more media items belong to a different memory."
               : "The memory could not be committed. Your saved draft is ready to retry.";
-      callbacks.onProgress({
-        status: "error",
-        message,
-      });
+      if (uploaded.uploadedPaths.length > 0) {
+        const cleanupPaths = [...uploaded.uploadedPaths];
+        callbacks.onProgress({
+          status: "cleaningUp",
+          message: "Removing uncommitted media…",
+        });
+        if (await callbacks.cleanupPaths(cleanupPaths)) {
+          workingDraft = withoutCleanedUploadPaths(
+            workingDraft,
+            cleanupPaths,
+          );
+          callbacks.onDraftChange(cloneDraft(workingDraft));
+          uploaded.uploadedPaths.splice(0);
+        }
+      }
+      callbacks.onProgress({ status: "error", message });
       throw new MediaSaveError(
         "Metadata commit failed.",
         workingDraft,
         [],
         uploaded.uploadedPaths,
+        commitResult?.code,
       );
     }
 

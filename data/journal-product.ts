@@ -2,17 +2,16 @@ export const DAILY_MEMORY_STAMP_MAX_PHOTOS = 9;
 export const DAILY_MEMORY_STAMP_REQUIRED_COVER_PHOTOS = 1;
 export const DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS =
   DAILY_MEMORY_STAMP_MAX_PHOTOS - DAILY_MEMORY_STAMP_REQUIRED_COVER_PHOTOS;
-export const JOURNAL_YEAR_DAYS = 365;
-export const JOURNAL_YEAR_PHOTO_CAPACITY =
-  JOURNAL_YEAR_DAYS * DAILY_MEMORY_STAMP_MAX_PHOTOS;
 export const JOURNAL_VOICE_MEMOS_ENABLED = true;
+// 32 kbps keeps five minutes of Opus near 1.2 MB. The 6 MiB hard ceiling
+// leaves conservative headroom for Safari audio/mp4/AAC and container overhead.
+export const JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND = 32_000;
+export const JOURNAL_VOICE_NOTE_MAX_BYTES = 6 * 1024 * 1024;
 
 export function dailyStampAdditionalMomentCapacity(
   currentPhotoCount: number,
-  maxPhotosPerMemory: number,
 ) {
   const normalizedPhotoCount = Math.max(0, Math.trunc(currentPhotoCount));
-  const normalizedPhotoLimit = Math.max(0, Math.trunc(maxPhotosPerMemory));
   const currentAdditionalMoments = Math.max(
     0,
     normalizedPhotoCount - DAILY_MEMORY_STAMP_REQUIRED_COVER_PHOTOS,
@@ -21,14 +20,8 @@ export function dailyStampAdditionalMomentCapacity(
     0,
     DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS - currentAdditionalMoments,
   );
-  const journalRemaining = Math.max(
-    0,
-    normalizedPhotoLimit - normalizedPhotoCount,
-  );
-
   return {
-    remaining: Math.min(stampRemaining, journalRemaining),
-    limitedByJournalCapacity: journalRemaining < stampRemaining,
+    remaining: stampRemaining,
   };
 }
 

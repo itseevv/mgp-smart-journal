@@ -5,7 +5,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { CompletedState } from "@/components/memory/completed-state";
 import { MemoryForm } from "@/components/memory/memory-form";
-import type { JournalMemorySummary } from "@/data/journal";
+import {
+  containedDialogFocusIndex,
+  createRefreshRequestOrder,
+  type JournalMemorySummary,
+  type PersistentMemoryRefreshReason,
+} from "@/data/journal";
 import {
   journalThemeStyle,
   type JournalTheme,
@@ -116,6 +121,13 @@ export function PersistentMemoryFlow({
     [productMode],
   );
   const isJournalMode = productMode === "journal";
+  const requiresCachedJournalValidation =
+    isJournalMode && Boolean(memoryId) && !initialMemory;
+  const expectedMemoryExistsRef = useRef(
+    isJournalMode
+      ? Boolean(cachedMemory) || createIntent === undefined
+      : Boolean(cachedMemory),
+  );
   const effectiveConfig = useMemo(
     () => ({
       ...memoryMediaConfig,
@@ -146,9 +158,22 @@ export function PersistentMemoryFlow({
       ? copyDraft(cachedMemory)
       : createDraftForIntent(createIntent),
   );
-  const [mode, setMode] = useState<"loading" | "create" | "view" | "edit">(
-    cachedMemory ? "view" : "loading",
+  const [mode, setMode] = useState<
+    | "loading"
+    | "create"
+    | "view"
+    | "edit"
+    | "unavailable"
+    | "validationError"
+  >(
+    cachedMemory && !requiresCachedJournalValidation ? "view" : "loading",
   );
+  const hasVerifiedRemoteStateRef = useRef(
+    Boolean(initialMemory) ||
+      (Boolean(cachedMemory) && !requiresCachedJournalValidation),
+  );
+  const refreshRequestOrderRef = useRef(createRefreshRequestOrder());
+  const postMutationValidationPendingRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [saveProgress, setSaveProgress] = useState<SaveProgress>();
@@ -156,25 +181,111 @@ export function PersistentMemoryFlow({
   const [deleteState, setDeleteState] = useState<
     "idle" | "confirming" | "deleting" | "error"
   >("idle");
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const keepStampRef = useRef<HTMLButtonElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const deleteDialogWasOpenRef = useRef(false);
 
-  const refresh = async () => {
-    const memory = await loadPersistentMemory(client, capsuleId, memoryId);
-    setSaved(memory);
-    if (memory) {
-      setDraft(copyDraft(memory));
-      setMode("view");
-    } else {
-      setDraft(createDraftForIntent(createIntent));
-      setMode("create");
+  useEffect(() => {
+    if (deleteState === "confirming") {
+      deleteDialogWasOpenRef.current = true;
+      keepStampRef.current?.focus();
+      return;
+    }
+    if (
+      deleteDialogWasOpenRef.current &&
+      deleteState !== "deleting"
+    ) {
+      deleteDialogWasOpenRef.current = false;
+      deleteTriggerRef.current?.focus();
+    }
+  }, [deleteState]);
+
+  const handleDeleteDialogKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (event.key === "Escape") {
+      if (deleteState === "deleting") return;
+      event.preventDefault();
+      setDeleteState("idle");
+      return;
+    }
+    const dialog = deleteDialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+    );
+    const nextIndex = containedDialogFocusIndex(
+      event.key,
+      event.shiftKey,
+      focusable.indexOf(document.activeElement as HTMLButtonElement),
+      focusable.length,
+    );
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    if (nextIndex < 0) dialog.focus();
+    else focusable[nextIndex]?.focus();
+  };
+
+  const refresh = async (reason: PersistentMemoryRefreshReason) => {
+    if (
+      reason === "background" &&
+      postMutationValidationPendingRef.current
+    ) {
+      return;
+    }
+    const requestOrder = refreshRequestOrderRef.current;
+    const capturedGeneration = requestOrder.begin(reason);
+    try {
+      const memory = await loadPersistentMemory(client, capsuleId, memoryId);
+      if (!requestOrder.isCurrent(capturedGeneration)) return;
+      hasVerifiedRemoteStateRef.current = true;
+      setSaved(memory);
+      if (reason === "postMutation" && !memory) {
+        requestOrder.rememberValidationError("postMutation");
+        setMode("validationError");
+      } else if (memory) {
+        if (reason === "postMutation") {
+          postMutationValidationPendingRef.current = false;
+        }
+        expectedMemoryExistsRef.current = true;
+        setDraft(copyDraft(memory));
+        setMode("view");
+      } else if (
+        isJournalMode && expectedMemoryExistsRef.current
+      ) {
+        setMode("unavailable");
+      } else {
+        setDraft(createDraftForIntent(createIntent));
+        setMode("create");
+      }
+    } catch {
+      if (!requestOrder.isCurrent(capturedGeneration)) return;
+      if (reason !== "background" || !hasVerifiedRemoteStateRef.current) {
+        requestOrder.rememberValidationError(
+          reason === "postMutation" ? "postMutation" : "initial",
+        );
+        setMode("validationError");
+      }
     }
   };
 
+  const retryValidation = () => {
+    const retryReason = refreshRequestOrderRef.current.retryReason();
+    if (retryReason === "postMutation") {
+      postMutationValidationPendingRef.current = true;
+    }
+    setMode("loading");
+    void refresh(retryReason);
+  };
+
   useEffect(() => {
-    const initialLoad = cachedMemory
-      ? undefined
-      : window.setTimeout(() => void refresh(), 0);
+    const initialLoad =
+      cachedMemory && !requiresCachedJournalValidation
+        ? undefined
+        : window.setTimeout(() => void refresh("initial"), 0);
     const refreshTimer = window.setInterval(
-      () => void refresh(),
+      () => void refresh("background"),
       (memoryMediaConfig.privateUrlLifetimeSeconds -
         memoryMediaConfig.privateUrlRefreshBufferSeconds) *
         1000,
@@ -260,29 +371,83 @@ export function PersistentMemoryFlow({
       return;
     }
     try {
-      await savePersistentMemory(client, capsuleId, stableMemoryId, {
-        id: stableMemoryId,
+      await savePersistentMemory(
+        client,
         capsuleId,
-        ...draft,
-      }, effectiveConfig, {
-        onProgress: (progress) => {
-          setSaveStatus(progress.status);
-          setSaveMessage(progress.message);
-          setSaveProgress(progress);
+        stableMemoryId,
+        expectedMemoryExistsRef.current,
+        isJournalMode,
+        {
+          id: stableMemoryId,
+          capsuleId,
+          ...draft,
         },
-        onDraftChange: (nextDraft) =>
-          setDraft(withoutPersistenceFields(nextDraft)),
-      }, pendingCleanupPaths.current);
+        effectiveConfig,
+        {
+          onProgress: (progress) => {
+            setSaveStatus(progress.status);
+            setSaveMessage(progress.message);
+            setSaveProgress(progress);
+          },
+          onDraftChange: (nextDraft) =>
+            setDraft(withoutPersistenceFields(nextDraft)),
+          cleanupPaths: async (paths) => {
+            const cleanup = await processMediaCleanup(
+              client,
+              publicToken,
+              paths,
+            ).catch(() => ({ ok: false }));
+            return cleanup.ok;
+          },
+        },
+        pendingCleanupPaths.current,
+      );
+      postMutationValidationPendingRef.current = true;
+      setMode("loading");
       pendingCleanupPaths.current = [];
       uncommittedUploadPaths.current.clear();
       localUrls.current.forEach(URL.revokeObjectURL);
       localUrls.current.clear();
-      await refresh();
+      expectedMemoryExistsRef.current = true;
+      await refresh("postMutation");
       await processMediaCleanup(client, publicToken).catch(() => undefined);
     } catch (error) {
       if (error instanceof PendingMediaCleanupError) {
         pendingCleanupPaths.current = error.paths;
       } else if (error instanceof MediaSaveError) {
+        if (error.code === "MEMORY_NOT_FOUND") {
+          const staleUploadPaths = [
+            ...new Set([
+              ...pendingCleanupPaths.current,
+              ...uncommittedUploadPaths.current,
+              ...error.uploadedPaths,
+            ]),
+          ];
+          setSaved(undefined);
+          setMode("unavailable");
+          setSaveStatus("error");
+          setSaveMessage(
+            "This Memory Day was deleted while it was open.",
+          );
+          pendingCleanupPaths.current = staleUploadPaths;
+          staleUploadPaths.forEach((path) =>
+            uncommittedUploadPaths.current.add(path),
+          );
+          if (staleUploadPaths.length > 0) {
+            const cleanup = await processMediaCleanup(
+              client,
+              publicToken,
+              staleUploadPaths,
+            ).catch(() => ({ ok: false }));
+            if (cleanup.ok) {
+              pendingCleanupPaths.current = [];
+              uncommittedUploadPaths.current.clear();
+            }
+          }
+          localUrls.current.forEach(URL.revokeObjectURL);
+          localUrls.current.clear();
+          return;
+        }
         setDraft(withoutPersistenceFields(error.draft));
         error.uploadedPaths.forEach((path) =>
           uncommittedUploadPaths.current.add(path),
@@ -292,10 +457,6 @@ export function PersistentMemoryFlow({
     }
   };
   const cancel = async () => {
-    if (!saved) {
-      onCancelCreate?.();
-      return;
-    }
     const unfinishedPaths = [
       ...new Set([
         ...pendingCleanupPaths.current,
@@ -322,6 +483,10 @@ export function PersistentMemoryFlow({
     }
     localUrls.current.forEach(URL.revokeObjectURL);
     localUrls.current.clear();
+    if (!saved) {
+      onCancelCreate?.();
+      return;
+    }
     setDraft(copyDraft(saved));
     setSaveStatus("idle");
     setSaveMessage("");
@@ -373,6 +538,51 @@ export function PersistentMemoryFlow({
 
   if (mode === "loading") {
     return <div className="memory-entry font-sans text-sm text-ink-soft">Loading memory…</div>;
+  }
+
+  if (mode === "validationError") {
+    return (
+      <div
+        className="memory-entry text-center font-sans text-sm text-ink-soft"
+        role="alert"
+      >
+        <p>This Memory Day could not be verified.</p>
+        <p className="mt-2 text-xs">
+          Check your connection, then retry or return to the journal.
+        </p>
+        <div className="mt-4 flex justify-center gap-4">
+          <button
+            type="button"
+            onClick={retryValidation}
+            className="font-semibold underline underline-offset-4"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="font-semibold underline underline-offset-4"
+          >
+            Back to journal
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "unavailable") {
+    return (
+      <div className="memory-entry text-center font-sans text-sm text-ink-soft">
+        <p>This Memory Day is no longer available.</p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="mt-4 font-semibold underline underline-offset-4"
+        >
+          Back to journal
+        </button>
+      </div>
+    );
   }
 
   const formMemoryId = memoryId ?? saved?.id;
@@ -472,12 +682,16 @@ export function PersistentMemoryFlow({
       )}
       {isJournalMode && mode === "view" && saved ? (
         <div className="mt-4 text-center">
-          {deleteState === "confirming" ? (
+          {deleteState === "confirming" || deleteState === "deleting" ? (
             <div
+              ref={deleteDialogRef}
               className="memory-entry border-oxblood/20 font-sans"
               role="alertdialog"
+              aria-modal="true"
               aria-labelledby="delete-memory-title"
               aria-describedby="delete-memory-description"
+              tabIndex={-1}
+              onKeyDown={handleDeleteDialogKeyDown}
             >
               <h2 id="delete-memory-title" className="text-sm font-semibold">
                 Delete this stamp?
@@ -490,8 +704,10 @@ export function PersistentMemoryFlow({
               </p>
               <div className="mt-4 flex gap-3">
                 <button
+                  ref={keepStampRef}
                   type="button"
                   onClick={() => setDeleteState("idle")}
+                  disabled={deleteState === "deleting"}
                   className="flex-1 rounded-sm border border-rule px-4 py-3 text-xs font-semibold"
                 >
                   Keep stamp
@@ -499,21 +715,22 @@ export function PersistentMemoryFlow({
                 <button
                   type="button"
                   onClick={() => void deleteMemory()}
-                  className="flex-1 rounded-sm bg-oxblood px-4 py-3 text-xs font-semibold text-paper"
+                  disabled={deleteState === "deleting"}
+                  className="flex-1 rounded-sm bg-oxblood px-4 py-3 text-xs font-semibold text-paper disabled:opacity-50"
                 >
-                  Delete stamp
+                  {deleteState === "deleting" ? "Deleting…" : "Delete stamp"}
                 </button>
               </div>
             </div>
           ) : (
             <>
               <button
+                ref={deleteTriggerRef}
                 type="button"
                 onClick={() => setDeleteState("confirming")}
-                disabled={deleteState === "deleting"}
-                className="font-sans text-[0.68rem] text-paper/65 underline underline-offset-4 disabled:opacity-40"
+                className="font-sans text-[0.68rem] text-paper/65 underline underline-offset-4"
               >
-                {deleteState === "deleting" ? "Deleting…" : "Delete stamp"}
+                Delete stamp
               </button>
               {deleteState === "error" ? (
                 <p className="mt-2 font-sans text-xs text-paper" role="alert">

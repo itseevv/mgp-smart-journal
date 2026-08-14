@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 import {
   DAILY_MEMORY_STAMP_MAX_PHOTOS,
   DEFAULT_STAMP_FRAME_ASPECT_RATIO,
+  JOURNAL_VOLUME_VOICE_NOTE_MAX_BYTES,
   JOURNAL_VOICE_MEMOS_ENABLED,
+  JOURNAL_VOICE_NOTE_MAX_BYTES,
+  JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND,
   STAMP_FRAME_RATIO_MODE,
 } from "../data/journal-product.ts";
 import { getMemoryFormProductRules } from "../data/memory-form-product.ts";
@@ -51,7 +54,7 @@ const sealingStrings = [
   "One line to keep",
   "What would you call today?",
   "Adjust scrap",
-  "Add more moments (optional)",
+  "Add more moments",
   "Seal this day",
 ];
 const cropStrings = [
@@ -155,11 +158,14 @@ async function fetchRoute(path) {
 
 const rules = getMemoryFormProductRules("journal");
 assert.equal(DAILY_MEMORY_STAMP_MAX_PHOTOS, 9);
-assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, false);
+assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, true);
+assert.equal(JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND, 32_000);
+assert.equal(JOURNAL_VOICE_NOTE_MAX_BYTES, 6 * 1024 * 1024);
+assert.equal(JOURNAL_VOLUME_VOICE_NOTE_MAX_BYTES, 2_296_381_440);
 assert.equal(STAMP_FRAME_RATIO_MODE, "square");
 assert.equal(DEFAULT_STAMP_FRAME_ASPECT_RATIO, 1);
 assert.equal(rules.maxPhotosPerEntry, 9);
-assert.equal(rules.voiceMemosEnabled, false);
+assert.equal(rules.voiceMemosEnabled, true);
 
 const journalRouteSource = readSource("components/journal/journal-memory-page.tsx");
 const persistentFlowSource = readSource("components/capsule/persistent-memory-flow.tsx");
@@ -175,6 +181,10 @@ const stampDetailSource = readSource("components/stamp/daily-memory-stamp.tsx");
 const stampGridSource = readSource("components/stamp/stamp-grid.tsx");
 const croppedStampImageSource = readSource("components/stamp/cropped-stamp-image.tsx");
 const journalPhotoPickerSource = readSource("components/memory/journal-photo-picker.tsx");
+const voiceRecorderSource = readSource("components/memory/voice-recorder.tsx");
+const journalVoiceNotePlayerSource = readSource(
+  "components/memory/journal-voice-note-player.tsx",
+);
 const scrapTableSource = readSource("components/scrap/scrap-table.tsx");
 const stampFrameSource = readSource("components/stamp/stamp-frame.tsx");
 const photoViewerSource = readSource("components/memory/photo-viewer.tsx");
@@ -222,8 +232,8 @@ assert.match(capsulePageSource, /JournalMobileShell/);
 assert.match(capsulePageSource, /initialMonth\?: string/);
 assert.match(capsulePageSource, /initialMonth=\{initialMonth\}/);
 assert.match(monthlyStampSheetSource, /Back to this month/);
-assert.match(monthlyStampSheetSource, /Seal Today/);
 assert.match(monthlyStampSheetSource, /MonthSheetGrid/);
+assert.match(monthlyStampSheetSource, /data-monthly-stamp-export-action="true"/);
 assert.doesNotMatch(monthlyStampSheetSource, /journal-sheets-title/);
 assert.doesNotMatch(monthlyStampSheetSource, /archive\.stampedSheets/);
 assert.doesNotMatch(monthlyStampSheetSource, />\s*Sheets\s*</);
@@ -249,11 +259,12 @@ assert.doesNotMatch(stampTileSource, /<time|mt-2 block truncate/);
 assert.match(stampDetailSource, /Back to month sheet/);
 assert.match(stampDetailSource, /onBackToMonthSheet/);
 assert.doesNotMatch(stampDetailSource, />\s*SD\s*</);
-assert.match(stampGridSource, /buildStampFrameRows/);
+assert.match(stampGridSource, /getStampLayout/);
 assert.match(stampGridSource, /PhotoViewer/);
 assert.match(stampGridSource, /object-cover/);
-assert.match(stampGridSource, /StampFrameButton/);
-assert.match(stampGridSource, /variant="sm"/);
+assert.match(stampGridSource, /data-stamp-grid-columns=\{columns\}/);
+assert.match(stampGridSource, /data-stamp-row-sizes=\{layout\.rowSizes\.join\(","\)\}/);
+assert.match(stampGridSource, /data-daily-detail-photo-grid="borderless-adaptive"/);
 assert.match(stampGridSource, /data-stamp-frame-ratio/);
 assert.match(stampGridSource, /data-stamp-cover-crop/);
 assert.match(stampGridSource, /CroppedPrivateStampImage/);
@@ -267,6 +278,24 @@ assert.match(journalPhotoPickerSource, /data-journal-cover-preview="editorial-ph
 assert.match(journalPhotoPickerSource, /data-journal-cover-treatment="borderless-editorial"/);
 assert.match(journalPhotoPickerSource, /data-journal-cover-crop/);
 assert.match(journalPhotoPickerSource, /onConfirmCrop/);
+assert.match(voiceRecorderSource, /A whisper from today/);
+assert.match(
+  voiceRecorderSource,
+  /Let today linger in your voice before it is sealed\./,
+);
+assert.match(voiceRecorderSource, /aria-label="Record a voice note"/);
+assert.match(
+  voiceRecorderSource,
+  /audioBitsPerSecond: JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND/,
+);
+assert.match(voiceRecorderSource, /"audio\/mp4"/);
+assert.match(
+  voiceRecorderSource,
+  /blob\.size > config\.maxVoiceMemoFileSizeBytes/,
+);
+assert.match(journalVoiceNotePlayerSource, /aria-label="Voice note"/);
+assert.match(journalVoiceNotePlayerSource, /Play voice note/);
+assert.match(journalVoiceNotePlayerSource, /state = "viewer"/);
 assert.doesNotMatch(journalPhotoPickerSource, /StampFrame|data-stamp-edge|variant="md"/);
 assert.doesNotMatch(journalPhotoPickerSource, /object-contain|aspect-\[4\/5\]|preserveAspectRatio/);
 assert.match(stampFrameSource, /export type StampFrameVariant = "lg" \| "md" \| "sm"/);
@@ -287,7 +316,7 @@ assert.match(scrapTableSource, /data-scrap-table="true"/);
 assert.match(scrapTableSource, /data-scrap-table-mode="immersive"/);
 assert.match(scrapTableSource, /data-scrap-frame="square"/);
 assert.match(scrapTableSource, /data-scrap-layout="dedicated-mobile"/);
-assert.match(scrapTableSource, /data-scrap-controls="tight"/);
+assert.match(scrapTableSource, /data-scrap-controls="action-row"/);
 assert.match(scrapTableSource, /data-finder-tool="editorial-finder"/);
 assert.match(scrapTableSource, /data-scrap-aperture="finder-window"/);
 assert.match(scrapTableSource, /data-punch-feedback="enabled"/);
@@ -312,23 +341,22 @@ const journalHome = await fetchRoute("/journal/demo");
 assertNoOldStrings("journal demo home", journalHome.html);
 assertMobileShell("journal demo home", journalHome.html);
 const journalHomeText = visibleText(journalHome.html);
-assert.match(journalHomeText, /Seal Today/);
-assert.match(journalHomeText, /Month Sheet/);
+assert.match(journalHomeText, /Seal the Day/);
+assert.match(journalHomeText, /August 2026/);
 
 const journalHomeScreen = await fetchRoute("/journal/demo?screen=home");
 assertNoOldStrings("journal demo home screen", journalHomeScreen.html);
 assertMobileShell("journal demo home screen", journalHomeScreen.html);
-assert.match(visibleText(journalHomeScreen.html), /AUGUST 2026/);
+assert.match(visibleText(journalHomeScreen.html), /AUGUST 2026/i);
 
 const journalHomeJuly = await fetchRoute("/journal/demo?screen=home&month=2026-07");
 assertNoOldStrings("journal demo July sheet", journalHomeJuly.html);
 assertMobileShell("journal demo July sheet", journalHomeJuly.html);
 const journalHomeJulyText = visibleText(journalHomeJuly.html);
-assert.match(journalHomeJulyText, /JULY 2026/);
-assert.match(journalHomeJulyText, /12 days sealed/);
+assert.match(journalHomeJulyText, /JULY 2026/i);
 assert.match(journalHomeJuly.html, /data-month-sheet-grid="true"/);
-assert.match(journalHomeJuly.html, /data-month-sheet-columns="4"/);
-assert.match(journalHomeJuly.html, /data-month-sheet-rows="8"/);
+assert.match(journalHomeJuly.html, /data-month-sheet-columns="3"/);
+assert.doesNotMatch(journalHomeJuly.html, /data-month-sheet-rows=/);
 assert.match(journalHomeJuly.html, /data-month-sheet-capacity="32"/);
 assert.match(journalHomeJuly.html, /data-month-sheet-cover-crop="metadata"/);
 assert.doesNotMatch(journalHomeJulyText, /\bSheets\b/);
@@ -339,9 +367,8 @@ const journalHomeJune = await fetchRoute("/journal/demo?screen=home&month=2026-0
 assertNoOldStrings("journal demo June sheet", journalHomeJune.html);
 assertMobileShell("journal demo June sheet", journalHomeJune.html);
 const journalHomeJuneText = visibleText(journalHomeJune.html);
-assert.match(journalHomeJuneText, /JUNE 2026/);
-assert.match(journalHomeJuneText, /4 days sealed/);
-assert.match(journalHomeJuneText, /07 .*08 .*15 .*22/);
+assert.match(journalHomeJuneText, /JUNE 2026/i);
+assert.match(journalHomeJuneText, /7 .*8 .*15 .*22/);
 assert.match(journalHomeJune.html, /data-month-sheet-position="1"/);
 assert.match(journalHomeJune.html, /data-month-sheet-position="4"/);
 assert.match(journalHomeJune.html, /data-month-sheet-cover-crop="metadata"/);
@@ -354,8 +381,7 @@ const journalHomeAugust = await fetchRoute("/journal/demo?screen=home&month=2026
 assertNoOldStrings("journal demo August dense sheet", journalHomeAugust.html);
 assertMobileShell("journal demo August dense sheet", journalHomeAugust.html);
 const journalHomeAugustText = visibleText(journalHomeAugust.html);
-assert.match(journalHomeAugustText, /AUGUST 2026/);
-assert.match(journalHomeAugustText, /31 days sealed/);
+assert.match(journalHomeAugustText, /AUGUST 2026/i);
 assert.match(journalHomeAugust.html, /data-month-sheet-position="31"/);
 assert.doesNotMatch(journalHomeAugust.html, /data-month-sheet-position="33"/);
 assert.doesNotMatch(journalHomeAugustText, /Market flowers|Night market/);
@@ -365,8 +391,8 @@ const journalHomeMay = await fetchRoute("/journal/demo?screen=home&month=2026-05
 assertNoOldStrings("journal demo May sheet", journalHomeMay.html);
 assertMobileShell("journal demo May sheet", journalHomeMay.html);
 const journalHomeMayText = visibleText(journalHomeMay.html);
-assert.match(journalHomeMayText, /MAY 2026/);
-assert.match(journalHomeMayText, /08 .*21/);
+assert.match(journalHomeMayText, /MAY 2026/i);
+assert.match(journalHomeMayText, /8 .*21/);
 assert.doesNotMatch(journalHomeMayText, /A quiet May morning|First iced coffee/);
 assert.doesNotMatch(journalHomeMayText, /2026-05-/);
 
@@ -374,16 +400,16 @@ const journalHomeApril = await fetchRoute("/journal/demo?screen=home&month=2026-
 assertNoOldStrings("journal demo empty April sheet", journalHomeApril.html);
 assertMobileShell("journal demo empty April sheet", journalHomeApril.html);
 const journalHomeAprilText = visibleText(journalHomeApril.html);
-assert.match(journalHomeAprilText, /APRIL 2026/);
-assert.match(journalHomeAprilText, /This month is still blank/);
-assert.match(journalHomeAprilText, /Seal Today/);
+assert.match(journalHomeAprilText, /APRIL 2026/i);
+assert.doesNotMatch(journalHomeApril.html, /data-month-sheet-day=/);
+assert.match(journalHomeAprilText, /Seal the Day/);
 
 const journalHomeInvalidMonth = await fetchRoute(
   "/journal/demo?screen=home&month=not-a-month",
 );
 assertNoOldStrings("journal demo invalid month", journalHomeInvalidMonth.html);
 assertMobileShell("journal demo invalid month", journalHomeInvalidMonth.html);
-assert.match(visibleText(journalHomeInvalidMonth.html), /AUGUST 2026/);
+assert.match(visibleText(journalHomeInvalidMonth.html), /AUGUST 2026/i);
 
 for (const [routeName, html] of [
   ["journal demo home", journalHome.html],
@@ -425,7 +451,7 @@ for (const phrase of createForbiddenStrings) {
   );
 }
 assert.equal(
-  journalCreateVisibleText.includes("Add more moments (optional)"),
+  journalCreateVisibleText.includes("Add more moments"),
   false,
   "journal demo empty create should not show optional moments before a cover exists",
 );
@@ -510,7 +536,7 @@ assert.match(journalCrop.html, /data-scrap-table="true"/);
 assert.match(journalCrop.html, /data-scrap-table-mode="immersive"/);
 assert.match(journalCrop.html, /data-scrap-frame="square"/);
 assert.match(journalCrop.html, /data-scrap-layout="dedicated-mobile"/);
-assert.match(journalCrop.html, /data-scrap-controls="tight"/);
+assert.match(journalCrop.html, /data-scrap-controls="action-row"/);
 assert.match(journalCrop.html, /data-finder-tool="editorial-finder"/);
 assert.match(journalCrop.html, /data-scrap-aperture="finder-window"/);
 assert.doesNotMatch(journalCrop.html, /data-stamp-edge="perforated"|data-stamp-frame="lg"/);
@@ -532,6 +558,11 @@ const journalCreateWithCoverVisibleText = visibleText(
 assertNoOldStrings("journal demo create with cover", journalCreateWithCover.html);
 assertMobileShell("journal demo create with cover", journalCreateWithCover.html);
 assert.match(journalCreateWithCoverText, /Cover Scrap/);
+assert.match(journalCreateWithCoverText, /A whisper from today/);
+assert.match(
+  journalCreateWithCover.html,
+  /class="journal-voice-note-field"/,
+);
 for (const phrase of sealingStrings) {
   assert.equal(
     journalCreateWithCoverText.includes(phrase),
@@ -544,7 +575,6 @@ assert.match(journalCreateWithCover.html, /data-journal-cover-preview="editorial
 assert.match(journalCreateWithCover.html, /data-journal-cover-treatment="borderless-editorial"/);
 assert.match(journalCreateWithCover.html, /data-journal-cover-crop="metadata"/);
 assert.doesNotMatch(journalCreateWithCover.html, /data-stamp-edge="perforated"|data-stamp-frame="md"/);
-assert.match(journalCreateWithCover.html, /object-cover/);
 
 const journalCreateWithMoments = await fetchRoute(
   "/journal/demo?screen=create&photos=2",
@@ -552,7 +582,7 @@ const journalCreateWithMoments = await fetchRoute(
 const journalCreateWithMomentsText = normalizedContent(
   journalCreateWithMoments.html,
 );
-assert.match(journalCreateWithMomentsText, /Up to 8 more moments\./);
+assert.match(journalCreateWithMomentsText, /Add up to 7 more moments\./);
 assert.doesNotMatch(visibleText(journalCreateWithMoments.html), /Press and drag to reorder/);
 assert.match(journalCreateWithMoments.html, /data-photo-preview-fit="editorial-square"/);
 assert.match(journalCreateWithMoments.html, /data-photo-preview-frame="borderless-editorial"/);
@@ -560,14 +590,13 @@ assert.doesNotMatch(
   journalCreateWithMoments.html,
   /data-stamp-edge="perforated"|data-stamp-frame="md"|data-stamp-frame="sm"/,
 );
-assert.match(journalCreateWithMoments.html, /object-cover/);
 
 const journalDetail = await fetchRoute("/journal/demo?screen=detail&photos=1");
 assertNoOldStrings("journal demo detail", journalDetail.html);
 assertMobileShell("journal demo detail", journalDetail.html);
 const journalDetailText = visibleText(journalDetail.html);
 assert.match(journalDetailText, /Coffee before the rain/);
-assert.match(journalDetailText, /Back to month sheet/);
+assert.match(journalDetail.html, /aria-label="Back to month sheet"/);
 assert.doesNotMatch(
   journalDetailText,
   /\bSD\b/,
@@ -666,6 +695,10 @@ console.log(
       runtimeConfig: {
         maxPhotosPerEntry: rules.maxPhotosPerEntry,
         voiceMemosEnabled: rules.voiceMemosEnabled,
+        voiceNoteTargetBitsPerSecond:
+          JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND,
+        voiceNoteMaxBytes: JOURNAL_VOICE_NOTE_MAX_BYTES,
+        volumeVoiceNoteMaxBytes: JOURNAL_VOLUME_VOICE_NOTE_MAX_BYTES,
         copyVariant: rules.copy.newTitle,
         mobileShell: true,
         privateStampMonogram: false,

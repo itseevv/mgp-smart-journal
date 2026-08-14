@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin/session";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase";
 import type { AdminJournalTheme } from "@/lib/admin/journal-themes";
+import type { ArchiveQuotaSummary } from "@/data/archive-quota";
 
 export { capsuleListCsv, csvEscape, handoffCsv } from "@/lib/admin/capsule-csv";
 
@@ -57,6 +58,15 @@ export type AdminCapsuleDetail = AdminCapsuleSummary & {
   recoveryRotatedAt?: string | null;
   recoveryCodeVersion?: number | null;
   storageEstimateBytes: number;
+  archiveQuota: ArchiveQuotaSummary | null;
+  archiveId?: string | null;
+  archiveOwnerAuthUserId?: string | null;
+  archiveGrantHistory?: Array<{
+    id: string;
+    grantKind: "starter" | "expansion" | "adjustment";
+    grantedBytes: number;
+    createdAt: string;
+  }>;
 };
 
 export type RecoveryHandoffItem = {

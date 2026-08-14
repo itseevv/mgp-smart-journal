@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { useAdminLocale } from "@/components/admin/admin-locale-provider";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { formatArchiveCapacity, type ArchiveQuotaSummary } from "@/data/archive-quota";
 import type { AdminTranslationKey } from "@/lib/admin/i18n";
 
 type CapsuleDetail = {
@@ -34,6 +35,15 @@ type CapsuleDetail = {
   photoCount: number;
   voiceMemoCount: number;
   storageEstimateBytes: number;
+  archiveQuota: ArchiveQuotaSummary | null;
+  archiveId?: string | null;
+  archiveOwnerAuthUserId?: string | null;
+  archiveGrantHistory?: Array<{
+    id: string;
+    grantKind: "starter" | "expansion" | "adjustment";
+    grantedBytes: number;
+    createdAt: string;
+  }>;
   journalTheme?: AdminJournalTheme | null;
 };
 
@@ -59,11 +69,6 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
 
   const dateLabel = (value?: string | null) =>
     value ? formatDate(value) : t("notYet");
-
-  const bytesLabel = (value: number) =>
-    value < 1024 * 1024
-      ? `${formatNumber(Math.round(value / 1024))} KB`
-      : `${formatNumber(Number((value / 1024 / 1024).toFixed(1)))} MB`;
 
   const load = async () => {
     const response = await fetch(`/api/admin/capsules/${capsuleId}`);
@@ -223,7 +228,9 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
             <Info label={t("memories")} value={formatNumber(capsule.memoryCount)} />
             <Info label={t("photos")} value={formatNumber(capsule.photoCount)} />
             <Info label={t("voiceMemos")} value={formatNumber(capsule.voiceMemoCount)} />
-            <Info label={t("storageEstimate")} value={bytesLabel(capsule.storageEstimateBytes)} />
+            {!capsule.archiveQuota ? (
+              <Info label={t("storageEstimate")} value={formatArchiveCapacity(capsule.storageEstimateBytes)} />
+            ) : null}
             {capsule.productType === "journal" ? (
               <Info label={t("journalTheme")} value={capsule.journalTheme?.name ?? t("fallbackDefault")} />
             ) : null}
@@ -252,6 +259,37 @@ export function AdminCapsuleDetailPage({ capsuleId }: { capsuleId: string }) {
             </button>
           </div>
         </section>
+
+        {capsule.archiveQuota ? (
+          <section className="space-y-4 border-t border-rule pt-6">
+            <div>
+              <h2 className="font-sans text-sm font-bold uppercase tracking-[0.18em] text-ink">
+                {t("archiveStorage")}
+              </h2>
+              <p className="mt-1 font-sans text-sm text-ink-soft">{t("archiveStorageReadOnly")}</p>
+            </div>
+            <div className="grid gap-3 font-sans text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <Info label={t("archiveId")} value={capsule.archiveId ?? capsule.archiveQuota.archiveId} />
+              <Info label={t("archiveOwner")} value={capsule.archiveOwnerAuthUserId ?? t("notYet")} />
+              <Info label={t("linkedChips")} value={formatNumber(capsule.archiveQuota.linkedChipCount)} />
+              <Info label={t("archiveUsed")} value={formatArchiveCapacity(capsule.archiveQuota.usedBytes)} />
+              <Info label={t("archiveGranted")} value={formatArchiveCapacity(capsule.archiveQuota.grantedBytes)} />
+              <Info label={t("archivePercentage")} value={`${capsule.archiveQuota.percentage}%`} />
+              <Info label={t("archiveStatus")} value={capsule.archiveQuota.storageStatus} />
+            </div>
+            <div>
+              <h3 className="font-sans text-sm font-bold text-ink">{t("archiveGrantHistory")}</h3>
+              <ul className="mt-2 space-y-2 font-sans text-sm text-ink-soft">
+                {(capsule.archiveGrantHistory ?? []).map((grant) => (
+                  <li key={grant.id} className="flex flex-wrap justify-between gap-2 border-b border-rule pb-2">
+                    <span>{grant.grantKind}</span>
+                    <span>{formatArchiveCapacity(grant.grantedBytes)} · {dateLabel(grant.createdAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        ) : null}
 
         {capsule.productType === "journal" ? (
           <section className="space-y-4 border-t border-rule pt-6">
