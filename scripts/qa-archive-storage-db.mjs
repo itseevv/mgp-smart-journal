@@ -185,6 +185,76 @@ function assertPrelaunchDuplicateFixtureCleanup() {
   }
 }
 
+function seedPrelaunchPhotoLimitFixture() {
+  psql(`
+    insert into public.capsules(id, public_token, product_type, status, title)
+    values (
+      'ac5a42f8-1d4b-4279-ac77-a008f4c646cf',
+      repeat('9', 32),
+      'journal',
+      'unactivated',
+      'Pre-launch photo-limit fixture'
+    );
+    insert into public.memories(
+      id, capsule_id, title, occurred_at, local_date, local_timezone
+    ) values (
+      '1b27eccb-c980-4166-b9c2-034072419e75',
+      'ac5a42f8-1d4b-4279-ac77-a008f4c646cf',
+      'Fixture with nineteen photos',
+      '2026-06-16T13:54:44.138Z',
+      null,
+      null
+    );
+    insert into public.photos(
+      id, memory_id, storage_path, thumbnail_storage_path,
+      thumbnail_mime_type, thumbnail_size_bytes,
+      thumbnail_width, thumbnail_height,
+      order_index, mime_type, size_bytes
+    )
+    select
+      gen_random_uuid(),
+      '1b27eccb-c980-4166-b9c2-034072419e75',
+      'fixtures/photo-limit-display-' || photo_index || '.jpg',
+      'fixtures/photo-limit-thumbnail-' || photo_index || '.jpg',
+      'image/jpeg',
+      1,
+      1,
+      1,
+      photo_index - 1,
+      'image/jpeg',
+      1
+    from generate_series(1, 19) photo_index;
+    insert into public.voice_memos(
+      id, memory_id, title, storage_path, order_index,
+      duration_seconds, mime_type, size_bytes
+    ) values (
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3',
+      '1b27eccb-c980-4166-b9c2-034072419e75',
+      'Fixture voice', 'fixtures/photo-limit-voice.webm', 0,
+      1, 'audio/webm', 1
+    );
+  `);
+}
+
+function assertPrelaunchPhotoLimitFixtureCleanup() {
+  const result = psql(`
+    select jsonb_build_object(
+      'remainingMemories', (
+        select count(*) from public.memories
+        where id = '1b27eccb-c980-4166-b9c2-034072419e75'
+      ),
+      'queuedPaths', (
+        select count(*) from public.media_cleanup_queue
+        where capsule_id = 'ac5a42f8-1d4b-4279-ac77-a008f4c646cf'
+      )
+    );
+  `).trim();
+  const summary = JSON.parse(result);
+  if (summary.remainingMemories !== 0 || summary.queuedPaths !== 39) {
+    throw new Error(`Pre-launch photo-limit fixture cleanup failed: ${result}`);
+  }
+}
+
 function applyCanonicalMigrations() {
   const migrationsDirectory = path.join(repositoryRoot, "supabase", "migrations");
   const migrations = readdirSync(migrationsDirectory)
@@ -194,10 +264,16 @@ function applyCanonicalMigrations() {
     if (filename === "202607270001_remove_prelaunch_duplicate_journal_fixture.sql") {
       seedPrelaunchDuplicateFixture();
     }
+    if (filename === "202607270002_remove_prelaunch_photo_limit_fixture.sql") {
+      seedPrelaunchPhotoLimitFixture();
+    }
     process.stdout.write(`Applying ${filename}\n`);
     psql(readFileSync(path.join(migrationsDirectory, filename), "utf8"));
     if (filename === "202607270001_remove_prelaunch_duplicate_journal_fixture.sql") {
       assertPrelaunchDuplicateFixtureCleanup();
+    }
+    if (filename === "202607270002_remove_prelaunch_photo_limit_fixture.sql") {
+      assertPrelaunchPhotoLimitFixtureCleanup();
     }
   }
   process.stdout.write(`Applied ${migrations.length} canonical migrations.\n`);
