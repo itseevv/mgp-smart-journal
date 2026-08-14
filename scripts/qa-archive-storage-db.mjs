@@ -102,14 +102,103 @@ function bootstrapStorageFixtures() {
   );
 }
 
+function seedPrelaunchDuplicateFixture() {
+  psql(`
+    insert into public.capsules(id, public_token, product_type, status, title)
+    values (
+      '70442906-d2c9-4a1a-a39b-ab37ffdf66dc',
+      repeat('f', 32),
+      'journal',
+      'unactivated',
+      'Pre-launch duplicate fixture'
+    );
+    insert into public.memories(
+      id, capsule_id, title, occurred_at, local_date, local_timezone
+    ) values
+      (
+        '3f5ff491-429f-4e5a-b19a-5b4d31d4337a',
+        '70442906-d2c9-4a1a-a39b-ab37ffdf66dc',
+        'Fixture one',
+        '2026-06-15T13:08:39.164Z',
+        null,
+        null
+      ),
+      (
+        '46ffd4a4-ac71-4c94-8cac-e0753d436dae',
+        '70442906-d2c9-4a1a-a39b-ab37ffdf66dc',
+        'Fixture two',
+        '2026-06-15T13:09:36.300Z',
+        null,
+        null
+      );
+    insert into public.photos(
+      id, memory_id, storage_path, order_index, mime_type, size_bytes
+    ) values
+      (
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+        '3f5ff491-429f-4e5a-b19a-5b4d31d4337a',
+        'fixtures/first-display.jpg', 0, 'image/jpeg', 1
+      ),
+      (
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+        '46ffd4a4-ac71-4c94-8cac-e0753d436dae',
+        'fixtures/second-display.jpg', 0, 'image/jpeg', 1
+      );
+    insert into public.voice_memos(
+      id, memory_id, title, storage_path, order_index,
+      duration_seconds, mime_type, size_bytes
+    ) values
+      (
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+        '3f5ff491-429f-4e5a-b19a-5b4d31d4337a',
+        'Fixture voice one', 'fixtures/first-voice.webm', 0,
+        1, 'audio/webm', 1
+      ),
+      (
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+        '46ffd4a4-ac71-4c94-8cac-e0753d436dae',
+        'Fixture voice two', 'fixtures/second-voice.webm', 0,
+        1, 'audio/webm', 1
+      );
+  `);
+}
+
+function assertPrelaunchDuplicateFixtureCleanup() {
+  const result = psql(`
+    select jsonb_build_object(
+      'remainingMemories', (
+        select count(*) from public.memories
+        where id = any(array[
+          '3f5ff491-429f-4e5a-b19a-5b4d31d4337a'::uuid,
+          '46ffd4a4-ac71-4c94-8cac-e0753d436dae'::uuid
+        ])
+      ),
+      'queuedPaths', (
+        select count(*) from public.media_cleanup_queue
+        where capsule_id = '70442906-d2c9-4a1a-a39b-ab37ffdf66dc'
+      )
+    );
+  `).trim();
+  const summary = JSON.parse(result);
+  if (summary.remainingMemories !== 0 || summary.queuedPaths !== 4) {
+    throw new Error(`Pre-launch fixture cleanup failed: ${result}`);
+  }
+}
+
 function applyCanonicalMigrations() {
   const migrationsDirectory = path.join(repositoryRoot, "supabase", "migrations");
   const migrations = readdirSync(migrationsDirectory)
     .filter((filename) => filename.endsWith(".sql"))
     .sort();
   for (const filename of migrations) {
+    if (filename === "202607270001_remove_prelaunch_duplicate_journal_fixture.sql") {
+      seedPrelaunchDuplicateFixture();
+    }
     process.stdout.write(`Applying ${filename}\n`);
     psql(readFileSync(path.join(migrationsDirectory, filename), "utf8"));
+    if (filename === "202607270001_remove_prelaunch_duplicate_journal_fixture.sql") {
+      assertPrelaunchDuplicateFixtureCleanup();
+    }
   }
   process.stdout.write(`Applied ${migrations.length} canonical migrations.\n`);
 }
