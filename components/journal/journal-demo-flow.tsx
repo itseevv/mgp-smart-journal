@@ -10,10 +10,7 @@ import { useMonthQueryState } from "@/components/journal/use-month-query-state";
 import { CompletedState } from "@/components/memory/completed-state";
 import { MemoryForm } from "@/components/memory/memory-form";
 import { ScrapTable } from "@/components/scrap/scrap-table";
-import {
-  DAILY_MEMORY_STAMP_MAX_PHOTOS,
-  JOURNAL_YEAR_PHOTO_CAPACITY,
-} from "@/data/journal-product";
+import { DAILY_MEMORY_STAMP_MAX_PHOTOS } from "@/data/journal-product";
 import {
   findStampForLocalDate,
   memoryMonthKey,
@@ -390,7 +387,6 @@ export function JournalDemoFlow({
   };
 
   const sealAnotherDay = () => {
-    if (isAtJournalLimit) return;
     setActiveStampId("");
     setDraft(createDemoBackfillDraft());
     setMode("create");
@@ -492,9 +488,6 @@ export function JournalDemoFlow({
     [requestedMonth, summaries],
   );
   const existingToday = findStampForLocalDate(summaries, DEMO_NOW);
-  const isAtJournalLimit =
-    summaries.reduce((total, item) => total + item.photoCount, 0) >=
-    JOURNAL_YEAR_PHOTO_CAPACITY;
   const thumbnailUrls = useMemo(
     () =>
       Object.fromEntries(
@@ -546,8 +539,6 @@ export function JournalDemoFlow({
 
           <BottomRitualAction
             todaySealed={Boolean(existingToday)}
-            todayActionDisabled={isAtJournalLimit && !existingToday}
-            backfillDisabled={isAtJournalLimit}
             onTodayAction={sealToday}
             onBackfillAction={sealAnotherDay}
           />

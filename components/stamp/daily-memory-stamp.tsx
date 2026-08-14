@@ -34,7 +34,7 @@ const DailyStampExportComposer = dynamic(
 
 type DailyMemoryStampProps = {
   memory: MemoryEntry;
-  onEdit: () => void;
+  onEdit?: () => void;
   onBackToMonthSheet?: () => void;
   journalTitle?: string;
   onLock?: () => void;
@@ -146,15 +146,17 @@ export function DailyMemoryStamp({
               <DailyStampEmojiText value={memory.title} />
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label="Edit Memory Stamp"
-            className="daily-detail-edit-button flex h-9 w-9 items-center justify-center rounded-full"
-            data-daily-detail-edit-placement="overlay-icon"
-          >
-            <EditStampIcon className="h-3.5 w-3.5" />
-          </button>
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Edit Memory Stamp"
+              className="daily-detail-edit-button flex h-9 w-9 items-center justify-center rounded-full"
+              data-daily-detail-edit-placement="overlay-icon"
+            >
+              <EditStampIcon className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
         </header>
 
         <section

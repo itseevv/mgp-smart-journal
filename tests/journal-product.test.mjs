@@ -7,8 +7,6 @@ import {
   DAILY_MEMORY_STAMP_REQUIRED_COVER_PHOTOS,
   DEFAULT_STAMP_FRAME_ASPECT_RATIO,
   JOURNAL_VOICE_MEMOS_ENABLED,
-  JOURNAL_YEAR_DAYS,
-  JOURNAL_YEAR_PHOTO_CAPACITY,
   STAMP_FRAME_RATIO_MODE,
 } from "../data/journal-product.ts";
 import {
@@ -58,12 +56,10 @@ const stamp = (input) => ({
   coverCropMetadata: input.coverCropMetadata,
 });
 
-test("journal product constants describe one 9-image daily stamp", () => {
+test("journal product constants describe one 9-image daily stamp without a volume cap", () => {
   assert.equal(DAILY_MEMORY_STAMP_MAX_PHOTOS, 9);
   assert.equal(DAILY_MEMORY_STAMP_REQUIRED_COVER_PHOTOS, 1);
   assert.equal(DAILY_MEMORY_STAMP_MAX_ADDITIONAL_MOMENTS, 8);
-  assert.equal(JOURNAL_YEAR_DAYS, 365);
-  assert.equal(JOURNAL_YEAR_PHOTO_CAPACITY, 3285);
   assert.equal(JOURNAL_VOICE_MEMOS_ENABLED, true);
   assert.equal(STAMP_FRAME_RATIO_MODE, "square");
   assert.equal(DEFAULT_STAMP_FRAME_ASPECT_RATIO, 1);

@@ -15,7 +15,13 @@ export default async function JournalMemoryRoute({
     <CapsulePage
       publicToken={publicToken}
       memoryId={memoryId}
-      createIntent={create === "backfill" ? "backfill" : undefined}
+      createIntent={
+        create === "today"
+          ? "today"
+          : create === "backfill"
+            ? "backfill"
+            : undefined
+      }
       initialGate={initialGate}
     />
   );

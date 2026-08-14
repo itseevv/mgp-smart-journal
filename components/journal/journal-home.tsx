@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { BottomRitualAction } from "@/components/journal/bottom-ritual-action";
+import { ArchiveQuotaWarning } from "@/components/journal/archive-quota-warning";
 import { JournalIdentityHeader } from "@/components/journal/journal-identity-header";
 import { MonthlyStampSheet } from "@/components/journal/monthly-stamp-sheet";
 import { useMonthQueryState } from "@/components/journal/use-month-query-state";
@@ -128,17 +129,13 @@ export function JournalHome({
       return;
     }
 
-    if (journal.photoCount >= journal.maxPhotos) {
-      return;
-    }
-
     setNavigationBusy(true);
     const memoryId = crypto.randomUUID();
     router.push(`/c/${publicToken}/m/${memoryId}?create=today`);
   };
 
   const sealAnotherDay = () => {
-    if (navigationBusy || !journal || journal.photoCount >= journal.maxPhotos) {
+    if (navigationBusy || !journal) {
       return;
     }
 
@@ -214,8 +211,6 @@ export function JournalHome({
   }
 
   const existingToday = findStampForLocalDate(journal.memories, new Date());
-  const isAtJournalLimit = journal.photoCount >= journal.maxPhotos;
-  const sealDisabled = isAtJournalLimit && !existingToday;
   const archive = monthlyStampArchive(journal.memories, requestedMonth);
   const theme = resolveJournalTheme(journal.theme);
   const lock = () => {
@@ -273,6 +268,8 @@ export function JournalHome({
           </div>
         ) : null}
 
+        <ArchiveQuotaWarning quota={journal.archiveQuota} />
+
         <MonthlyStampSheet
           archive={archive}
           thumbnailUrls={thumbnailUrls}
@@ -284,8 +281,6 @@ export function JournalHome({
         <BottomRitualAction
           busy={navigationBusy}
           todaySealed={Boolean(existingToday)}
-          todayActionDisabled={sealDisabled}
-          backfillDisabled={isAtJournalLimit}
           onTodayAction={sealToday}
           onBackfillAction={sealAnotherDay}
         />

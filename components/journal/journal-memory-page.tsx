@@ -55,7 +55,7 @@ export function JournalMemoryPage({
 
   useEffect(() => {
     let active = true;
-    void loadJournalMemoryContext(client, capsuleId, memoryId)
+    void loadJournalMemoryContext(client, capsuleId)
       .then((next) => {
         if (active) setContext(next);
       })
@@ -104,7 +104,6 @@ export function JournalMemoryPage({
         toLocalDateKeyFromDate(new Date()),
       )
     : undefined;
-
   if (existingToday && existingToday.id !== memoryId) {
     return (
       <div className="memory-entry text-center">
@@ -125,24 +124,6 @@ export function JournalMemoryPage({
     );
   }
 
-  if (!initialMemory && context.effectivePhotoLimit <= 0) {
-    return (
-      <div className="memory-entry text-center">
-        <p className="font-serif text-xl">This journal needs a little space.</p>
-        <p className="mt-2 font-sans text-xs leading-relaxed text-ink-soft">
-          Delete a saved moment or stamp before sealing another day.
-        </p>
-        <button
-          type="button"
-          onClick={returnHome}
-          className="mt-5 font-sans text-xs font-semibold text-oxblood underline underline-offset-4"
-        >
-          Back to journal
-        </button>
-      </div>
-    );
-  }
-
   return (
     <PersistentMemoryFlow
       client={client}
@@ -151,7 +132,7 @@ export function JournalMemoryPage({
       memoryId={memoryId}
       createIntent={createIntent}
       initialMemory={initialMemory}
-      maxPhotos={context.effectivePhotoLimit}
+      maxPhotos={context.maxPhotosPerEntry}
       productMode="journal"
       journalStamps={context.memories}
       journalTitle={context.title}

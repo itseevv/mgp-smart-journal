@@ -110,7 +110,6 @@ export function JournalPhotoPicker({
   const coverCropStyle = cropMetadataToImageStyle(cover?.cropMetadata);
   const additionalCapacity = dailyStampAdditionalMomentCapacity(
     photos.length,
-    config.maxPhotosPerMemory,
   );
 
   useEffect(() => {
@@ -167,9 +166,7 @@ export function JournalPhotoPicker({
     }
     if (overLimitCount > 0) {
       explanations.push(
-        additionalCapacity.limitedByJournalCapacity
-          ? "This journal has reached its photo limit."
-          : "This stamp already has its optional moments.",
+        "This stamp already has its optional moments.",
       );
     }
     const nextPhotos: MemoryPhoto[] = [];
@@ -413,8 +410,6 @@ export function JournalPhotoPicker({
                     Add up to {additionalCapacity.remaining} more{" "}
                     {additionalCapacity.remaining === 1 ? "moment" : "moments"}.
                   </>
-                ) : additionalCapacity.limitedByJournalCapacity ? (
-                  "This journal has reached its photo limit."
                 ) : (
                   "This stamp already has all 8 optional moments."
                 )}

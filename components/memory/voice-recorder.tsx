@@ -18,6 +18,8 @@ import {
   type MemoryMediaConfig,
   type MemoryVoiceMemo,
 } from "@/data/memory-demo";
+import { JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND } from "@/data/journal-product";
+import { measureRecordingElapsed } from "@/data/journal";
 
 export type RecorderStatus =
   | "idle"
@@ -44,6 +46,47 @@ type VoiceRecorderProps = {
 };
 
 const PERMISSION_TIMEOUT_MS = 12000;
+const MEDIA_DURATION_TIMEOUT_MS = 5000;
+// Ask MediaRecorder to stop just before the product boundary. Browsers may
+// deliver the timer late or add a small amount of container/encoder padding,
+// so attachment accepts at most one additional second and stores 300 max.
+const RECORDING_AUTO_STOP_LEAD_SECONDS = 0.25;
+const RECORDING_DURATION_GRACE_SECONDS = 1;
+
+function monotonicNow() {
+  return performance.now();
+}
+
+async function readBlobMediaDurationSeconds(blob: Blob) {
+  if (typeof Audio === "undefined") return undefined;
+  const objectUrl = URL.createObjectURL(blob);
+  return new Promise<number | undefined>((resolve) => {
+    const audio = new Audio();
+    let settled = false;
+    const finish = (duration?: number) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      audio.removeAttribute("src");
+      audio.load();
+      URL.revokeObjectURL(objectUrl);
+      resolve(
+        duration !== undefined && Number.isFinite(duration) && duration > 0
+          ? duration
+          : undefined,
+      );
+    };
+    const timeout = window.setTimeout(
+      () => finish(),
+      MEDIA_DURATION_TIMEOUT_MS,
+    );
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => finish(audio.duration);
+    audio.onerror = () => finish();
+    audio.src = objectUrl;
+    audio.load();
+  });
+}
 
 function preferredMimeType() {
   const candidates = [
@@ -52,6 +95,23 @@ function preferredMimeType() {
     "audio/mp4",
   ];
   return candidates.find((type) => MediaRecorder.isTypeSupported(type));
+}
+
+function createMediaRecorder(stream: MediaStream, mimeType?: string) {
+  const mimeOptions = mimeType ? { mimeType } : {};
+  try {
+    return new MediaRecorder(stream, {
+      ...mimeOptions,
+      audioBitsPerSecond: JOURNAL_VOICE_NOTE_TARGET_BITS_PER_SECOND,
+    });
+  } catch {
+    // Older Safari versions may reject the bitrate option. Keep audio/mp4
+    // recording available; the byte ceiling below remains authoritative.
+    return new MediaRecorder(
+      stream,
+      mimeType ? { mimeType } : undefined,
+    );
+  }
 }
 
 export function getAvailableRecordingSeconds(
@@ -86,12 +146,12 @@ export function VoiceRecorder({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const permissionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestTokenRef = useRef(0);
-  const elapsedMillisecondsRef = useRef(0);
-  const elapsedRef = useRef(0);
+  const recordingStartedAtRef = useRef(0);
   const disposedRef = useRef(false);
   const replacementIdRef = useRef<string | undefined>(undefined);
   const recordingLimitRef = useRef(0);
   const recordingFailedRef = useRef(false);
+  const recordedBytesRef = useRef(0);
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activeMemoId, setActiveMemoId] = useState<string | null>(null);
@@ -227,21 +287,26 @@ export function VoiceRecorder({
       streamRef.current = stream;
       chunksRef.current = [];
       recordingFailedRef.current = false;
-      elapsedMillisecondsRef.current = 0;
-      elapsedRef.current = 0;
+      recordedBytesRef.current = 0;
+      recordingStartedAtRef.current = 0;
       recordingLimitRef.current = availableSeconds;
       setRecordingLimit(availableSeconds);
       setElapsedSeconds(0);
 
       const mimeType = preferredMimeType();
-      const recorder = new MediaRecorder(
-        stream,
-        mimeType ? { mimeType } : undefined,
-      );
+      const recorder = createMediaRecorder(stream, mimeType);
       recorderRef.current = recorder;
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
+        if (event.data.size <= 0) return;
+        chunksRef.current.push(event.data);
+        recordedBytesRef.current += event.data.size;
+        if (
+          recordedBytesRef.current > config.maxVoiceMemoFileSizeBytes &&
+          recorder.state === "recording"
+        ) {
+          stopRecording();
+        }
       };
       recorder.onerror = () => {
         recordingFailedRef.current = true;
@@ -256,7 +321,7 @@ export function VoiceRecorder({
           setJournalNoteConfirmed(true);
         }
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         clearTimer();
         stopTracks();
         if (disposedRef.current) return;
@@ -279,12 +344,49 @@ export function VoiceRecorder({
           }
           return;
         }
+        if (blob.size > config.maxVoiceMemoFileSizeBytes) {
+          setStatus("error");
+          setStatusMessage(
+            `This recording is larger than ${Math.floor(config.maxVoiceMemoFileSizeBytes / (1024 * 1024))} MiB and was not attached. Your existing voice memo is unchanged.`,
+          );
+          if (journalMode && voiceMemos.length === 0) {
+            setJournalNoteConfirmed(true);
+          }
+          return;
+        }
+
+        const monotonicElapsed = measureRecordingElapsed(
+          recordingStartedAtRef.current,
+          monotonicNow(),
+          recordingLimitRef.current,
+        );
+        const mediaDurationSeconds =
+          await readBlobMediaDurationSeconds(blob);
+        if (disposedRef.current) return;
+        const observedDurationSeconds =
+          mediaDurationSeconds ?? monotonicElapsed.actualSeconds;
+        if (
+          observedDurationSeconds >
+          recordingLimitRef.current + RECORDING_DURATION_GRACE_SECONDS
+        ) {
+          setStatus("error");
+          setStatusMessage(
+            "This recording exceeds the five-minute limit and was not attached. Your existing voice memo is unchanged.",
+          );
+          if (journalMode && voiceMemos.length === 0) {
+            setJournalNoteConfirmed(true);
+          }
+          return;
+        }
 
         const objectUrl = URL.createObjectURL(blob);
         registerObjectUrl(objectUrl);
-        const durationSeconds = Math.min(
-          recordingLimitRef.current,
-          Math.max(1, elapsedRef.current),
+        const durationSeconds = Math.max(
+          1,
+          Math.min(
+            recordingLimitRef.current,
+            Math.ceil(observedDurationSeconds),
+          ),
         );
         const replacementId = replacementIdRef.current;
         let nextVoiceMemos: MemoryVoiceMemo[];
@@ -348,17 +450,25 @@ export function VoiceRecorder({
         }
       };
 
+      recordingStartedAtRef.current = monotonicNow();
       recorder.start(250);
       setStatus("recording");
       timerRef.current = setInterval(() => {
-        elapsedMillisecondsRef.current += 250;
-        const elapsed = Math.min(
+        const elapsed = measureRecordingElapsed(
+          recordingStartedAtRef.current,
+          monotonicNow(),
           recordingLimitRef.current,
-          Math.floor(elapsedMillisecondsRef.current / 1000),
         );
-        elapsedRef.current = elapsed;
-        setElapsedSeconds(elapsed);
-        if (elapsed >= recordingLimitRef.current) stopRecording();
+        setElapsedSeconds(elapsed.displaySeconds);
+        if (
+          elapsed.actualSeconds >=
+          Math.max(
+            0,
+            recordingLimitRef.current - RECORDING_AUTO_STOP_LEAD_SECONDS,
+          )
+        ) {
+          stopRecording();
+        }
       }, 250);
     } catch (error) {
       clearPermissionTimer();
